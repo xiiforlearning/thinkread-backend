@@ -1,8 +1,8 @@
 {
-  "name": "english-helper-bot",
+  "name": "thinkread-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "Telegram bot for tracking daily English reading and vocabulary",
+  "description": "ThinkRead — AI Telegram bot, Mini App API and admin dashboard API for reading and listening practice",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=20"
@@ -14,9 +14,9 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
-    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "test": "jest --passWithNoTests",
+    "lint": "eslint \"src/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" ormconfig.ts",
+    "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "typeorm": "ts-node --transpile-only ./node_modules/typeorm/cli.js -d ormconfig.ts",
@@ -24,7 +24,8 @@
     "migration:revert": "pnpm typeorm migration:revert",
     "migration:show": "pnpm typeorm migration:show",
     "migration:generate": "pnpm typeorm migration:generate src/infra/db/migrations/$npm_config_name",
-    "migration:create": "ts-node --transpile-only ./node_modules/typeorm/cli.js migration:create src/infra/db/migrations/$npm_config_name"
+    "migration:create": "ts-node --transpile-only ./node_modules/typeorm/cli.js migration:create src/infra/db/migrations/$npm_config_name",
+    "lint:check": "eslint \"src/**/*.ts\""
   },
   "dependencies": {
     "@nestjs/common": "^10.4.6",

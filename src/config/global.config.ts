@@ -1,56 +1,69 @@
+/**
+ * Domain defaults. `.env` holds only secrets/infrastructure; everything a
+ * teacher might want to tune lives here. Later these become the fallback for
+ * values stored in the `settings` table (editable from the admin UI).
+ */
 export const globalConfig = {
-  reading: {
-    minPagesPerDay: 10,
-    maxPagesPerDay: 15,
+  norms: {
+    readingPerWeek: 3,
+    listeningPerWeek: 3,
+    cardsPerDay: 5,
+    /** Weeks start on Monday (ISO), computed in `timezone`. */
+    weekStartsOn: 1 as const,
+    /** Flag a student who missed a weekly norm this many weeks in a row. */
+    missedWeeksForFlag: 3,
+  },
+
+  cards: {
+    /** Correct answers on a stage before the word moves to the next stage. */
+    correctToAdvance: 2,
+    /** Successes on stage 3 before a word is marked LEARNED (0 = manual only). */
+    stage3ToLearned: 2,
+    /** Days until the next review after the 1st, 2nd, 3rd+ correct answer. */
+    intervalsDays: [1, 3, 7] as readonly number[],
+  },
+
+  words: {
+    /** Adding more than this many words at once requires confirmation. */
+    bulkImportConfirmThreshold: 5,
+    importPreviewTtlHours: 24,
+  },
+
+  reminders: {
+    cardsTime: '18:00',
+    /** 0=Sun … 6=Sat. */
+    reportDays: [4, 6] as readonly number[],
+    reportsTime: '19:00',
+    tiredDays: 3,
+  },
+
+  ai: {
+    contextMessages: 10,
+    contextWindowHours: 24,
+    offTopicSoftCap: 3,
+    maxToolIterations: 5,
+    dailyTokenLimitPerStudent: 200_000,
+    spotCheckProbability: 0.2,
+  },
+
+  health: {
+    yellowInactiveDays: 4,
+    redInactiveDays: 8,
   },
 
   schedule: {
-    morningTime: '08:00',
-    eveningTime: '20:00',
-    finalizeTime: '00:05',
-    /** Weekly teacher report: Saturday (cron dow 6) at 09:00, covering the just-finished Mon–Fri. */
-    weeklyReport: { cronDow: 6, time: '09:00' },
-    /** Days the bot runs the daily flow (0=Sun … 6=Sat). Mon–Fri only. */
-    classDays: [1, 2, 3, 4, 5] as readonly number[],
+    membershipCheckCron: '0 10 1 * *',
+    weeklySummaryCron: '0 9 * * 1',
   },
 
-  streaks: {
-    inactiveDaysForPresentation: 3,
-  },
-
-  spacedRepetition: {
-    initialEase: 2.5,
-    minEase: 1.3,
-    maxEase: 2.7,
-    easeIncrement: 0.05,
-    easeDecrement: 0.2,
-    firstIntervalDays: 1,
-    secondIntervalDays: 3,
-    defaultSessionSize: 10,             // 1–this due → auto-start all; more → chooser
-    sessionSizeOptions: [20, 50, 100],  // shown when due exceeds each threshold
-    secondsPerCard: 30,                 // for time estimate in chooser
-  },
-
-  reports: {
+  telegram: {
     maxMessageLength: 4000,
-    /**
-     * Anti-AI morning self-check: a student's weekly recall accuracy on their
-     * own new words. Below `suspectRate` with at least `minSampleWords` answered
-     * is flagged (advisory only) in the weekly report.
-     */
-    recall: {
-      minSampleWords: 8,
-      suspectRate: 0.4,
-    },
+    /** Stay under Telegram's ~30 msg/s broadcast limit. */
+    broadcastPerSecond: 25,
   },
 
   admin: {
     /** Telegram admin custom_title that marks a user as a teacher of the group. Case-insensitive. */
     teacherCustomTitle: 'teacher',
-  },
-
-  bot: {
-    polling: true,
-    longPollingTimeoutSec: 30,
   },
 };

@@ -1,9 +1,10 @@
 import { Logger } from '@nestjs/common';
-import { Ctx, Next, On, Update, Use } from 'nestjs-telegraf';
+import { Ctx, Next, On, Start, Update, Use } from 'nestjs-telegraf';
 import { Context } from 'telegraf';
 import { GroupsService } from '../../domain/groups/groups.service';
 import { StudentsService } from '../../domain/students/students.service';
 import { TeacherResolverService } from '../teacher/teacher-resolver.service';
+import { botMessages } from './messages';
 
 @Update()
 export class BotUpdate {
@@ -17,11 +18,10 @@ export class BotUpdate {
 
   @Use()
   async logEveryUpdate(@Ctx() ctx: Context, @Next() next: () => Promise<void>): Promise<void> {
-    const text = ctx.message && 'text' in ctx.message ? ctx.message.text : undefined;
+    // Message text is not logged: students' reports are personal data.
     this.logger.log(
-      `update type=${ctx.updateType} chat=${ctx.chat?.id ?? '-'}(${ctx.chat?.type ?? '-'}) from=${ctx.from?.id ?? '-'} text=${JSON.stringify(text)}`,
+      `update type=${ctx.updateType} chat=${ctx.chat?.id ?? '-'}(${ctx.chat?.type ?? '-'}) from=${ctx.from?.id ?? '-'}`,
     );
-    // Any incoming DM proves the user hasn't blocked the bot — clear the flag.
     if (ctx.from && ctx.chat?.type === 'private') {
       try {
         await this.students.clearDmBlockedByTelegramId(ctx.from.id);
@@ -55,9 +55,19 @@ export class BotUpdate {
     const title = 'title' in chat ? chat.title : 'Untitled';
     this.logger.log(`Bot added to group ${chat.id} "${title}" by user ${update.from.id}`);
 
-    // Accept any invite — admin commands are gated by per-group teacher tag (or super-admin).
     await this.groups.upsert(chat.id, title);
-    // Refresh teacher cache so DM-context teacher checks see them immediately.
     await this.teacher.refresh(chat.id).catch(() => undefined);
+  }
+
+  @Start()
+  async onStart(@Ctx() ctx: Context): Promise<void> {
+    if (ctx.chat?.type !== 'private') return;
+    await ctx.reply(botMessages.underConstruction);
+  }
+
+  @On('text')
+  async onText(@Ctx() ctx: Context): Promise<void> {
+    if (ctx.chat?.type !== 'private') return;
+    await ctx.reply(botMessages.underConstruction);
   }
 }
