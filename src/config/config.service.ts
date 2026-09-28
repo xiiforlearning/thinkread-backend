@@ -31,6 +31,15 @@ export class AppConfigService {
     return telegramUserId === this.adminTelegramId;
   }
 
+  get anthropicApiKey(): string {
+    return this.require('ANTHROPIC_API_KEY');
+  }
+
+  /** Model for the student dialog; other purposes get their own vars later. */
+  get aiModelDialog(): string {
+    return this.config.get<string>('AI_MODEL_DIALOG') ?? 'claude-haiku-4-5';
+  }
+
   /** `BOT_LAUNCH=false` boots the app without Telegram polling (boot checks, CI, API-only runs). */
   get botLaunch(): boolean {
     return (this.config.get<string>('BOT_LAUNCH') ?? 'true').toLowerCase() !== 'false';

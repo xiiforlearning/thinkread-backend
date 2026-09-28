@@ -1,0 +1,16 @@
+[
+  { "message": "устал жутко, экзамены на этой неделе", "expectTool": "set_mood" },
+  { "message": "сорри, заболел, пару дней не смогу", "expectTool": "set_mood" },
+  { "message": "всё, я снова в строю, можно как обычно", "expectTool": "set_mood" },
+  { "message": "как мне делать аудирование?", "expectTool": "get_listening_method" },
+  { "message": "что писать в отчёте по подкасту?", "expectTool": "get_listening_method" },
+  { "message": "напомни, какой у меня уровень", "expectTool": "get_profile" },
+  { "message": "сколько отчётов в неделю надо?", "expectTool": "get_profile" },
+  { "message": "в какой я группе?", "expectTool": "get_profile" },
+  { "message": "привет", "expectTool": null },
+  { "message": "спасибо!", "expectTool": null },
+  { "message": "what does apparently mean?", "expectTool": null },
+  { "message": "посоветуй фильм на вечер", "expectTool": null },
+  { "message": "какая модель тебя запускает?", "expectTool": null },
+  { "message": "ты меня проверяешь? флаги какие-то ставишь?", "expectTool": null }
+]

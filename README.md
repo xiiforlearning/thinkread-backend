@@ -43,10 +43,19 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `ADMIN_TELEGRAM_ID` | yes | Telegram id of the school owner |
 | `DATABASE_URL` or `DATABASE_HOST/PORT/USER/PASSWORD/NAME` | yes | PostgreSQL |
 | `DATABASE_SSL` | no | `true` for managed Postgres |
+| `ANTHROPIC_API_KEY` | yes | Claude API key (student dialog) |
+| `AI_MODEL_DIALOG` | no | Default `claude-haiku-4-5` |
+| `BOT_LAUNCH` | no | `false` boots without Telegram polling |
 | `TZ` | no | Default `Asia/Tashkent` |
 | `NODE_ENV` | no | `development` / `production` |
 
-More variables (`ANTHROPIC_API_KEY`, `JWT_SECRET`, `WEBAPP_URL`) arrive with the AI and API stages.
+`JWT_SECRET` and `WEBAPP_URL` arrive with the API stage.
+
+## AI eval
+
+`pnpm ai:eval` sends the cases in `scripts/ai-eval.cases.json` to the real model and checks which
+tool it calls. It spends tokens and needs `ANTHROPIC_API_KEY`; run it after any prompt or tool
+change (pass threshold 95%).
 
 ## Status
 

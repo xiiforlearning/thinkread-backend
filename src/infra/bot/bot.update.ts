@@ -1,14 +1,16 @@
 import { Logger } from '@nestjs/common';
 import { Action, Ctx, Next, On, Start, Update, Use } from 'nestjs-telegraf';
 import { Context, Markup } from 'telegraf';
+import { AppError } from '../../common/errors';
 import { AccessService } from '../../domain/admins/access.service';
+import { AgentService } from '../../domain/ai/agent.service';
+import { aiMessages } from '../../domain/ai/messages';
 import { GroupsService } from '../../domain/groups/groups.service';
 import { GROUP_LEVELS, GroupLevel } from '../../domain/groups/level';
 import { LEVEL_LABELS, groupMessages } from '../../domain/groups/messages';
 import { RegistrationService } from '../../domain/students/registration.service';
 import { StudentsService } from '../../domain/students/students.service';
 import { TeacherResolverService } from '../teacher/teacher-resolver.service';
-import { botMessages } from './messages';
 
 const LEVEL_ACTION = /^level:(-?\d+):([A-Z_]+)$/;
 
@@ -24,6 +26,7 @@ export class BotUpdate {
     private readonly teacher: TeacherResolverService,
     private readonly access: AccessService,
     private readonly registration: RegistrationService,
+    private readonly agent: AgentService,
   ) {}
 
   @Use()
@@ -137,7 +140,21 @@ export class BotUpdate {
       await ctx.reply(gate.text);
       return;
     }
-    // Active student: the AI dialog (stage 3) takes over here.
-    await ctx.reply(botMessages.underConstruction);
+
+    try {
+      const reply = await this.agent.handle(gate.student, text);
+      const keyboard = reply.keyboard
+        ? Markup.inlineKeyboard(
+            reply.keyboard.map((row) =>
+              row.map((b) => Markup.button.callback(b.text, b.callbackData)),
+            ),
+          )
+        : undefined;
+      await ctx.reply(reply.text, keyboard);
+    } catch (err) {
+      const code = err instanceof AppError ? err.code : 'unknown';
+      this.logger.error(`AI turn failed for ${ctx.from.id}: ${code} ${(err as Error).message}`);
+      await ctx.reply(aiMessages.unavailable);
+    }
   }
 }

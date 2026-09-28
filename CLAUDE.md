@@ -14,9 +14,24 @@ The product spec lives in Notion (workspace **ThinkRead → 📜 Докумен�
 "Поверхностное ТЗ" for the data model and error codes, "AI-агент и инструменты" for the AI layer,
 "План разработки" for the build order. Keep Notion and code in sync when a decision changes.
 
-**Current stage:** stage 2 done — group level via inline keyboard (owner only), registration
-gated by `getChatMember`, real name, monthly membership check with archive/restore and an owner
-summary. Next: stage 3 (AI core: Claude + tools).
+**Current stage:** stage 3 done — AI core: `AgentService` (Claude Haiku 4.5, manual tool loop,
+prompt caching, per-student serialization, daily token budget, usage log) with the first tools
+(`get_profile`, `get_listening_method`, `set_mood`, `mark_reminder_woven`). Next: stage 4
+(reports) — add `save_reading_report` / `save_listening_report` tools.
+
+### AI layer (`domain/ai`)
+
+- `LLM_PORT` is the only way to reach the model; `infra/ai/AnthropicModule` provides it globally.
+- A tool = one class implementing `AgentTool` (`name`, `description`, JSON-schema `inputSchema`,
+  `handle(input, ctx)`), registered in `TOOL_CLASSES` in `ai.module.ts`. Tools get the caller via
+  `ctx.student` — never accept a student id from the model. Return `{ data }` (short JSON for the
+  model) and optionally a `keyboard`.
+- Prompt caching: `buildSystemPrompt()` and the sorted tool list are the cached prefix — keep them
+  free of dates, names and counters. Volatile context goes into `buildStateBlock()` on the current
+  user turn. A cache miss on a follow-up turn is logged as a warning.
+- History (`ai_messages`) stores user text and the assistant's final text only; every call is
+  logged to `ai_usage` with an estimated cost (`usage.service.ts` pricing table).
+- Prompt/tool changes: run `pnpm ai:eval` (real API) and keep `scripts/ai-eval.cases.json` growing.
 
 ### Ports (domain ↔ Telegram)
 

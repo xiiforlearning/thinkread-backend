@@ -3,6 +3,7 @@ import { TelegrafModule } from 'nestjs-telegraf';
 import { AppConfigModule } from '../../config/config.module';
 import { AppConfigService } from '../../config/config.service';
 import { AdminsModule } from '../../domain/admins/admins.module';
+import { AiModule } from '../../domain/ai/ai.module';
 import { GroupsModule } from '../../domain/groups/groups.module';
 import { RegistrationModule } from '../../domain/students/registration.module';
 import { StudentsModule } from '../../domain/students/students.module';
@@ -28,6 +29,7 @@ import { BotInfoService } from './services/bot-info.service';
     StudentsModule,
     RegistrationModule,
     AdminsModule,
+    AiModule,
     TeacherModule,
   ],
   providers: [BotInfoService, BotCommandsService, BotUpdate],
