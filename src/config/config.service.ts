@@ -1,0 +1,75 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService as NestConfigService } from '@nestjs/config';
+
+@Injectable()
+export class AppConfigService {
+  constructor(private readonly config: NestConfigService) {}
+
+  private require(key: string): string {
+    const value = this.config.get<string>(key);
+    if (value === undefined || value === null || value === '') {
+      throw new Error(`Missing required env var: ${key}`);
+    }
+    return value;
+  }
+
+  get botToken(): string {
+    return this.require('BOT_TOKEN');
+  }
+
+  get adminTelegramId(): number {
+    const raw = this.require('ADMIN_TELEGRAM_ID');
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed)) {
+      throw new Error(`ADMIN_TELEGRAM_ID must be an integer, got: ${raw}`);
+    }
+    return parsed;
+  }
+
+  isSuperAdmin(telegramUserId: number | undefined): boolean {
+    if (telegramUserId === undefined) return false;
+    return telegramUserId === this.adminTelegramId;
+  }
+
+  get timezone(): string {
+    return this.config.get<string>('TZ') ?? 'Asia/Tashkent';
+  }
+
+  get databaseUrl(): string | undefined {
+    const url = this.config.get<string>('DATABASE_URL');
+    return url && url.length > 0 ? url : undefined;
+  }
+
+  get databaseSsl(): boolean {
+    const raw = (this.config.get<string>('DATABASE_SSL') ?? '').toLowerCase();
+    return raw === 'true' || raw === '1';
+  }
+
+  get databaseHost(): string {
+    return this.require('DATABASE_HOST');
+  }
+
+  get databasePort(): number {
+    return Number(this.config.get<string>('DATABASE_PORT') ?? '5432');
+  }
+
+  get databaseUser(): string {
+    return this.require('DATABASE_USER');
+  }
+
+  get databasePassword(): string {
+    return this.require('DATABASE_PASSWORD');
+  }
+
+  get databaseName(): string {
+    return this.require('DATABASE_NAME');
+  }
+
+  get nodeEnv(): string {
+    return this.config.get<string>('NODE_ENV') ?? 'development';
+  }
+
+  get isProduction(): boolean {
+    return this.nodeEnv === 'production';
+  }
+}
