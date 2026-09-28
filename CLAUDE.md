@@ -14,8 +14,17 @@ The product spec lives in Notion (workspace **ThinkRead → 📜 Докумен�
 "Поверхностное ТЗ" for the data model and error codes, "AI-агент и инструменты" for the AI layer,
 "План разработки" for the build order. Keep Notion and code in sync when a decision changes.
 
-**Current stage:** stage 1 done — clean skeleton, new data model, baseline migration. Next:
-stage 2 (groups, registration, membership check), stage 3 (AI core).
+**Current stage:** stage 2 done — group level via inline keyboard (owner only), registration
+gated by `getChatMember`, real name, monthly membership check with archive/restore and an owner
+summary. Next: stage 3 (AI core: Claude + tools).
+
+### Ports (domain ↔ Telegram)
+
+Domain services never import telegraf. They depend on small interfaces —
+`MEMBERSHIP_PORT` (`getMemberStatus`) and `NOTIFIER_PORT` (`sendToUser`) — implemented in
+`infra/bot/ports/` and provided by the global `TelegramPortsModule`. Tests use fakes.
+
+`BOT_LAUNCH=false` boots everything without polling (handlers registered, no `bot.launch()`).
 
 ## Architecture
 

@@ -31,6 +31,11 @@ export class AppConfigService {
     return telegramUserId === this.adminTelegramId;
   }
 
+  /** `BOT_LAUNCH=false` boots the app without Telegram polling (boot checks, CI, API-only runs). */
+  get botLaunch(): boolean {
+    return (this.config.get<string>('BOT_LAUNCH') ?? 'true').toLowerCase() !== 'false';
+  }
+
   get timezone(): string {
     return this.config.get<string>('TZ') ?? 'Asia/Tashkent';
   }

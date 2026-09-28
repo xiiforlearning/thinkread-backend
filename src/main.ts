@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AppConfigService } from './config/config.service';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -21,7 +22,10 @@ async function bootstrap(): Promise<void> {
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port, '0.0.0.0');
-  logger.log(`Bot started, polling. HTTP + Swagger on :${port}/docs`);
+  const polling = app.get(AppConfigService).botLaunch
+    ? 'polling'
+    : 'polling disabled (BOT_LAUNCH=false)';
+  logger.log(`Bot started, ${polling}. HTTP + Swagger on :${port}/docs`);
 }
 
 bootstrap().catch((err) => {
