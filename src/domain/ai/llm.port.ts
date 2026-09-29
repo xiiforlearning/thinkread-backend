@@ -12,6 +12,8 @@ export interface LlmRequest {
   system: Anthropic.TextBlockParam[];
   tools: Anthropic.Tool[];
   messages: Anthropic.MessageParam[];
+  /** Force a specific tool (structured output); omitted = auto. */
+  toolChoice?: Anthropic.ToolChoice;
 }
 
 export interface LlmPort {

@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { AppConfigModule } from './config/config.module';
 import { AdminsModule } from './domain/admins/admins.module';
 import { AiModule } from './domain/ai/ai.module';
+import { FlagsModule } from './domain/flags/flags.module';
+import { ReportsModule } from './domain/reports/reports.module';
 import { NormsModule } from './domain/norms/norms.module';
 import { AnthropicModule } from './infra/ai/anthropic.module';
 import { GroupsModule } from './domain/groups/groups.module';
@@ -21,6 +23,8 @@ import { TeacherModule } from './infra/teacher/teacher.module';
     StudentsModule,
     AdminsModule,
     NormsModule,
+    ReportsModule,
+    FlagsModule,
     AnthropicModule,
     AiModule,
     MembershipModule,

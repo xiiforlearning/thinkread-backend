@@ -27,6 +27,7 @@ export class AnthropicLlmAdapter implements LlmPort {
         system: request.system,
         tools: request.tools,
         messages: request.messages,
+        ...(request.toolChoice ? { tool_choice: request.toolChoice } : {}),
       });
     } catch (err) {
       throw this.toAppError(err);

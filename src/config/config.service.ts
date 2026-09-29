@@ -35,9 +35,14 @@ export class AppConfigService {
     return this.require('ANTHROPIC_API_KEY');
   }
 
-  /** Model for the student dialog; other purposes get their own vars later. */
+  /** Model for the student dialog. */
   get aiModelDialog(): string {
     return this.config.get<string>('AI_MODEL_DIALOG') ?? 'claude-haiku-4-5';
+  }
+
+  /** Model for the background authenticity check of reports; defaults to the dialog model. */
+  get aiModelAuthenticity(): string {
+    return this.config.get<string>('AI_MODEL_AUTHENTICITY') ?? this.aiModelDialog;
   }
 
   /** `BOT_LAUNCH=false` boots the app without Telegram polling (boot checks, CI, API-only runs). */

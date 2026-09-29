@@ -8,17 +8,28 @@ import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
 import { AiMessageRole } from '../ai-log/ai-message.entity';
 import { AiPurpose } from '../ai-log/ai-usage.entity';
+import { SpotCheckVerdict } from '../flags/flag.enums';
+import { FlagsService } from '../flags/flags.service';
 import { listeningMethodFor } from '../groups/level';
 import { RemindersService } from '../norms/reminders.service';
 import { localDay } from '../norms/week';
+import { ReportsService } from '../reports/reports.service';
 import { displayNameOf } from '../students/name-validation';
 import { Student } from '../students/student.entity';
+import { StudentsService } from '../students/students.service';
 import { DialogHistoryService } from './dialog-history.service';
 import { LLM_PORT, LlmPort } from './llm.port';
 import { aiMessages } from './messages';
 import { KeyedLock } from './student-lock';
 import { buildStateBlock, buildSystemPrompt } from './system.prompt';
-import { AGENT_TOOLS, AgentTool, ToolContext, ToolResult, toApiTool } from './tool';
+import {
+  AGENT_TOOLS,
+  AgentTool,
+  IncomingMessage,
+  ToolContext,
+  ToolResult,
+  toApiTool,
+} from './tool';
 import { UsageService } from './usage.service';
 
 export interface AgentReply {
@@ -54,6 +65,9 @@ export class AgentService {
     private readonly history: DialogHistoryService,
     private readonly usage: UsageService,
     private readonly reminders: RemindersService,
+    private readonly reports: ReportsService,
+    private readonly flags: FlagsService,
+    private readonly students: StudentsService,
     private readonly config: AppConfigService,
   ) {
     // Deterministic order — the tool list is part of the cached prefix.
@@ -67,25 +81,32 @@ export class AgentService {
   }
 
   /** Handle a student message. Serialized per student. */
-  handle(student: Student, text: string, now = new Date()): Promise<AgentReply> {
-    return this.lock.run(student.id, () => this.turn(student, text, now));
+  handle(
+    student: Student,
+    text: string,
+    now = new Date(),
+    options: { forwarded?: boolean } = {},
+  ): Promise<AgentReply> {
+    const message: IncomingMessage = { text, forwarded: options.forwarded ?? false };
+    return this.lock.run(student.id, () => this.turn(student, message, now));
   }
 
-  private async turn(student: Student, text: string, now: Date): Promise<AgentReply> {
+  private async turn(student: Student, message: IncomingMessage, now: Date): Promise<AgentReply> {
     const timeZone = this.config.timezone;
+    const text = message.text;
 
     if (await this.overDailyBudget(student.id, now, timeZone)) {
       this.logger.warn(`student ${student.id} over daily token budget`);
       return { text: aiMessages.budgetExceeded };
     }
 
-    const ctx: ToolContext = { student, now, timeZone };
+    const ctx: ToolContext = { student, now, timeZone, message };
     const messages: Anthropic.MessageParam[] = [
       ...(await this.history.recent(student.id, now)),
       {
         role: 'user',
         content: [
-          { type: 'text', text: await this.stateBlock(student, now, timeZone) },
+          { type: 'text', text: await this.stateBlock(student, message, now, timeZone) },
           { type: 'text', text },
         ],
       },
@@ -196,9 +217,19 @@ export class AgentService {
     return text.length > 0 ? text : aiMessages.cannotAnswer;
   }
 
-  private async stateBlock(student: Student, now: Date, timeZone: string): Promise<string> {
+  private async stateBlock(
+    student: Student,
+    message: IncomingMessage,
+    now: Date,
+    timeZone: string,
+  ): Promise<string> {
     const local = toZonedTime(now, timeZone);
     const lines: string[] = [];
+
+    const progress = await this.reports.weekProgress(student.id, now, timeZone);
+    lines.push(
+      `Нормы этой недели: чтение ${progress.reading}/${progress.readingNorm}, аудирование ${progress.listening}/${progress.listeningNorm}.`,
+    );
 
     const pending = await this.reminders.pendingToday(student.id, now, timeZone);
     lines.push(
@@ -212,6 +243,12 @@ export class AgentService {
         `Студент недавно сказал, что устал (до ${localDay(new Date(tiredUntil), timeZone)}) — мягче и реже.`,
       );
     }
+    if (message.forwarded) {
+      lines.push('Это сообщение переслано из другого чата.');
+    }
+
+    const spotCheck = await this.pendingSpotCheck(student, now);
+    if (spotCheck) lines.push(spotCheck);
 
     return buildStateBlock({
       displayName: displayNameOf(student),
@@ -221,6 +258,30 @@ export class AgentService {
       weekday: WEEKDAYS[local.getDay()],
       lines,
     });
+  }
+
+  /**
+   * The spot-check line for the state block, if one is waiting. First shown =
+   * asked; one left unanswered for too long becomes NO_ANSWER and is dropped.
+   */
+  private async pendingSpotCheck(student: Student, now: Date): Promise<string | null> {
+    const id = student.dialogState.pendingSpotCheckId;
+    if (!id) return null;
+    const check = await this.flags.findSpotCheck(id);
+    if (!check || check.answeredAt !== null) {
+      await this.students.patchDialogState(student, { pendingSpotCheckId: undefined });
+      return null;
+    }
+    const expiry = globalConfig.ai.spotCheckExpiryDays * 86_400_000;
+    if (check.askedAt !== null && now.getTime() - check.askedAt.getTime() > expiry) {
+      await this.flags.answerSpotCheck(check.id, null, SpotCheckVerdict.NO_ANSWER, now);
+      await this.students.patchDialogState(student, { pendingSpotCheckId: undefined });
+      return null;
+    }
+    if (check.askedAt === null) await this.flags.markSpotCheckAsked(check.id, now);
+    const report = await this.reports.findById(check.reportId);
+    const about = report?.sourceTitle ? ` («${report.sourceTitle}»)` : '';
+    return `Точечный вопрос по недавнему отчёту об аудировании${about}: «${check.question}». Задай его между делом, как обычное любопытство, когда это уместно (не в ответ на новый отчёт). Когда студент ответит — оцени ответ и вызови record_spot_check_answer.`;
   }
 
   private async overDailyBudget(studentId: string, now: Date, timeZone: string): Promise<boolean> {

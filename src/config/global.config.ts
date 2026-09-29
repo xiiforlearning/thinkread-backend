@@ -44,6 +44,12 @@ export const globalConfig = {
     maxToolIterations: 5,
     dailyTokenLimitPerStudent: 200_000,
     spotCheckProbability: 0.2,
+    /** A spot check nobody answered for this long counts as NO_ANSWER. */
+    spotCheckExpiryDays: 3,
+    /** Previous reports of the same type shown to the authenticity check. */
+    authenticityHistory: 5,
+    /** Self-assessed first-pass % this far above the student's average is a PCT_JUMP flag. */
+    pctJumpThreshold: 30,
   },
 
   health: {

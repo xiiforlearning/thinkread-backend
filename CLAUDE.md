@@ -14,10 +14,11 @@ The product spec lives in Notion (workspace **ThinkRead → 📜 Докумен�
 "Поверхностное ТЗ" for the data model and error codes, "AI-агент и инструменты" for the AI layer,
 "План разработки" for the build order. Keep Notion and code in sync when a decision changes.
 
-**Current stage:** stage 3 done — AI core: `AgentService` (Claude Haiku 4.5, manual tool loop,
-prompt caching, per-student serialization, daily token budget, usage log) with the first tools
-(`get_profile`, `get_listening_method`, `set_mood`, `mark_reminder_woven`). Next: stage 4
-(reports) — add `save_reading_report` / `save_listening_report` tools.
+**Current stage:** stage 4 done — reports: `save_reading_report` / `save_listening_report`
+(required fields per listening method, `missing_fields` round-trip), `get_progress`, weekly norms
+in the state block, background authenticity check → quiet flags, spot checks
+(`record_spot_check_answer`). Next: stage 5 (vocabulary) — `add_words`, enrichment via
+`word_lexicon`, import with confirmation, search/export; wire `new_words` from reports into it.
 
 ### AI layer (`domain/ai`)
 
@@ -32,6 +33,21 @@ prompt caching, per-student serialization, daily token budget, usage log) with t
 - History (`ai_messages`) stores user text and the assistant's final text only; every call is
   logged to `ai_usage` with an estimated cost (`usage.service.ts` pricing table).
 - Prompt/tool changes: run `pnpm ai:eval` (real API) and keep `scripts/ai-eval.cases.json` growing.
+
+### Reports and flags (`domain/reports`, `domain/flags`)
+
+- `listening-fields.ts` is the source of truth for what a listening report must contain per
+  `ListeningMethod`; the tool returns `missing_fields` and the model asks for exactly those.
+  A retelling shorter than `MIN_RETELLING_CHARS` counts as missing.
+- `ReportsService.weekProgress()` counts reports by `week_start` (Monday, Asia/Tashkent) — the
+  weekly norm. The agent puts it into the state block on every turn.
+- `AuthenticityService` (in `domain/ai`) runs after a save via `checkLater()` — fire-and-forget,
+  never awaited by the tool. Deterministic signals (forwarded message, first-pass % jump) are
+  flagged by code; style signals come from one forced-tool model call (`AiPurpose.AUTHENTICITY`).
+  Flags are quiet: never mentioned to the student, no automatic action.
+- Spot checks: for no-transcript listening reports the check may plant a question
+  (`spotCheckProbability`); it lives in `dialogState.pendingSpotCheckId`, is shown in the state
+  block until answered, and expires to `NO_ANSWER` after `spotCheckExpiryDays`.
 
 ### Ports (domain ↔ Telegram)
 

@@ -45,6 +45,7 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `DATABASE_SSL` | no | `true` for managed Postgres |
 | `ANTHROPIC_API_KEY` | yes | Claude API key (student dialog) |
 | `AI_MODEL_DIALOG` | no | Default `claude-haiku-4-5` |
+| `AI_MODEL_AUTHENTICITY` | no | Report authenticity check; defaults to `AI_MODEL_DIALOG` |
 | `BOT_LAUNCH` | no | `false` boots without Telegram polling |
 | `TZ` | no | Default `Asia/Tashkent` |
 | `NODE_ENV` | no | `development` / `production` |
@@ -59,5 +60,8 @@ change (pass threshold 95%).
 
 ## Status
 
-Stage 1 of the plan: clean skeleton and the new data model with a baseline migration. The bot
-currently answers every private message with an "under construction" note.
+Stages 0–4 of the plan are done: data model, groups and registration, the AI agent, and reports.
+A registered student can talk to the bot in free text, hand in reading and listening reports
+(the bot asks for whatever the level's method requires), and ask about the weekly norm. Reports
+are quietly checked for authenticity; suspicious ones become flags for the teacher. Vocabulary,
+cards, reminders, the REST API and the Mini App follow.

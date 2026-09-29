@@ -14,14 +14,9 @@ import { config as loadEnv } from 'dotenv';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { GroupLevel } from '../src/domain/groups/level';
+import { TOOL_CLASSES } from '../src/domain/ai/ai.module';
 import { buildStateBlock, buildSystemPrompt } from '../src/domain/ai/system.prompt';
 import { AgentTool, toApiTool } from '../src/domain/ai/tool';
-import {
-  GetListeningMethodTool,
-  GetProfileTool,
-  MarkReminderWovenTool,
-  SetMoodTool,
-} from '../src/domain/ai/tools/profile.tools';
 import { listeningMethodFor } from '../src/domain/groups/level';
 
 loadEnv();
@@ -40,13 +35,11 @@ async function main(): Promise<void> {
   const model = process.env.AI_MODEL_DIALOG ?? 'claude-haiku-4-5';
   const client = new Anthropic();
 
-  // Tools are only needed for their schemas here; handlers are never run.
-  const tools: AgentTool[] = [
-    new GetProfileTool(null as never, null as never),
-    new GetListeningMethodTool(),
-    new SetMoodTool(null as never),
-    new MarkReminderWovenTool(null as never),
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  // Tools are only needed for their schemas here; handlers are never run, so
+  // they are constructed without their dependencies.
+  const tools: AgentTool[] = TOOL_CLASSES.map((C) => new (C as unknown as new () => AgentTool)()).sort(
+    (a, b) => a.name.localeCompare(b.name),
+  );
   const apiTools = tools.map(toApiTool);
   apiTools[apiTools.length - 1].cache_control = { type: 'ephemeral' };
   const system = buildSystemPrompt(tools);
@@ -64,6 +57,7 @@ async function main(): Promise<void> {
       localDate: '2026-10-01',
       weekday: 'четверг',
       lines: [
+        'Нормы этой недели: чтение 1/3, аудирование 0/3.',
         'Сегодня ещё не напоминали о: READING, LISTENING, CARDS (напоминать только если норма по пункту не выполнена).',
       ],
     });

@@ -6,6 +6,14 @@ export interface ToolContext {
   student: Student;
   now: Date;
   timeZone: string;
+  /** The message being handled — reports keep its text as `raw_text`. */
+  message: IncomingMessage;
+}
+
+export interface IncomingMessage {
+  text: string;
+  /** Forwarded from another chat — an authenticity signal, never shown to the student. */
+  forwarded: boolean;
 }
 
 export interface ToolResult {

@@ -103,6 +103,8 @@ function make(
   agent: AgentService;
   history: { append: jest.Mock; recent: jest.Mock };
   usageSvc: { record: jest.Mock; tokensSince: jest.Mock };
+  flags: { findSpotCheck: jest.Mock; markSpotCheckAsked: jest.Mock; answerSpotCheck: jest.Mock };
+  students: { patchDialogState: jest.Mock };
 } {
   const history = {
     append: jest.fn().mockResolvedValue(undefined),
@@ -113,6 +115,22 @@ function make(
     tokensSince: jest.fn().mockResolvedValue(spent),
   };
   const reminders = { pendingToday: jest.fn().mockResolvedValue(['CARDS']) };
+  const reports = {
+    weekProgress: jest.fn().mockResolvedValue({
+      weekStart: '2026-09-28',
+      reading: 1,
+      listening: 0,
+      readingNorm: 3,
+      listeningNorm: 3,
+    }),
+    findById: jest.fn().mockResolvedValue({ sourceTitle: 'Friends' }),
+  };
+  const flags = {
+    findSpotCheck: jest.fn().mockResolvedValue(null),
+    markSpotCheckAsked: jest.fn().mockResolvedValue(undefined),
+    answerSpotCheck: jest.fn().mockResolvedValue(undefined),
+  };
+  const students = { patchDialogState: jest.fn().mockResolvedValue(undefined) };
   const config = { timezone: 'Asia/Tashkent', aiModelDialog: 'claude-haiku-4-5' };
   const agent = new AgentService(
     llm,
@@ -120,9 +138,12 @@ function make(
     history as never,
     usageSvc as never,
     reminders as never,
+    reports as never,
+    flags as never,
+    students as never,
     config as never,
   );
-  return { agent, history, usageSvc };
+  return { agent, history, usageSvc, flags, students };
 }
 
 describe('AgentService', () => {
@@ -142,6 +163,8 @@ describe('AgentService', () => {
     expect(content[0].text).toContain('Акмаль Хадиев');
     expect(content[0].text).toContain('2026-10-01');
     expect(content[0].text).toContain('CARDS');
+    expect(content[0].text).toContain('чтение 1/3, аудирование 0/3');
+    expect(content[0].text).not.toContain('переслано');
     expect(content[1].text).toBe('привет');
     expect(history.append).toHaveBeenCalledWith('s1', AiMessageRole.USER, 'привет');
     expect(history.append).toHaveBeenCalledWith('s1', AiMessageRole.ASSISTANT, 'Привет!');
@@ -159,6 +182,7 @@ describe('AgentService', () => {
     expect(reply.keyboard).toEqual([[{ text: 'Ок', callbackData: 'ok' }]]);
     expect(echo.calls[0].value).toBe('x');
     expect(echo.calls[0].ctx.student.id).toBe('s1');
+    expect(echo.calls[0].ctx.message).toEqual({ text: 'сделай', forwarded: false });
     const second = llm.requests[1].messages;
     expect(second[1].role).toBe('assistant');
     const results = second[2].content as Anthropic.ToolResultBlockParam[];
@@ -197,6 +221,60 @@ describe('AgentService', () => {
 
     expect(reply.text).toBe(aiMessages.budgetExceeded);
     expect(llm.requests).toHaveLength(0);
+  });
+
+  it('marks a forwarded message in the state block and the tool context', async () => {
+    const llm = new ScriptedLlm([toolResponse('echo', { value: 'x' }), textResponse('ok')]);
+    const echo = new EchoTool();
+    const { agent } = make(llm, [echo]);
+
+    await agent.handle(student(), 'отчёт', NOW, { forwarded: true });
+
+    const content = llm.requests[0].messages[0].content as Anthropic.TextBlockParam[];
+    expect(content[0].text).toContain('переслано');
+    expect(echo.calls[0].ctx.message.forwarded).toBe(true);
+  });
+
+  it('weaves a pending spot check into the state block and marks it asked once', async () => {
+    const llm = new ScriptedLlm([textResponse('ok')]);
+    const { agent, flags } = make(llm, []);
+    flags.findSpotCheck.mockResolvedValue({
+      id: 'sc1',
+      reportId: 'r1',
+      question: 'Чем закончилась серия?',
+      askedAt: null,
+      answeredAt: null,
+    });
+    const s = student();
+    s.dialogState = { pendingSpotCheckId: 'sc1' };
+
+    await agent.handle(s, 'привет', NOW);
+
+    const content = llm.requests[0].messages[0].content as Anthropic.TextBlockParam[];
+    expect(content[0].text).toContain('Чем закончилась серия?');
+    expect(content[0].text).toContain('«Friends»');
+    expect(flags.markSpotCheckAsked).toHaveBeenCalledWith('sc1', NOW);
+  });
+
+  it('expires a spot check that stayed unanswered and clears it from the dialog state', async () => {
+    const llm = new ScriptedLlm([textResponse('ok')]);
+    const { agent, flags, students } = make(llm, []);
+    flags.findSpotCheck.mockResolvedValue({
+      id: 'sc1',
+      reportId: 'r1',
+      question: 'q',
+      askedAt: new Date(NOW.getTime() - 4 * 86_400_000),
+      answeredAt: null,
+    });
+    const s = student();
+    s.dialogState = { pendingSpotCheckId: 'sc1' };
+
+    await agent.handle(s, 'привет', NOW);
+
+    expect(flags.answerSpotCheck).toHaveBeenCalledWith('sc1', null, 'NO_ANSWER', NOW);
+    expect(students.patchDialogState).toHaveBeenCalledWith(s, { pendingSpotCheckId: undefined });
+    const content = llm.requests[0].messages[0].content as Anthropic.TextBlockParam[];
+    expect(content[0].text).not.toContain('Точечный вопрос');
   });
 
   it('propagates LLM errors as AppError for the bot to handle', async () => {

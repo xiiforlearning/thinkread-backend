@@ -131,6 +131,11 @@ export class BotUpdate {
   async onText(@Ctx() ctx: Context): Promise<void> {
     if (ctx.chat?.type !== 'private' || !ctx.from || ctx.from.is_bot) return;
     const text = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
+    // A forwarded report is an authenticity signal (recorded quietly, never mentioned).
+    const forwarded =
+      ctx.message !== undefined &&
+      'forward_origin' in ctx.message &&
+      ctx.message.forward_origin !== undefined;
 
     const gate = await this.registration.gate(
       { telegramUserId: ctx.from.id, username: ctx.from.username ?? null },
@@ -142,7 +147,7 @@ export class BotUpdate {
     }
 
     try {
-      const reply = await this.agent.handle(gate.student, text);
+      const reply = await this.agent.handle(gate.student, text, new Date(), { forwarded });
       const keyboard = reply.keyboard
         ? Markup.inlineKeyboard(
             reply.keyboard.map((row) =>
