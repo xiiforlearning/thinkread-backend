@@ -10,7 +10,8 @@ export enum FlagKind {
   REPEATED_RETELLING = 'REPEATED_RETELLING',
   FORWARDED = 'FORWARDED',
   SPOT_CHECK_FAILED = 'SPOT_CHECK_FAILED',
-  NORM_MISSED_3_WEEKS = 'NORM_MISSED_3_WEEKS',
+  /** Not one of the 6 weekly reports handed in — "reason for a presentation" (customer's rule). */
+  NORM_MISSED_WEEK = 'NORM_MISSED_WEEK',
 }
 
 export enum FlagStatus {

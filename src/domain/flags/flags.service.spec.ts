@@ -47,7 +47,7 @@ describe('FlagsService', () => {
     await svc.raise({
       studentId: 's1',
       reportId: null,
-      kind: FlagKind.NORM_MISSED_3_WEEKS,
+      kind: FlagKind.NORM_MISSED_WEEK,
       reason: 'x',
     });
     expect(flags.save).toHaveBeenCalledWith(expect.objectContaining({ status: FlagStatus.NEW }));

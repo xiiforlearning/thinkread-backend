@@ -105,6 +105,7 @@ function make(
   usageSvc: { record: jest.Mock; tokensSince: jest.Mock };
   flags: { findSpotCheck: jest.Mock; markSpotCheckAsked: jest.Mock; answerSpotCheck: jest.Mock };
   students: { patchDialogState: jest.Mock };
+  reports: { weekProgress: jest.Mock; findById: jest.Mock; dailyLimitReached: jest.Mock };
 } {
   const history = {
     append: jest.fn().mockResolvedValue(undefined),
@@ -124,6 +125,7 @@ function make(
       listeningNorm: 3,
     }),
     findById: jest.fn().mockResolvedValue({ sourceTitle: 'Friends' }),
+    dailyLimitReached: jest.fn().mockResolvedValue(false),
   };
   const flags = {
     findSpotCheck: jest.fn().mockResolvedValue(null),
@@ -143,7 +145,7 @@ function make(
     students as never,
     config as never,
   );
-  return { agent, history, usageSvc, flags, students };
+  return { agent, history, usageSvc, flags, students, reports };
 }
 
 describe('AgentService', () => {
@@ -221,6 +223,19 @@ describe('AgentService', () => {
 
     expect(reply.text).toBe(aiMessages.budgetExceeded);
     expect(llm.requests).toHaveLength(0);
+  });
+
+  it('tells the model which report types were already handed in today', async () => {
+    const llm = new ScriptedLlm([textResponse('ok')]);
+    const { agent, reports } = make(llm, []);
+    reports.dailyLimitReached.mockImplementation(
+      async (_id: string, type: string) => type === 'READING',
+    );
+
+    await agent.handle(student(), 'ещё отчёт', NOW);
+
+    const content = llm.requests[0].messages[0].content as Anthropic.TextBlockParam[];
+    expect(content[0].text).toContain('Сегодня уже сдано: чтение');
   });
 
   it('marks a forwarded message in the state block and the tool context', async () => {

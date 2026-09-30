@@ -5,7 +5,7 @@ import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { globalConfig } from '../../config/global.config';
 import { listeningMethodFor } from '../groups/level';
-import { weekStart } from '../norms/week';
+import { localDay, weekStart } from '../norms/week';
 import { Student } from '../students/student.entity';
 import { ListeningReportInput } from './listening-fields';
 import { Report, ReportType } from './report.entity';
@@ -140,6 +140,41 @@ export class ReportsService {
       readingNorm: globalConfig.norms.readingPerWeek,
       listeningNorm: globalConfig.norms.listeningPerWeek,
     };
+  }
+
+  /**
+   * Reports of one type handed in on the local day containing `now`. The daily
+   * cap (`norms.maxReportsPerTypePerDay`) keeps a week's norm from being closed
+   * in one evening and bounds the AI spend per student.
+   */
+  async countToday(
+    studentId: string,
+    type: ReportType,
+    now: Date,
+    timeZone: string,
+  ): Promise<number> {
+    const day = localDay(now, timeZone);
+    const row = await this.repo
+      .createQueryBuilder('r')
+      .select('COUNT(*)', 'count')
+      .where('r.student_id = :studentId', { studentId })
+      .andWhere('r.type = :type', { type })
+      .andWhere("to_char(r.created_at AT TIME ZONE :tz, 'YYYY-MM-DD') = :day", {
+        tz: timeZone,
+        day,
+      })
+      .getRawOne<{ count: string }>();
+    return Number(row?.count ?? 0);
+  }
+
+  async dailyLimitReached(
+    studentId: string,
+    type: ReportType,
+    now: Date,
+    timeZone: string,
+  ): Promise<boolean> {
+    const today = await this.countToday(studentId, type, now, timeZone);
+    return today >= globalConfig.norms.maxReportsPerTypePerDay;
   }
 
   /** Latest reports of one type, newest first — context for the authenticity check. */

@@ -29,7 +29,7 @@ export class Flag {
   @JoinColumn({ name: 'student_id' })
   student?: Student;
 
-  /** Null for flags not tied to one report (e.g. NORM_MISSED_3_WEEKS). */
+  /** Null for flags not tied to one report (e.g. NORM_MISSED_WEEK). */
   @Column({ type: 'uuid', name: 'report_id', nullable: true })
   reportId!: string | null;
 

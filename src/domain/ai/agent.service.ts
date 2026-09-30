@@ -13,6 +13,7 @@ import { FlagsService } from '../flags/flags.service';
 import { listeningMethodFor } from '../groups/level';
 import { RemindersService } from '../norms/reminders.service';
 import { localDay } from '../norms/week';
+import { ReportType } from '../reports/report.entity';
 import { ReportsService } from '../reports/reports.service';
 import { displayNameOf } from '../students/name-validation';
 import { Student } from '../students/student.entity';
@@ -230,6 +231,18 @@ export class AgentService {
     lines.push(
       `Нормы этой недели: чтение ${progress.reading}/${progress.readingNorm}, аудирование ${progress.listening}/${progress.listeningNorm}.`,
     );
+    const [readToday, listenToday] = await Promise.all([
+      this.reports.dailyLimitReached(student.id, ReportType.READING, now, timeZone),
+      this.reports.dailyLimitReached(student.id, ReportType.LISTENING, now, timeZone),
+    ]);
+    if (readToday || listenToday) {
+      const done = [readToday ? 'чтение' : null, listenToday ? 'аудирование' : null].filter(
+        Boolean,
+      );
+      lines.push(
+        `Сегодня уже сдано: ${done.join(', ')} — ещё один отчёт этого типа сегодня не принимается (не больше одного в день на тип). Не расспрашивай о новом отчёте того же типа, сразу скажи, что он пойдёт завтра.`,
+      );
+    }
 
     const pending = await this.reminders.pendingToday(student.id, now, timeZone);
     lines.push(

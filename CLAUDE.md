@@ -41,6 +41,15 @@ in the state block, background authenticity check → quiet flags, spot checks
   A retelling shorter than `MIN_RETELLING_CHARS` counts as missing.
 - `ReportsService.weekProgress()` counts reports by `week_start` (Monday, Asia/Tashkent) — the
   weekly norm. The agent puts it into the state block on every turn.
+- One report per type per local day (`norms.maxReportsPerTypePerDay`, customer decision): the
+  save tools return `reason: DAILY_LIMIT` without saving, and the state block tells the model
+  what was already handed in today so it does not ask follow-up questions.
+- Customer decisions of 30.09.2026 live in `globalConfig`: 1 correct answer per card stage,
+  learned after 1 success on stage 3, intervals 1/3/7 kept after a mistake, ≤2 stage-3 cards in
+  a row; `words.priority` (HIGH for manually added and teacher-list words) orders the queue;
+  `FlagKind.NORM_MISSED_WEEK` = no reports at all in a week; `AiPurpose.TEACHER_CHAT` for the
+  teacher's per-student AI chat (stage 7). Enum changes need a hand-written CHECK rewrite in the
+  migration — TypeORM does not diff CHECK expressions.
 - `AuthenticityService` (in `domain/ai`) runs after a save via `checkLater()` — fire-and-forget,
   never awaited by the tool. Deterministic signals (forwarded message, first-pass % jump) are
   flagged by code; style signals come from one forced-tool model call (`AiPurpose.AUTHENTICITY`).

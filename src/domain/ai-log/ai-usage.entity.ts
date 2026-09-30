@@ -17,6 +17,8 @@ export enum AiPurpose {
   SENTENCE_CHECK = 'SENTENCE_CHECK',
   ENRICH_WORDS = 'ENRICH_WORDS',
   PARENT_REPORT = 'PARENT_REPORT',
+  /** Teacher's AI chat about one student (dashboard). */
+  TEACHER_CHAT = 'TEACHER_CHAT',
 }
 
 /** One row per Claude API call — for cost reporting and per-student daily limits. */

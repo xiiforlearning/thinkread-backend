@@ -34,8 +34,13 @@ const progress = {
   listeningNorm: 3,
 };
 
-function deps(): {
-  reports: { saveReading: jest.Mock; saveListening: jest.Mock; weekProgress: jest.Mock };
+function deps(limitReached = false): {
+  reports: {
+    saveReading: jest.Mock;
+    saveListening: jest.Mock;
+    weekProgress: jest.Mock;
+    dailyLimitReached: jest.Mock;
+  };
   authenticity: { checkLater: jest.Mock };
 } {
   return {
@@ -43,6 +48,7 @@ function deps(): {
       saveReading: jest.fn().mockResolvedValue({ id: 'r1' }),
       saveListening: jest.fn().mockResolvedValue({ id: 'r2' }),
       weekProgress: jest.fn().mockResolvedValue(progress),
+      dailyLimitReached: jest.fn().mockResolvedValue(limitReached),
     },
     authenticity: { checkLater: jest.fn() },
   };
@@ -80,6 +86,25 @@ describe('save_reading_report', () => {
       weekProgress: { reading: '2/3', listening: '1/3', readingDone: false },
       newWordsNoted: 2,
     });
+  });
+
+  it('refuses a second reading report on the same day without saving or asking', async () => {
+    const d = deps(true);
+    const tool = new SaveReadingReportTool(d.reports as never, d.authenticity as never);
+
+    const res = await tool.handle(
+      {
+        book_title: 'Harry Potter',
+        pages: 10,
+        summary: 'Harry gets his letter and meets Hagrid.',
+        new_words: [],
+      },
+      ctx(null),
+    );
+
+    expect(res.data).toMatchObject({ saved: false, reason: 'DAILY_LIMIT' });
+    expect(d.reports.saveReading).not.toHaveBeenCalled();
+    expect(d.authenticity.checkLater).not.toHaveBeenCalled();
   });
 
   it('asks for a real summary instead of saving a bare title', async () => {
@@ -133,6 +158,14 @@ describe('save_listening_report', () => {
     );
 
     expect(res.data).toMatchObject({ saved: false, missing_fields: ['second_pass_pct'] });
+  });
+
+  it('refuses a second listening report on the same day before checking fields', async () => {
+    const d = deps(true);
+    const tool = new SaveListeningReportTool(d.reports as never, d.authenticity as never);
+    const res = await tool.handle({ ...full, retelling: null }, ctx(GroupLevel.INTERMEDIATE));
+    expect(res.data).toMatchObject({ saved: false, reason: 'DAILY_LIMIT' });
+    expect(res.data).not.toHaveProperty('missing_fields');
   });
 
   it('saves a complete report and runs the authenticity check in the background', async () => {

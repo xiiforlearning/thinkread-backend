@@ -10,17 +10,19 @@ export const globalConfig = {
     cardsPerDay: 5,
     /** Weeks start on Monday (ISO), computed in `timezone`. */
     weekStartsOn: 1 as const,
-    /** Flag a student who missed a weekly norm this many weeks in a row. */
-    missedWeeksForFlag: 3,
+    /** A second report of the same type on the same local day is refused (norm can't be closed in one evening). */
+    maxReportsPerTypePerDay: 1,
   },
 
   cards: {
-    /** Correct answers on a stage before the word moves to the next stage. */
-    correctToAdvance: 2,
-    /** Successes on stage 3 before a word is marked LEARNED (0 = manual only). */
-    stage3ToLearned: 2,
-    /** Days until the next review after the 1st, 2nd, 3rd+ correct answer. */
+    /** Correct answers on a stage before the word moves to the next stage (customer: 1). */
+    correctToAdvance: 1,
+    /** Successes on stage 3 before a word is marked LEARNED (0 = manual only; customer: 1). */
+    stage3ToLearned: 1,
+    /** Days until the next review after the 1st, 2nd, 3rd+ correct answer; a mistake = tomorrow, intervals are kept. */
     intervalsDays: [1, 3, 7] as readonly number[],
+    /** Stage-3 (own sentence) cards shown in a row at most — they cost AI and effort. */
+    maxStage3InRow: 2,
   },
 
   words: {

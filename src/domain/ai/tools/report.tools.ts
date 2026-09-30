@@ -9,7 +9,7 @@ import {
   missingListeningFields,
   requiredListeningFields,
 } from '../../reports/listening-fields';
-import { Report } from '../../reports/report.entity';
+import { Report, ReportType } from '../../reports/report.entity';
 import { ReportOrigin, ReportsService, WeekProgress } from '../../reports/reports.service';
 import { StudentsService } from '../../students/students.service';
 import { AuthenticityService } from '../authenticity.service';
@@ -33,6 +33,21 @@ function progressData(p: WeekProgress): Record<string, unknown> {
     listening: `${p.listening}/${p.listeningNorm}`,
     readingDone: p.reading >= p.readingNorm,
     listeningDone: p.listening >= p.listeningNorm,
+  };
+}
+
+/** The second report of a type on one day is not saved (customer's rule; also caps token spend). */
+function dailyLimitData(type: ReportType, progress: WeekProgress): ToolResult {
+  return {
+    data: {
+      saved: false,
+      reason: 'DAILY_LIMIT',
+      weekProgress: progressData(progress),
+      hint:
+        type === ReportType.READING
+          ? 'Сегодня отчёт о чтении уже засчитан — не больше одного в день. Скажи это студенту дружелюбно: следующий можно сдать завтра, а сегодня можно сдать аудирование или повторить слова.'
+          : 'Сегодня отчёт об аудировании уже засчитан — не больше одного в день. Скажи это студенту дружелюбно: следующий можно сдать завтра, а сегодня можно сдать чтение или повторить слова.',
+    },
   };
 }
 
@@ -63,7 +78,7 @@ interface ReadingInput {
 export class SaveReadingReportTool implements AgentTool<ReadingInput> {
   name = 'save_reading_report';
   description =
-    'Сохранить отчёт о чтении: название книги, сколько страниц прочитано, о чём прочитанное (2–3 предложения), новые слова. Вызывай только когда студент реально описал прочитанное; ничего не выдумывай — если названия или описания нет, сначала спроси. Возвращает прогресс недельной нормы.';
+    'Сохранить отчёт о чтении: название книги, сколько страниц прочитано, о чём прочитанное (2–3 предложения), новые слова. Вызывай только когда студент реально описал прочитанное; ничего не выдумывай — если названия или описания нет, сначала спроси. Не больше одного отчёта о чтении в день: при повторе вернёт reason DAILY_LIMIT. Возвращает прогресс недельной нормы.';
   inputSchema = {
     type: 'object' as const,
     properties: {
@@ -92,6 +107,17 @@ export class SaveReadingReportTool implements AgentTool<ReadingInput> {
   ) {}
 
   async handle(input: ReadingInput, ctx: ToolContext): Promise<ToolResult> {
+    if (
+      await this.reports.dailyLimitReached(
+        ctx.student.id,
+        ReportType.READING,
+        ctx.now,
+        ctx.timeZone,
+      )
+    ) {
+      const progress = await this.reports.weekProgress(ctx.student.id, ctx.now, ctx.timeZone);
+      return dailyLimitData(ReportType.READING, progress);
+    }
     const missing: string[] = [];
     if (input.book_title.trim().length === 0) missing.push('book_title');
     if (input.summary.trim().length < MIN_SUMMARY_CHARS) missing.push('summary');
@@ -135,7 +161,7 @@ interface ListeningInput {
 export class SaveListeningReportTool implements AgentTool<ListeningInput> {
   name = 'save_listening_report';
   description =
-    'Сохранить отчёт об аудировании (подкаст, сериал). Передавай всё, что студент сообщил; чего нет — null. Инструмент проверит обязательные поля по методике уровня и, если чего-то не хватает, вернёт missing_fields — тогда спроси именно это и вызови снова. Пересказ (retelling) обязателен для уровней без транскрипта. Ничего не выдумывай.';
+    'Сохранить отчёт об аудировании (подкаст, сериал). Передавай всё, что студент сообщил; чего нет — null. Инструмент проверит обязательные поля по методике уровня и, если чего-то не хватает, вернёт missing_fields — тогда спроси именно это и вызови снова. Пересказ (retelling) обязателен для уровней без транскрипта. Ничего не выдумывай. Не больше одного отчёта об аудировании в день: при повторе вернёт reason DAILY_LIMIT.';
   inputSchema = {
     type: 'object' as const,
     properties: {
@@ -181,6 +207,17 @@ export class SaveListeningReportTool implements AgentTool<ListeningInput> {
   ) {}
 
   async handle(input: ListeningInput, ctx: ToolContext): Promise<ToolResult> {
+    if (
+      await this.reports.dailyLimitReached(
+        ctx.student.id,
+        ReportType.LISTENING,
+        ctx.now,
+        ctx.timeZone,
+      )
+    ) {
+      const progress = await this.reports.weekProgress(ctx.student.id, ctx.now, ctx.timeZone);
+      return dailyLimitData(ReportType.LISTENING, progress);
+    }
     const method = listeningMethodFor(ctx.student.level);
     const parsed: ListeningReportInput = {
       sourceTitle: input.source_title,

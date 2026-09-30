@@ -12,7 +12,7 @@ import {
 import { Report } from '../reports/report.entity';
 import { Student } from '../students/student.entity';
 import { enumCheck } from '../../common/db-checks';
-import { CardStage, CefrLevel, WordSource, WordStatus } from './word.enums';
+import { CardStage, CefrLevel, WordPriority, WordSource, WordStatus } from './word.enums';
 
 /**
  * A word in a student's personal vocabulary. Uniqueness is
@@ -25,6 +25,7 @@ import { CardStage, CefrLevel, WordSource, WordStatus } from './word.enums';
 @Check('chk_words_cefr', enumCheck('cefr', CefrLevel))
 @Check('chk_words_stage', enumCheck('stage', CardStage))
 @Check('chk_words_source', enumCheck('source', WordSource))
+@Check('chk_words_priority', enumCheck('priority', WordPriority))
 @Index('idx_words_student_due', ['studentId', 'status', 'nextDueAt'])
 @Index('uq_words_student_word', { synchronize: false })
 export class Word {
@@ -57,6 +58,10 @@ export class Word {
 
   @Column({ type: 'varchar', length: 10, default: WordStatus.LEARNING })
   status!: WordStatus;
+
+  /** Queue priority for cards; never changes intervals or stages. */
+  @Column({ type: 'varchar', length: 10, default: WordPriority.NORMAL })
+  priority!: WordPriority;
 
   @Column({ type: 'smallint', default: CardStage.TRANSLATION })
   stage!: CardStage;

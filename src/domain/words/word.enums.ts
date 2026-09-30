@@ -1,3 +1,9 @@
+/** Review-queue priority: HIGH words come right after overdue ones. Manually added and teacher-list words are HIGH. */
+export enum WordPriority {
+  HIGH = 'HIGH',
+  NORMAL = 'NORMAL',
+}
+
 export enum WordStatus {
   LEARNING = 'LEARNING',
   /** Kept in the vocabulary, excluded from cards; can be returned to LEARNING. */
