@@ -10,11 +10,28 @@ import { GROUP_LEVELS, GroupLevel } from '../../domain/groups/level';
 import { LEVEL_LABELS, groupMessages } from '../../domain/groups/messages';
 import { RegistrationService } from '../../domain/students/registration.service';
 import { StudentsService } from '../../domain/students/students.service';
+import { EnrichmentService } from '../../domain/ai/enrichment.service';
+import { importKeyboard } from '../../domain/ai/tools/vocabulary.tools';
+import { wordMessages } from '../../domain/words/messages';
+import { lemmaOf } from '../../domain/words/normalize';
+import { WordImportsService } from '../../domain/words/word-imports.service';
 import { TeacherResolverService } from '../teacher/teacher-resolver.service';
+import { isWordFile, MAX_WORD_FILE_BYTES, parseWordFile } from './utils/word-file';
 
 const LEVEL_ACTION = /^level:(-?\d+):([A-Z_]+)$/;
+const IMPORT_ACTION = /^wimport:(ok|no):([0-9a-f-]{36})$/;
 
 type ActionContext = Context & { match: RegExpExecArray };
+
+function toKeyboard(
+  rows: Array<Array<{ text: string; callbackData: string }>> | undefined,
+): ReturnType<typeof Markup.inlineKeyboard> | undefined {
+  return rows
+    ? Markup.inlineKeyboard(
+        rows.map((row) => row.map((b) => Markup.button.callback(b.text, b.callbackData))),
+      )
+    : undefined;
+}
 
 @Update()
 export class BotUpdate {
@@ -27,6 +44,8 @@ export class BotUpdate {
     private readonly access: AccessService,
     private readonly registration: RegistrationService,
     private readonly agent: AgentService,
+    private readonly imports: WordImportsService,
+    private readonly enrichment: EnrichmentService,
   ) {}
 
   @Use()
@@ -148,18 +167,92 @@ export class BotUpdate {
 
     try {
       const reply = await this.agent.handle(gate.student, text, new Date(), { forwarded });
-      const keyboard = reply.keyboard
-        ? Markup.inlineKeyboard(
-            reply.keyboard.map((row) =>
-              row.map((b) => Markup.button.callback(b.text, b.callbackData)),
-            ),
-          )
-        : undefined;
-      await ctx.reply(reply.text, keyboard);
+      await ctx.reply(reply.text, toKeyboard(reply.keyboard));
+      if (reply.document) {
+        await ctx.replyWithDocument({
+          source: Buffer.from(reply.document.content, 'utf8'),
+          filename: reply.document.filename,
+        });
+      }
     } catch (err) {
       const code = err instanceof AppError ? err.code : 'unknown';
       this.logger.error(`AI turn failed for ${ctx.from.id}: ${code} ${(err as Error).message}`);
       await ctx.reply(aiMessages.unavailable);
+    }
+  }
+
+  // --- vocabulary: files and import confirmation ----------------------------
+
+  /** A .txt / .csv / .xlsx list of words → preview with confirm / cancel buttons. */
+  @On('document')
+  async onDocument(@Ctx() ctx: Context): Promise<void> {
+    if (ctx.chat?.type !== 'private' || !ctx.from || ctx.from.is_bot) return;
+    const doc = ctx.message && 'document' in ctx.message ? ctx.message.document : undefined;
+    if (!doc) return;
+
+    const gate = await this.registration.gate(
+      { telegramUserId: ctx.from.id, username: ctx.from.username ?? null },
+      '',
+    );
+    if (gate.kind === 'reply') {
+      await ctx.reply(gate.text);
+      return;
+    }
+    if (!isWordFile(doc.file_name) || (doc.file_size ?? 0) > MAX_WORD_FILE_BYTES) {
+      await ctx.reply(wordMessages.fileUnsupported);
+      return;
+    }
+    try {
+      const link = await ctx.telegram.getFileLink(doc.file_id);
+      const data = Buffer.from(await (await fetch(link.href)).arrayBuffer());
+      const parsed = parseWordFile(doc.file_name ?? 'words.txt', data);
+      if (parsed.length === 0) {
+        await ctx.reply(wordMessages.fileEmpty);
+        return;
+      }
+      const preview = await this.imports.createPreview(gate.student, parsed);
+      await ctx.reply(
+        wordMessages.importPreview(preview.found, preview.duplicates, preview.toAdd),
+        preview.toAdd > 0 ? toKeyboard(importKeyboard(preview.importId, preview.toAdd)) : undefined,
+      );
+    } catch (err) {
+      this.logger.error(`word file import failed for ${ctx.from.id}: ${(err as Error).message}`);
+      await ctx.reply(aiMessages.unavailable);
+    }
+  }
+
+  @Action(IMPORT_ACTION)
+  async onImportDecision(@Ctx() ctx: ActionContext): Promise<void> {
+    const decision = ctx.match[1];
+    const importId = ctx.match[2];
+    const student = ctx.from ? await this.students.findByTelegramId(ctx.from.id) : null;
+    if (!student) {
+      await ctx.answerCbQuery(wordMessages.importNotYours, { show_alert: true });
+      return;
+    }
+    try {
+      if (decision === 'ok') {
+        const result = await this.imports.confirm(importId, student);
+        if (result.added.length > 0) {
+          this.enrichment.enrichLater(
+            result.added.map((w) => w.lemma ?? lemmaOf(w.word)),
+            student.id,
+          );
+        }
+        await ctx.answerCbQuery();
+        await ctx
+          .editMessageText(wordMessages.importConfirmed(result.added.length))
+          .catch(() => undefined);
+      } else {
+        await this.imports.cancel(importId, student);
+        await ctx.answerCbQuery();
+        await ctx.editMessageText(wordMessages.importCancelled).catch(() => undefined);
+      }
+    } catch (err) {
+      const code = err instanceof AppError ? err.code : 'unknown';
+      this.logger.warn(`import ${decision} failed for ${student.id}: ${code}`);
+      await ctx.answerCbQuery(wordMessages.importExpired, { show_alert: true });
+      await ctx.editMessageReplyMarkup(undefined).catch(() => undefined);
     }
   }
 }

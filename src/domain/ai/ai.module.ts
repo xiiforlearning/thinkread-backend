@@ -7,8 +7,10 @@ import { GroupsModule } from '../groups/groups.module';
 import { NormsModule } from '../norms/norms.module';
 import { ReportsModule } from '../reports/reports.module';
 import { StudentsModule } from '../students/students.module';
+import { WordsModule } from '../words/words.module';
 import { AgentService } from './agent.service';
 import { AuthenticityService } from './authenticity.service';
+import { EnrichmentService } from './enrichment.service';
 import { DialogHistoryService } from './dialog-history.service';
 import { AGENT_TOOLS } from './tool';
 import {
@@ -23,6 +25,16 @@ import {
   SaveListeningReportTool,
   SaveReadingReportTool,
 } from './tools/report.tools';
+import {
+  AddRecommendedWordsTool,
+  AddWordsTool,
+  ExportVocabularyTool,
+  GetRecommendedWordsTool,
+  GetVocabularySummaryTool,
+  SearchVocabularyTool,
+  SetWordPriorityTool,
+  SetWordStatusTool,
+} from './tools/vocabulary.tools';
 import { UsageService } from './usage.service';
 
 /** Add a tool: implement AgentTool and list it here (the AGENT_TOOLS factory picks it up). */
@@ -35,6 +47,14 @@ export const TOOL_CLASSES = [
   SaveListeningReportTool,
   GetProgressTool,
   RecordSpotCheckAnswerTool,
+  AddWordsTool,
+  SearchVocabularyTool,
+  GetVocabularySummaryTool,
+  SetWordStatusTool,
+  SetWordPriorityTool,
+  ExportVocabularyTool,
+  GetRecommendedWordsTool,
+  AddRecommendedWordsTool,
 ];
 
 /** The LLM_PORT provider comes from infra/ai (global AnthropicModule). */
@@ -46,6 +66,7 @@ export const TOOL_CLASSES = [
     NormsModule,
     ReportsModule,
     FlagsModule,
+    WordsModule,
   ],
   providers: [
     ...TOOL_CLASSES,
@@ -53,8 +74,9 @@ export const TOOL_CLASSES = [
     DialogHistoryService,
     UsageService,
     AuthenticityService,
+    EnrichmentService,
     AgentService,
   ],
-  exports: [AgentService, UsageService, AuthenticityService],
+  exports: [AgentService, UsageService, AuthenticityService, EnrichmentService],
 })
 export class AiModule {}

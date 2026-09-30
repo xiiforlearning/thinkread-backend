@@ -12,6 +12,7 @@ import {
 import { Report } from '../reports/report.entity';
 import { Student } from '../students/student.entity';
 import { enumCheck } from '../../common/db-checks';
+import { WordList } from './word-list.entity';
 import { CardStage, CefrLevel, WordPriority, WordSource, WordStatus } from './word.enums';
 
 /**
@@ -86,6 +87,14 @@ export class Word {
   @ManyToOne(() => Report, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'source_report_id' })
   sourceReport?: Report;
+
+  /** Teacher's list the word was accepted from (source TEACHER). */
+  @Column({ type: 'uuid', name: 'source_list_id', nullable: true })
+  sourceListId!: string | null;
+
+  @ManyToOne(() => WordList, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'source_list_id' })
+  sourceList?: WordList;
 
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt!: Date;

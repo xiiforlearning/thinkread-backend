@@ -21,6 +21,8 @@ export interface ToolResult {
   data: Record<string, unknown>;
   /** Optional Telegram inline keyboard the reply should carry (e.g. import confirmation). */
   keyboard?: Array<Array<{ text: string; callbackData: string }>>;
+  /** Optional file to send with the reply (vocabulary export). */
+  document?: { filename: string; content: string; mime?: string };
 }
 
 /**

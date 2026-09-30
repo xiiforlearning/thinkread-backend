@@ -14,11 +14,12 @@ The product spec lives in Notion (workspace **ThinkRead → 📜 Докумен�
 "Поверхностное ТЗ" for the data model and error codes, "AI-агент и инструменты" for the AI layer,
 "План разработки" for the build order. Keep Notion and code in sync when a decision changes.
 
-**Current stage:** stage 4 done — reports: `save_reading_report` / `save_listening_report`
-(required fields per listening method, `missing_fields` round-trip), `get_progress`, weekly norms
-in the state block, background authenticity check → quiet flags, spot checks
-(`record_spot_check_answer`). Next: stage 5 (vocabulary) — `add_words`, enrichment via
-`word_lexicon`, import with confirmation, search/export; wire `new_words` from reports into it.
+**Current stage:** stage 5 done — vocabulary: `add_words` (≤5 at once, more → import preview
+with confirm buttons), `search_vocabulary`, `get_vocabulary_summary`, `set_word_status`,
+`set_word_priority`, `export_vocabulary` (file in the reply), teacher word lists
+(`get_recommended_words` / `add_recommended_words`), AI enrichment cached in `word_lexicon`,
+report words go to the vocabulary, .txt/.csv/.xlsx uploads in the bot. Next: stage 6 (cards) —
+`next_card`, stage 1–2 checks without AI, `check_own_sentence`, daily norm, queue order.
 
 ### AI layer (`domain/ai`)
 
@@ -57,6 +58,25 @@ in the state block, background authenticity check → quiet flags, spot checks
 - Spot checks: for no-transcript listening reports the check may plant a question
   (`spotCheckProbability`); it lives in `dialogState.pendingSpotCheckId`, is shown in the state
   block until answered, and expires to `NO_ANSWER` after `spotCheckExpiryDays`.
+
+### Vocabulary (`domain/words`)
+
+- `normalize.ts`: `lemmaOf()` is the dedupe key (lower case, no punctuation, no leading "to "),
+  `parseWordList()` reads free text / files ("word — translation", commas, numbering).
+- `WordsService.addWords()` never duplicates (checks lemma and lower(word)), returns
+  `{ added, existing, learned }`; manual, import and teacher-list words get `priority: HIGH`.
+- `WordImportsService`: more than `words.bulkImportConfirmThreshold` words → PENDING preview,
+  confirmed by the `wimport:ok:<id>` / `wimport:no:<id>` callbacks in the bot; expires after
+  `importPreviewTtlHours`. File uploads (`infra/bot/utils/word-file.ts`, `xlsx` for spreadsheets)
+  go through the same preview.
+- `EnrichmentService` (`domain/ai`) fills `word_lexicon` once per lemma with one forced-tool
+  call per batch of 25 (`AiPurpose.ENRICH_WORDS`), then `applyLexicon()` copies translation /
+  example / CEFR into word rows that lack them. Small adds enrich synchronously so the reply can
+  show translations; bulk and report words use `enrichLater()`.
+- `WordListsService`: teacher lists (`word_lists`, `word_list_items`, `word_list_dismissals`);
+  `recommendedFor(student)` = items of active lists for the student's groups / level / everyone,
+  minus owned lemmas, minus dismissed. Accepting adds with `source: TEACHER`, `sourceListId`.
+- A tool may return `document` (filename + content); the bot sends it after the text reply.
 
 ### Ports (domain ↔ Telegram)
 

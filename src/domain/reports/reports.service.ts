@@ -142,6 +142,10 @@ export class ReportsService {
     };
   }
 
+  async setWordsAdded(reportId: string, wordsAdded: number): Promise<void> {
+    await this.repo.update({ id: reportId }, { wordsAdded });
+  }
+
   /**
    * Reports of one type handed in on the local day containing `now`. The daily
    * cap (`norms.maxReportsPerTypePerDay`) keeps a week's norm from being closed

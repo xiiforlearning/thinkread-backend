@@ -36,6 +36,18 @@ export enum CardStage {
   OWN_SENTENCE = 3,
 }
 
+/** Who a teacher's word list is for. */
+export enum WordListScope {
+  GROUP = 'GROUP',
+  LEVEL = 'LEVEL',
+  ALL = 'ALL',
+}
+
+export enum WordListStatus {
+  ACTIVE = 'ACTIVE',
+  CLOSED = 'CLOSED',
+}
+
 export enum ImportStatus {
   PENDING = 'PENDING',
   CONFIRMED = 'CONFIRMED',

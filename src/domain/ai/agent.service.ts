@@ -36,6 +36,7 @@ import { UsageService } from './usage.service';
 export interface AgentReply {
   text: string;
   keyboard?: ToolResult['keyboard'];
+  document?: ToolResult['document'];
 }
 
 const WEEKDAYS = [
@@ -115,6 +116,7 @@ export class AgentService {
     await this.history.append(student.id, AiMessageRole.USER, text);
 
     let keyboard: ToolResult['keyboard'];
+    let document: ToolResult['document'];
     for (let i = 0; i <= globalConfig.ai.maxToolIterations; i += 1) {
       const response = await this.complete(student.id, messages);
 
@@ -130,13 +132,14 @@ export class AgentService {
         messages.push({ role: 'assistant', content: response.content });
         const results = await this.runTools(response, ctx);
         keyboard = results.keyboard ?? keyboard;
+        document = results.document ?? document;
         messages.push({ role: 'user', content: results.blocks });
         continue;
       }
 
       const reply = this.finalText(response);
       await this.history.append(student.id, AiMessageRole.ASSISTANT, reply);
-      return { text: reply, keyboard };
+      return { text: reply, keyboard, document };
     }
     // Unreachable: the loop either returns or throws.
     throw new AppError({
@@ -169,12 +172,17 @@ export class AgentService {
   private async runTools(
     response: Anthropic.Message,
     ctx: ToolContext,
-  ): Promise<{ blocks: Anthropic.ToolResultBlockParam[]; keyboard?: ToolResult['keyboard'] }> {
+  ): Promise<{
+    blocks: Anthropic.ToolResultBlockParam[];
+    keyboard?: ToolResult['keyboard'];
+    document?: ToolResult['document'];
+  }> {
     const calls = response.content.filter(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
     );
     const blocks: Anthropic.ToolResultBlockParam[] = [];
     let keyboard: ToolResult['keyboard'];
+    let document: ToolResult['document'];
     for (const call of calls) {
       const tool = this.toolsByName.get(call.name);
       if (!tool) {
@@ -189,6 +197,7 @@ export class AgentService {
       try {
         const result = await tool.handle(call.input as Record<string, unknown>, ctx);
         keyboard = result.keyboard ?? keyboard;
+        document = result.document ?? document;
         blocks.push({
           type: 'tool_result',
           tool_use_id: call.id,
@@ -205,7 +214,7 @@ export class AgentService {
         });
       }
     }
-    return { blocks, keyboard };
+    return { blocks, keyboard, document };
   }
 
   private finalText(response: Anthropic.Message): string {

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { globalConfig } from '../../../config/global.config';
 import { SpotCheckVerdict } from '../../flags/flag.enums';
 import { FlagsService } from '../../flags/flags.service';
-import { listeningMethodFor } from '../../groups/level';
+import { ListeningMethod, listeningMethodFor } from '../../groups/level';
 import {
   ListeningReportInput,
   MIN_RETELLING_CHARS,
@@ -12,7 +12,11 @@ import {
 import { Report, ReportType } from '../../reports/report.entity';
 import { ReportOrigin, ReportsService, WeekProgress } from '../../reports/reports.service';
 import { StudentsService } from '../../students/students.service';
+import { lemmaOf } from '../../words/normalize';
+import { WordSource } from '../../words/word.enums';
+import { WordsService } from '../../words/words.service';
 import { AuthenticityService } from '../authenticity.service';
+import { EnrichmentService } from '../enrichment.service';
 import { AgentTool, ToolContext, ToolResult } from '../tool';
 
 /** Short enough to be a title, not a description. */
@@ -51,19 +55,53 @@ function dailyLimitData(type: ReportType, progress: WeekProgress): ToolResult {
   };
 }
 
-function savedData(report: Report, progress: WeekProgress, newWords: string[]): ToolResult {
+interface WordsOutcome {
+  added: string[];
+  alreadyHad: string[];
+}
+
+function savedData(report: Report, progress: WeekProgress, words: WordsOutcome): ToolResult {
   return {
     data: {
       saved: true,
       reportId: report.id,
       weekProgress: progressData(progress),
-      // Vocabulary tools arrive with the next stage; be honest with the student.
-      newWordsNoted: newWords.length,
+      wordsAdded: words.added,
+      wordsAlreadyHad: words.alreadyHad,
       note:
-        newWords.length > 0
-          ? 'Слова записаны в отчёт; добавление в личный словарь пока в разработке.'
+        words.added.length > 0
+          ? 'Новые слова уже в словаре студента (перевод и примеры подберутся в фоне) — упомяни их одной фразой.'
           : undefined,
     },
+  };
+}
+
+/** Words from a report go to the vocabulary with the report as their source. */
+async function saveReportWords(
+  words: WordsService,
+  enrichment: EnrichmentService,
+  reports: ReportsService,
+  ctx: ToolContext,
+  report: Report,
+  newWords: string[],
+  source: WordSource,
+): Promise<WordsOutcome> {
+  if (newWords.length === 0) return { added: [], alreadyHad: [] };
+  const result = await words.addWords(
+    ctx.student,
+    newWords.map((w) => ({ word: w, translation: null })),
+    { source, sourceReportId: report.id },
+  );
+  if (result.added.length > 0) {
+    await reports.setWordsAdded(report.id, result.added.length);
+    enrichment.enrichLater(
+      result.added.map((w) => w.lemma ?? lemmaOf(w.word)),
+      ctx.student.id,
+    );
+  }
+  return {
+    added: result.added.map((w) => w.word),
+    alreadyHad: [...result.existing, ...result.learned].map((w) => w.word),
   };
 }
 
@@ -104,6 +142,8 @@ export class SaveReadingReportTool implements AgentTool<ReadingInput> {
   constructor(
     private readonly reports: ReportsService,
     private readonly authenticity: AuthenticityService,
+    private readonly words: WordsService,
+    private readonly enrichment: EnrichmentService,
   ) {}
 
   async handle(input: ReadingInput, ctx: ToolContext): Promise<ToolResult> {
@@ -141,8 +181,17 @@ export class SaveReadingReportTool implements AgentTool<ReadingInput> {
       origin(ctx),
     );
     this.authenticity.checkLater(report, ctx.student);
+    const words = await saveReportWords(
+      this.words,
+      this.enrichment,
+      this.reports,
+      ctx,
+      report,
+      input.new_words,
+      WordSource.READING,
+    );
     const progress = await this.reports.weekProgress(ctx.student.id, ctx.now, ctx.timeZone);
-    return savedData(report, progress, input.new_words);
+    return savedData(report, progress, words);
   }
 }
 
@@ -204,6 +253,8 @@ export class SaveListeningReportTool implements AgentTool<ListeningInput> {
   constructor(
     private readonly reports: ReportsService,
     private readonly authenticity: AuthenticityService,
+    private readonly words: WordsService,
+    private readonly enrichment: EnrichmentService,
   ) {}
 
   async handle(input: ListeningInput, ctx: ToolContext): Promise<ToolResult> {
@@ -245,8 +296,17 @@ export class SaveListeningReportTool implements AgentTool<ListeningInput> {
     }
     const report = await this.reports.saveListening(ctx.student, parsed, origin(ctx));
     this.authenticity.checkLater(report, ctx.student);
+    const words = await saveReportWords(
+      this.words,
+      this.enrichment,
+      this.reports,
+      ctx,
+      report,
+      input.new_words,
+      method === ListeningMethod.SERIES ? WordSource.SERIES : WordSource.PODCAST,
+    );
     const progress = await this.reports.weekProgress(ctx.student.id, ctx.now, ctx.timeZone);
-    return savedData(report, progress, input.new_words);
+    return savedData(report, progress, words);
   }
 }
 

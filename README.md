@@ -60,8 +60,9 @@ change (pass threshold 95%).
 
 ## Status
 
-Stages 0–4 of the plan are done: data model, groups and registration, the AI agent, and reports.
-A registered student can talk to the bot in free text, hand in reading and listening reports
-(the bot asks for whatever the level's method requires), and ask about the weekly norm. Reports
-are quietly checked for authenticity; suspicious ones become flags for the teacher. Vocabulary,
-cards, reminders, the REST API and the Mini App follow.
+Stages 0–5 of the plan are done: data model, groups and registration, the AI agent, reports and
+the vocabulary. A registered student can talk to the bot in free text, hand in reading and
+listening reports (one per type per day; the bot asks for whatever the level's method requires),
+add words by text or file, search and export the vocabulary, and accept the teacher's word lists.
+Reports are quietly checked for authenticity; suspicious ones become flags for the teacher.
+Cards, reminders, the REST API and the Mini App follow.

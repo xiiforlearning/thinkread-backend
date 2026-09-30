@@ -7,6 +7,7 @@ import { AiModule } from '../../domain/ai/ai.module';
 import { GroupsModule } from '../../domain/groups/groups.module';
 import { RegistrationModule } from '../../domain/students/registration.module';
 import { StudentsModule } from '../../domain/students/students.module';
+import { WordsModule } from '../../domain/words/words.module';
 import { TeacherModule } from '../teacher/teacher.module';
 import { BotUpdate } from './bot.update';
 import { TelegramPortsModule } from './ports/telegram-ports.module';
@@ -30,6 +31,7 @@ import { BotInfoService } from './services/bot-info.service';
     RegistrationModule,
     AdminsModule,
     AiModule,
+    WordsModule,
     TeacherModule,
   ],
   providers: [BotInfoService, BotCommandsService, BotUpdate],

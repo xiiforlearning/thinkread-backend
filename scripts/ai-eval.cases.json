@@ -97,5 +97,53 @@
   {
     "message": "послушал подкаст сегодня",
     "expectTool": null
+  },
+  {
+    "message": "добавь слово resilient",
+    "expectTool": "add_words"
+  },
+  {
+    "message": "запиши в словарь: wand — волшебная палочка, owl — сова",
+    "expectTool": "add_words"
+  },
+  {
+    "message": "вот слова из подкаста: nap, drowsy, stubborn, resourceful, apparently, cheat, overwhelmed",
+    "expectTool": "add_words"
+  },
+  {
+    "message": "как я перевёл слово wand?",
+    "expectTool": "search_vocabulary"
+  },
+  {
+    "message": "какие слова у меня из подкастов?",
+    "expectTool": "search_vocabulary"
+  },
+  {
+    "message": "сколько у меня слов в словаре?",
+    "expectTool": "get_vocabulary_summary"
+  },
+  {
+    "message": "слово stubborn я уже знаю, убери из карточек",
+    "expectTool": "set_word_status"
+  },
+  {
+    "message": "верни wand в повторение",
+    "expectTool": "set_word_status"
+  },
+  {
+    "message": "resilient — важное слово, повторяй его почаще",
+    "expectTool": "set_word_priority"
+  },
+  {
+    "message": "скинь мне весь словарь файлом",
+    "expectTool": "export_vocabulary"
+  },
+  {
+    "message": "что мне посоветовал учитель выучить?",
+    "expectTool": "get_recommended_words"
+  },
+  {
+    "message": "давай добавим все слова из списка учителя",
+    "expectTool": "add_recommended_words"
   }
 ]

@@ -40,8 +40,11 @@ function deps(limitReached = false): {
     saveListening: jest.Mock;
     weekProgress: jest.Mock;
     dailyLimitReached: jest.Mock;
+    setWordsAdded: jest.Mock;
   };
   authenticity: { checkLater: jest.Mock };
+  words: { addWords: jest.Mock };
+  enrichment: { enrichLater: jest.Mock };
 } {
   return {
     reports: {
@@ -49,15 +52,43 @@ function deps(limitReached = false): {
       saveListening: jest.fn().mockResolvedValue({ id: 'r2' }),
       weekProgress: jest.fn().mockResolvedValue(progress),
       dailyLimitReached: jest.fn().mockResolvedValue(limitReached),
+      setWordsAdded: jest.fn().mockResolvedValue(undefined),
     },
     authenticity: { checkLater: jest.fn() },
+    words: {
+      addWords: jest
+        .fn()
+        .mockImplementation(async (_s: unknown, inputs: Array<{ word: string }>) => ({
+          added: inputs.map((i, n) => ({ id: 'w' + n, word: i.word, lemma: i.word.toLowerCase() })),
+          existing: [],
+          learned: [],
+        })),
+    },
+    enrichment: { enrichLater: jest.fn() },
   };
+}
+
+function reading(d: ReturnType<typeof deps>): SaveReadingReportTool {
+  return new SaveReadingReportTool(
+    d.reports as never,
+    d.authenticity as never,
+    d.words as never,
+    d.enrichment as never,
+  );
+}
+function listening(d: ReturnType<typeof deps>): SaveListeningReportTool {
+  return new SaveListeningReportTool(
+    d.reports as never,
+    d.authenticity as never,
+    d.words as never,
+    d.enrichment as never,
+  );
 }
 
 describe('save_reading_report', () => {
   it('saves, passes the message as origin, starts the authenticity check and returns progress', async () => {
     const d = deps();
-    const tool = new SaveReadingReportTool(d.reports as never, d.authenticity as never);
+    const tool = reading(d);
     const c = ctx(GroupLevel.INTERMEDIATE);
 
     const res = await tool.handle(
@@ -81,16 +112,26 @@ describe('save_reading_report', () => {
       { now: NOW, timeZone: 'Asia/Tashkent', rawText: 'исходный текст', forwarded: true },
     );
     expect(d.authenticity.checkLater).toHaveBeenCalledWith({ id: 'r1' }, c.student);
+    expect(d.words.addWords).toHaveBeenCalledWith(
+      c.student,
+      [
+        { word: 'wand', translation: null },
+        { word: 'owl', translation: null },
+      ],
+      { source: 'READING', sourceReportId: 'r1' },
+    );
+    expect(d.reports.setWordsAdded).toHaveBeenCalledWith('r1', 2);
+    expect(d.enrichment.enrichLater).toHaveBeenCalledWith(['wand', 'owl'], 's1');
     expect(res.data).toMatchObject({
       saved: true,
       weekProgress: { reading: '2/3', listening: '1/3', readingDone: false },
-      newWordsNoted: 2,
+      wordsAdded: ['wand', 'owl'],
     });
   });
 
   it('refuses a second reading report on the same day without saving or asking', async () => {
     const d = deps(true);
-    const tool = new SaveReadingReportTool(d.reports as never, d.authenticity as never);
+    const tool = reading(d);
 
     const res = await tool.handle(
       {
@@ -109,7 +150,7 @@ describe('save_reading_report', () => {
 
   it('asks for a real summary instead of saving a bare title', async () => {
     const d = deps();
-    const tool = new SaveReadingReportTool(d.reports as never, d.authenticity as never);
+    const tool = reading(d);
 
     const res = await tool.handle(
       { book_title: 'Harry Potter', pages: null, summary: 'good', new_words: [] },
@@ -135,7 +176,7 @@ describe('save_listening_report', () => {
 
   it('returns missing_fields by the method of the student level (series needs a retelling)', async () => {
     const d = deps();
-    const tool = new SaveListeningReportTool(d.reports as never, d.authenticity as never);
+    const tool = listening(d);
 
     const res = await tool.handle({ ...full, retelling: null }, ctx(GroupLevel.INTERMEDIATE));
 
@@ -150,7 +191,7 @@ describe('save_listening_report', () => {
 
   it('does not require a retelling for a podcast with a script but needs both passes', async () => {
     const d = deps();
-    const tool = new SaveListeningReportTool(d.reports as never, d.authenticity as never);
+    const tool = listening(d);
 
     const res = await tool.handle(
       { ...full, retelling: null, episode: null },
@@ -162,7 +203,7 @@ describe('save_listening_report', () => {
 
   it('refuses a second listening report on the same day before checking fields', async () => {
     const d = deps(true);
-    const tool = new SaveListeningReportTool(d.reports as never, d.authenticity as never);
+    const tool = listening(d);
     const res = await tool.handle({ ...full, retelling: null }, ctx(GroupLevel.INTERMEDIATE));
     expect(res.data).toMatchObject({ saved: false, reason: 'DAILY_LIMIT' });
     expect(res.data).not.toHaveProperty('missing_fields');
@@ -170,7 +211,7 @@ describe('save_listening_report', () => {
 
   it('saves a complete report and runs the authenticity check in the background', async () => {
     const d = deps();
-    const tool = new SaveListeningReportTool(d.reports as never, d.authenticity as never);
+    const tool = listening(d);
     const c = ctx(GroupLevel.INTERMEDIATE);
 
     const res = await tool.handle(full, c);
@@ -181,7 +222,15 @@ describe('save_listening_report', () => {
       expect.objectContaining({ forwarded: true }),
     );
     expect(d.authenticity.checkLater).toHaveBeenCalledWith({ id: 'r2' }, c.student);
-    expect(res.data).toMatchObject({ saved: true, reportId: 'r2' });
+    expect(d.words.addWords).toHaveBeenCalledWith(
+      c.student,
+      [{ word: 'pregnant', translation: null }],
+      {
+        source: 'SERIES',
+        sourceReportId: 'r2',
+      },
+    );
+    expect(res.data).toMatchObject({ saved: true, reportId: 'r2', wordsAdded: ['pregnant'] });
   });
 });
 
