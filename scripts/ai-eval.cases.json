@@ -1,0 +1,149 @@
+[
+  {
+    "message": "устал жутко, экзамены на этой неделе",
+    "expectTool": "set_mood"
+  },
+  {
+    "message": "сорри, заболел, пару дней не смогу",
+    "expectTool": "set_mood"
+  },
+  {
+    "message": "всё, я снова в строю, можно как обычно",
+    "expectTool": "set_mood"
+  },
+  {
+    "message": "как мне делать аудирование?",
+    "expectTool": "get_listening_method"
+  },
+  {
+    "message": "что писать в отчёте по подкасту?",
+    "expectTool": "get_listening_method"
+  },
+  {
+    "message": "напомни, какой у меня уровень",
+    "expectTool": "get_profile"
+  },
+  {
+    "message": "сколько отчётов в неделю надо?",
+    "expectTool": "get_profile"
+  },
+  {
+    "message": "в какой я группе?",
+    "expectTool": "get_profile"
+  },
+  {
+    "message": "привет",
+    "expectTool": null
+  },
+  {
+    "message": "спасибо!",
+    "expectTool": null
+  },
+  {
+    "message": "what does apparently mean?",
+    "expectTool": null
+  },
+  {
+    "message": "посоветуй фильм на вечер",
+    "expectTool": null
+  },
+  {
+    "message": "какая модель тебя запускает?",
+    "expectTool": null
+  },
+  {
+    "message": "ты меня проверяешь? флаги какие-то ставишь?",
+    "expectTool": null
+  },
+  {
+    "message": "Прочитал Harry Potter, страниц 20. Гарри узнаёт, что он волшебник, и Хагрид забирает его от Дурслей. Новые слова: wand, owl, cupboard",
+    "expectTool": "save_reading_report"
+  },
+  {
+    "message": "Reading report: The Alchemist, 15 pages. Santiago decides to sell his sheep and travel to Egypt to find the treasure from his dream.",
+    "expectTool": "save_reading_report"
+  },
+  {
+    "message": "отчёт по чтению: Animal Farm, глава 3, около 12 страниц. Животные собирают урожай сами, свиньи начинают командовать, Snowball учит всех читать",
+    "expectTool": "save_reading_report"
+  },
+  {
+    "message": "Послушал 6 Minute English про sleep. С первого раза понял процентов 60, со второго 85, слушал 3 раза. Непонятно было про circadian rhythm. Слова: nap, drowsy",
+    "expectTool": "save_listening_report",
+    "level": "PRE_INTERMEDIATE"
+  },
+  {
+    "message": "Посмотрел Friends s01e03 без субтитров, понял где-то 70%. Ross finds out Carol is pregnant and they argue about the baby's name, Monica is annoyed by Ross's new girlfriend. Смотрел 2 раза.",
+    "expectTool": "save_listening_report",
+    "level": "INTERMEDIATE"
+  },
+  {
+    "message": "Huberman Lab, выпуск про утренний свет. Понял 80%. The host explains that morning sunlight sets the body clock and recommends a short walk right after waking up; he also talks about caffeine timing.",
+    "expectTool": "save_listening_report",
+    "level": "ADVANCED"
+  },
+  {
+    "message": "сколько отчётов я уже сдал на этой неделе?",
+    "expectTool": "get_progress"
+  },
+  {
+    "message": "как у меня дела с нормой?",
+    "expectTool": "get_progress"
+  },
+  {
+    "message": "прочитал книжку",
+    "expectTool": null
+  },
+  {
+    "message": "послушал подкаст сегодня",
+    "expectTool": null
+  },
+  {
+    "message": "добавь слово resilient",
+    "expectTool": "add_words"
+  },
+  {
+    "message": "запиши в словарь: wand — волшебная палочка, owl — сова",
+    "expectTool": "add_words"
+  },
+  {
+    "message": "вот слова из подкаста: nap, drowsy, stubborn, resourceful, apparently, cheat, overwhelmed",
+    "expectTool": "add_words"
+  },
+  {
+    "message": "как я перевёл слово wand?",
+    "expectTool": "search_vocabulary"
+  },
+  {
+    "message": "какие слова у меня из подкастов?",
+    "expectTool": "search_vocabulary"
+  },
+  {
+    "message": "сколько у меня слов в словаре?",
+    "expectTool": "get_vocabulary_summary"
+  },
+  {
+    "message": "слово stubborn я уже знаю, убери из карточек",
+    "expectTool": "set_word_status"
+  },
+  {
+    "message": "верни wand в повторение",
+    "expectTool": "set_word_status"
+  },
+  {
+    "message": "resilient — важное слово, повторяй его почаще",
+    "expectTool": "set_word_priority"
+  },
+  {
+    "message": "скинь мне весь словарь файлом",
+    "expectTool": "export_vocabulary"
+  },
+  {
+    "message": "что мне посоветовал учитель выучить?",
+    "expectTool": "get_recommended_words"
+  },
+  {
+    "message": "давай добавим все слова из списка учителя",
+    "expectTool": "add_recommended_words"
+  }
+]

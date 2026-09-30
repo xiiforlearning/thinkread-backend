@@ -1,22 +1,13 @@
 import { Module } from '@nestjs/common';
-import { GroupsModule } from '../../domain/groups/groups.module';
-import { PresentationsModule } from '../../domain/presentations/presentations.module';
-import { ReportsModule } from '../../domain/reports/reports.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AdminsModule } from '../../domain/admins/admins.module';
+import { MembershipModule } from '../../domain/membership/membership.module';
 import { StudentsModule } from '../../domain/students/students.module';
-import { WordsModule } from '../../domain/words/words.module';
-import { ReportBuilderModule } from '../report-builder/report-builder.module';
-import { SchedulerService } from './scheduler.service';
+import { MembershipCron } from './membership.cron';
 
 @Module({
-  imports: [
-    GroupsModule,
-    StudentsModule,
-    WordsModule,
-    ReportsModule,
-    PresentationsModule,
-    ReportBuilderModule,
-  ],
-  providers: [SchedulerService],
-  exports: [SchedulerService],
+  imports: [ScheduleModule.forRoot(), MembershipModule, StudentsModule, AdminsModule],
+  providers: [MembershipCron],
+  exports: [MembershipCron],
 })
 export class SchedulerModule {}

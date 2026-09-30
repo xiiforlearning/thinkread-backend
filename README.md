@@ -1,103 +1,68 @@
-# English Helper Bot
+# ThinkRead — backend
 
-Telegram bot for tracking daily English reading and vocabulary. See `SPEC.md` for the full product spec.
+AI Telegram bot for an English school, plus the REST API behind its Telegram Mini App and
+admin dashboard. Students write to the bot in free text (a reading report, a listening report,
+a word to add, "give me a card") and the AI understands the intent. The teacher gets a dashboard
+instead of text reports in a chat.
 
-Current stage: **Stage 1 — Skeleton** (NestJS + TypeORM + Postgres + Telegraf wired up, `/start` smoke test only).
+Full spec: Notion workspace **ThinkRead**. Developer notes: [CLAUDE.md](CLAUDE.md).
 
-## Prerequisites
+## Stack
 
-- Docker (with `docker compose`)
-- For local-only dev without Docker: Node 20+ and pnpm
+NestJS 10 · TypeScript (strict) · PostgreSQL 16 + TypeORM (migrations only) · telegraf ·
+Claude API (tool calling) · Docker Compose · Railway.
 
-## Quick start (Docker — recommended)
+## Quick start
 
 ```bash
 cp .env.example .env
-# Edit .env and fill in BOT_TOKEN and ADMIN_TELEGRAM_ID at minimum.
+# fill in BOT_TOKEN and ADMIN_TELEGRAM_ID
 docker compose up --build
 ```
 
-What happens:
+Postgres starts, migrations run, the bot connects via long polling. Swagger: `http://localhost:3000/docs`,
+Adminer: `http://localhost:8080`.
 
-1. Postgres 16 starts and becomes healthy.
-2. The `bot` container runs pending TypeORM migrations (creates the `groups` table).
-3. Nest boots, `nestjs-telegraf` connects via long polling.
-4. You should see `Bot started, polling` in the logs.
+Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pnpm start:dev`.
 
-Then DM the bot in Telegram with `/start` — it replies `Hi, I'm alive`.
+## Scripts
 
-Adminer is at http://localhost:8080 (server: `postgres`, user/db from `.env`).
-
-To stop:
-
-```bash
-docker compose down            # keeps postgres data
-docker compose down -v         # also wipes the postgres volume
-```
-
-## Local dev without Docker
-
-```bash
-pnpm install
-cp .env.example .env           # then point DATABASE_HOST to your local Postgres
-pnpm migration:run
-pnpm start:dev
-```
-
-## Useful scripts
-
-| Command | What it does |
+| Command | Purpose |
 |---|---|
-| `pnpm start:dev` | Run with hot reload |
-| `pnpm build` | Compile TS to `dist/` |
-| `pnpm start:prod` | Run compiled output |
-| `pnpm migration:run` | Apply pending migrations |
-| `pnpm migration:revert` | Revert the last applied migration |
-| `pnpm migration:show` | List migration status |
-| `pnpm migration:generate --name=<Name>` | Generate a migration from entity diffs |
-| `pnpm migration:create --name=<Name>` | Create an empty migration |
-| `pnpm test` | Run unit tests |
-| `pnpm lint` | Lint + autofix |
+| `pnpm start:dev` / `pnpm start:prod` | Run |
+| `pnpm build` | Compile |
+| `pnpm lint` / `pnpm lint:check` | ESLint + Prettier |
+| `pnpm test` | Jest |
+| `pnpm migration:run` / `migration:revert` / `migration:show` | Migrations |
 
-## Environment variables
+## Environment
 
-See `.env.example`. Required: `BOT_TOKEN`, `ADMIN_TELEGRAM_ID`. The rest have sensible defaults for `docker compose`.
+| Variable | Required | Description |
+|---|---|---|
+| `BOT_TOKEN` | yes | Telegram bot token |
+| `ADMIN_TELEGRAM_ID` | yes | Telegram id of the school owner |
+| `DATABASE_URL` or `DATABASE_HOST/PORT/USER/PASSWORD/NAME` | yes | PostgreSQL |
+| `DATABASE_SSL` | no | `true` for managed Postgres |
+| `ANTHROPIC_API_KEY` | yes | Claude API key (student dialog) |
+| `AI_MODEL_DIALOG` | no | Default `claude-haiku-4-5` |
+| `AI_MODEL_AUTHENTICITY` | no | Report authenticity check; defaults to `AI_MODEL_DIALOG` |
+| `BOT_LAUNCH` | no | `false` boots without Telegram polling |
+| `TZ` | no | Default `Asia/Tashkent` |
+| `NODE_ENV` | no | `development` / `production` |
 
-## Deploy to Railway
+`JWT_SECRET` and `WEBAPP_URL` arrive with the API stage.
 
-The repo is ready to deploy to [Railway](https://railway.app) (or any other Docker-based PaaS). The `Dockerfile` builds a production image, `docker-entrypoint.sh` runs migrations on startup, and `NODE_ENV=production` flips the entrypoint to `start:prod`.
+## AI eval
 
-Steps:
+`pnpm ai:eval` sends the cases in `scripts/ai-eval.cases.json` to the real model and checks which
+tool it calls. It spends tokens and needs `ANTHROPIC_API_KEY`; run it after any prompt or tool
+change (pass threshold 95%).
 
-1. **Push the repo to GitHub** (private is fine).
-2. **railway.app** → New Project → "Deploy from GitHub repo" → pick the repo. Railway detects `Dockerfile` and `railway.json`, starts building.
-3. Inside the project, **Add → Database → PostgreSQL**. Railway provisions one and exposes `DATABASE_URL` as a private variable on the Postgres service.
-4. On the **bot service**, set these variables:
-   ```
-   BOT_TOKEN=<from @BotFather>
-   ADMIN_TELEGRAM_ID=<your Telegram numeric ID>
-   TZ=Asia/Tashkent
-   NODE_ENV=production
-   DATABASE_URL=${{Postgres.DATABASE_URL}}
-   DATABASE_SSL=true
-   ```
-   The `${{Postgres.DATABASE_URL}}` is a Railway reference — it auto-fills from the Postgres service. `DATABASE_SSL=true` is required for managed Postgres (TLS).
-5. Redeploy. On boot the container will:
-   - Run `pnpm migration:run` (idempotent — applies any new migrations).
-   - Start the bot with `pnpm start:prod`.
-   - Long-poll Telegram. No HTTP port needed.
-6. Verify: open Railway logs → look for `Migration ... has been executed successfully` (first deploy only) and `Bot started, polling`. Then DM your bot.
+## Status
 
-### Environment vars reference
-
-- `DATABASE_URL` (recommended for hosted Postgres) — overrides the individual `DATABASE_HOST/PORT/USER/PASSWORD/NAME` set. Either pattern is supported.
-- `DATABASE_SSL=true` — wraps the connection in TLS with `rejectUnauthorized: false`. Required for Railway / Neon / Supabase / Aiven. Leave unset for local docker-compose.
-- `NODE_ENV=production` — switches the entrypoint from `start:dev` (hot reload) to `start:prod`. Always set in Railway.
-
-### Why no exposed HTTP port
-
-The bot uses Telegram long polling (`bot.launch()` inside `nestjs-telegraf`). It's an outbound-only connection — nothing inbound is required. Railway will treat the service as healthy as long as the container stays running.
-
-## Build stages
-
-Stages are listed in `SPEC.md` under "Build order". Each stage stops at a checkpoint for manual verification before the next stage starts.
+Stages 0–5 of the plan are done: data model, groups and registration, the AI agent, reports and
+the vocabulary. A registered student can talk to the bot in free text, hand in reading and
+listening reports (one per type per day; the bot asks for whatever the level's method requires),
+add words by text or file, search and export the vocabulary, and accept the teacher's word lists.
+Reports are quietly checked for authenticity; suspicious ones become flags for the teacher.
+Cards, reminders, the REST API and the Mini App follow.

@@ -1,15 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
-import { AppError } from '../../common/errors';
-import { GroupsService } from '../groups/groups.service';
+import { MembershipService } from '../membership/membership.service';
 import { studentMessages } from './messages';
-import { StudentState } from './student-state.enum';
+import { parseFullName } from './name-validation';
 import { Student } from './student.entity';
-import { StudentsService, type CreateStudentInput } from './students.service';
+import { StudentStatus } from './student.enums';
+import { StudentsService } from './students.service';
 
-export interface StepResult {
-  reply: string;
+export interface IncomingUser {
+  telegramUserId: number;
+  username: string | null;
 }
+
+/**
+ * What the bot should do with a private message before any AI is involved.
+ * - `reply`: send this text and stop (registration step, refusal, archive note)
+ * - `student`: an active student — the message goes on to the dialog
+ */
+export type Gate = { kind: 'reply'; text: string } | { kind: 'student'; student: Student };
 
 @Injectable()
 export class RegistrationService {
@@ -17,91 +24,62 @@ export class RegistrationService {
 
   constructor(
     private readonly students: StudentsService,
-    private readonly groups: GroupsService,
+    private readonly membership: MembershipService,
   ) {}
 
-  async startFromDeepLink(
-    input: CreateStudentInput,
-    groupChatId: number,
-  ): Promise<StepResult> {
-    const group = await this.groups.findById(groupChatId);
-    if (!group || !group.isActive) {
-      throw new AppError({
-        level: ErrorLevel.INFO,
-        service: ServiceCode.GROUPS,
-        error: ErrorCode.NOT_FOUND,
-        message: studentMessages.groupInactive,
-      });
+  /**
+   * Gate every private message: unknown users are registered only if they are
+   * in one of the groups; archived students are re-checked and restored on
+   * return; PENDING_NAME students are asked for their name.
+   */
+  async gate(user: IncomingUser, text: string): Promise<Gate> {
+    const existing = await this.students.findByTelegramId(user.telegramUserId);
+
+    if (!existing) return this.register(user);
+
+    if (existing.username !== user.username) {
+      await this.students.updateUsername(existing.id, user.username);
     }
 
-    const existing = await this.students.findByTelegramId(input.telegramUserId);
-    if (existing) {
-      const reset = await this.students.resetBookForRestart(existing);
-      this.logger.log(`Student ${reset.id} re-registering (deep link)`);
-      return {
-        reply: `${studentMessages.bookRestartIntro}\n${studentMessages.bookRestartPrompt}`,
-      };
+    if (existing.status === StudentStatus.ARCHIVED) {
+      const { student, action } = await this.membership.reconcile(existing);
+      if (action !== 'restored') return { kind: 'reply', text: studentMessages.archived };
+      this.logger.log(`Student ${student.id} restored on return`);
+      if (student.status === StudentStatus.PENDING_NAME) {
+        return { kind: 'reply', text: `${studentMessages.restored}\n\n${studentMessages.askName}` };
+      }
+      return { kind: 'reply', text: studentMessages.restored };
     }
 
-    const created = await this.students.create({ ...input, chatId: groupChatId });
-    this.logger.log(`Student ${created.id} registered in group ${groupChatId}`);
-    return { reply: studentMessages.greetingAndAskBook(created.fullName) };
+    if (existing.status === StudentStatus.PENDING_NAME) return this.acceptName(existing, text);
+
+    await this.students.touchActivity(existing.id);
+    return { kind: 'student', student: existing };
   }
 
-  async restartBook(student: Student): Promise<StepResult> {
-    await this.students.resetBookForRestart(student);
-    return { reply: studentMessages.bookRestartPrompt };
+  private async register(user: IncomingUser): Promise<Gate> {
+    const { memberOf, level } = await this.membership.lookup(user.telegramUserId);
+    if (memberOf.length === 0) {
+      this.logger.log(`Registration refused for ${user.telegramUserId}: not a group member`);
+      return { kind: 'reply', text: studentMessages.notAMember };
+    }
+    const student = await this.students.create({
+      telegramUserId: user.telegramUserId,
+      username: user.username,
+      groupChatIds: memberOf.map((g) => g.chatId),
+      level,
+    });
+    this.logger.log(
+      `Student ${student.id} registered in ${memberOf.length} group(s), level=${level ?? 'unset'}`,
+    );
+    return { kind: 'reply', text: studentMessages.askName };
   }
 
-  async handleBookTitle(student: Student, raw: string): Promise<StepResult> {
-    const title = raw.trim();
-    if (title.length === 0) {
-      return { reply: studentMessages.askTitleAgain };
-    }
-    student.bookTitle = title;
-    await this.students.setState(student, StudentState.AWAITING_BOOK_TOTAL_PAGES);
-    return { reply: studentMessages.askTotalPages(title) };
+  private async acceptName(student: Student, text: string): Promise<Gate> {
+    const parsed = parseFullName(text);
+    if (!parsed) return { kind: 'reply', text: studentMessages.askNameAgain };
+    await this.students.setName(student, parsed.firstName, parsed.lastName);
+    this.logger.log(`Student ${student.id} named`);
+    return { kind: 'reply', text: studentMessages.welcome(parsed.firstName) };
   }
-
-  async handleTotalPages(student: Student, raw: string): Promise<StepResult> {
-    const total = parsePositiveInt(raw);
-    if (total === null) {
-      return { reply: studentMessages.askTotalPagesAgain };
-    }
-    student.bookTotalPages = total;
-    await this.students.setState(student, StudentState.AWAITING_BOOK_START_PAGE);
-    return { reply: studentMessages.askStartPage(total) };
-  }
-
-  async handleStartPage(student: Student, raw: string): Promise<StepResult> {
-    const total = student.bookTotalPages;
-    if (total === null) {
-      throw new AppError({
-        level: ErrorLevel.LOW_BUSINESS,
-        service: ServiceCode.STUDENTS,
-        error: ErrorCode.INVALID_STATE,
-        message: 'Total pages not set before start page step',
-        meta: { studentId: student.id },
-      });
-    }
-    const start = parsePositiveInt(raw);
-    if (start === null || start > total) {
-      return { reply: studentMessages.askStartPageOutOfRange(total) };
-    }
-    student.bookStartPage = start;
-    student.currentPage = start;
-    student.state = StudentState.IDLE;
-    await this.students.save(student);
-    return {
-      reply: studentMessages.registrationComplete(student.bookTitle ?? '', start, total),
-    };
-  }
-}
-
-function parsePositiveInt(raw: string): number | null {
-  const trimmed = raw.trim().replace(/\s+/g, '');
-  if (!/^\d+$/.test(trimmed)) return null;
-  const n = Number(trimmed);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) return null;
-  return n;
 }
