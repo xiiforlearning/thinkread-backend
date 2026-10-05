@@ -23,6 +23,16 @@ export const studentMessages = {
       'Полноценный диалог я ещё дописываю, скоро заработает 🙂',
     ].join('\n'),
 
+  /** PENDING_NAME: the name is entered in the Mini App now. */
+  finishInApp:
+    'Почти готово! Открой приложение ThinkRead и напиши своё имя и фамилию — дальше всё там: отчёты, словарь и карточки.',
+
+  /** Any text from an active student: the bot is only a door to the app. */
+  openApp:
+    'Я здесь только напоминаю. Отчёты, слова и карточки — в приложении ThinkRead, открой его кнопкой ниже.',
+
+  openAppButton: 'Открыть ThinkRead',
+
   archived:
     'Твой доступ приостановлен: я не вижу тебя ни в одной из учебных групп. Как только ты вернёшься в группу, всё восстановится — словарь и история на месте.',
 

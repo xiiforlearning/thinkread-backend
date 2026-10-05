@@ -50,6 +50,25 @@ export class AppConfigService {
     return (this.config.get<string>('BOT_LAUNCH') ?? 'true').toLowerCase() !== 'false';
   }
 
+  /** Secret for the API's JWTs. Required once the API is used. */
+  get jwtSecret(): string {
+    return this.require('JWT_SECRET');
+  }
+
+  /** Public HTTPS URL of the Mini App; without it bot messages carry no "open" button. */
+  get webAppUrl(): string | undefined {
+    const url = this.config.get<string>('WEBAPP_URL');
+    return url && url.length > 0 ? url : undefined;
+  }
+
+  /** Allowed CORS origins for the API (comma-separated). Empty = same-origin only. */
+  get corsOrigins(): string[] {
+    return (this.config.get<string>('CORS_ORIGINS') ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
   get timezone(): string {
     return this.config.get<string>('TZ') ?? 'Asia/Tashkent';
   }

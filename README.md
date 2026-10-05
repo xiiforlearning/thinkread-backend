@@ -46,11 +46,12 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `ANTHROPIC_API_KEY` | yes | Claude API key (student dialog) |
 | `AI_MODEL_DIALOG` | no | Default `claude-haiku-4-5` |
 | `AI_MODEL_AUTHENTICITY` | no | Report authenticity check; defaults to `AI_MODEL_DIALOG` |
+| `JWT_SECRET` | yes | Signs the API's JWTs |
+| `WEBAPP_URL` | no | Public HTTPS URL of the Mini App (the bot's "open" button) |
+| `CORS_ORIGINS` | no | Comma-separated origins allowed to call the API |
 | `BOT_LAUNCH` | no | `false` boots without Telegram polling |
 | `TZ` | no | Default `Asia/Tashkent` |
 | `NODE_ENV` | no | `development` / `production` |
-
-`JWT_SECRET` and `WEBAPP_URL` arrive with the API stage.
 
 ## AI eval
 
@@ -60,9 +61,9 @@ change (pass threshold 95%).
 
 ## Status
 
-Stages 0–5 of the plan are done: data model, groups and registration, the AI agent, reports and
-the vocabulary. A registered student can talk to the bot in free text, hand in reading and
-listening reports (one per type per day; the bot asks for whatever the level's method requires),
-add words by text or file, search and export the vocabulary, and accept the teacher's word lists.
-Reports are quietly checked for authenticity; suspicious ones become flags for the teacher.
-Cards, reminders, the REST API and the Mini App follow.
+The student works only in the Telegram Mini App (decision of 01.10.2026); the bot in private chat
+only sends reminders and opens the app. Stages 0–5 are done (data model, groups and registration,
+AI core, reports, vocabulary) and stage 6 (REST API) is in progress: Mini App sign-in and
+registration via `initData`, and the whole student API — profile, progress, calendar, reports with
+AI parsing and one clarification, vocabulary with imports and export, teacher's word lists, spot
+checks. Admin endpoints, cards and reminders follow, then the frontend.

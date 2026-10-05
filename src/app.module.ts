@@ -11,6 +11,7 @@ import { MembershipModule } from './domain/membership/membership.module';
 import { RegistrationModule } from './domain/students/registration.module';
 import { StudentsModule } from './domain/students/students.module';
 import { WordsModule } from './domain/words/words.module';
+import { ApiModule } from './infra/api/api.module';
 import { BotModule } from './infra/bot/bot.module';
 import { DatabaseModule } from './infra/db/db.module';
 import { SchedulerModule } from './infra/scheduler/scheduler.module';
@@ -33,6 +34,7 @@ import { TeacherModule } from './infra/teacher/teacher.module';
     RegistrationModule,
     TeacherModule,
     BotModule,
+    ApiModule,
     SchedulerModule,
   ],
 })

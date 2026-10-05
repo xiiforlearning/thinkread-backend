@@ -14,12 +14,38 @@ The product spec lives in Notion (workspace **ThinkRead → 📜 Докумен�
 "Поверхностное ТЗ" for the data model and error codes, "AI-агент и инструменты" for the AI layer,
 "План разработки" for the build order. Keep Notion and code in sync when a decision changes.
 
-**Current stage:** stage 5 done — vocabulary: `add_words` (≤5 at once, more → import preview
-with confirm buttons), `search_vocabulary`, `get_vocabulary_summary`, `set_word_status`,
-`set_word_priority`, `export_vocabulary` (file in the reply), teacher word lists
-(`get_recommended_words` / `add_recommended_words`), AI enrichment cached in `word_lexicon`,
-report words go to the vocabulary, .txt/.csv/.xlsx uploads in the bot. Next: stage 6 (cards) —
-`next_card`, stage 1–2 checks without AI, `check_own_sentence`, daily norm, queue order.
+**Decision 01.10.2026 — the student uses only the Mini App.** The bot in private chat is a
+door: every message gets one line and an "open the app" button (`WEBAPP_URL`), plus reminders
+later. No free-text AI chat for students: AI sits behind forms as structured, forced-tool calls
+(report intake, word list parsing, enrichment, sentence check, authenticity, spot-check grading).
+Registration (first and last name) happens in the Mini App. The dialog `AgentService` and its
+tools stay in the code for the teacher's per-student chat and as a fallback, but no student
+traffic goes through them.
+
+**Current stage:** stage 6 in progress — REST API: `POST /auth/webapp` (initData → status
+NOT_MEMBER / PENDING_NAME / ACTIVE / ARCHIVED + JWT), `POST /auth/telegram-login` (dashboard,
+staff only), all `/me/*` endpoints (profile, register, calm mode, progress, calendar, words,
+imports, export, reports with CLARIFY round-trip, recommendations, spot check). Next: `/admin/*`
+(students, flags, groups, word lists with coverage, membership checks, settings, AI usage),
+then stage 7 cards and stage 8 reminders — all API-first.
+
+### REST API (`infra/api`)
+
+- Auth: `telegram-signature.ts` verifies initData (`HMAC("WebAppData", token)`) and the Login
+  Widget (`SHA256(token)`); `AuthService.webApp()` calls `RegistrationService.resolve()` and
+  signs a JWT whose claims carry `studentId`, status and roles. `JwtAuthGuard` → `req.principal`,
+  `StudentGuard` → `req.student` (ACTIVE only unless `@AllowPendingName()`), `@Roles()` for staff.
+- Every success is `{ data }` (lists return `{ data, meta: { nextCursor } }`), every failure
+  `{ error: { code, message, details? } }` with the `{level}{service}{error}` code; the HTTP
+  status comes from the error code table in `common/http.ts`.
+- Controllers are thin (DTO validation with class-validator, serializers in `me/serializers.ts`);
+  rules live in domain services. `ReportIntakeService` (domain/ai) is the form-side twin of the
+  chat tools: one forced-tool parse, `missingListeningFields`, a draft in
+  `dialog_state.reportDraft` while the student answers one clarification, then save + words +
+  background checks. `SpotCheckGraderService` grades the Mini App answer with one forced-tool
+  call; the verdict is never returned to the student.
+- Env: `JWT_SECRET` (required), `WEBAPP_URL`, `CORS_ORIGINS`. Throttling: 60 req/min per IP,
+  stricter on auth and AI endpoints.
 
 ### AI layer (`domain/ai`)
 

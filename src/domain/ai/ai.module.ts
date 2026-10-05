@@ -11,6 +11,8 @@ import { WordsModule } from '../words/words.module';
 import { AgentService } from './agent.service';
 import { AuthenticityService } from './authenticity.service';
 import { EnrichmentService } from './enrichment.service';
+import { ReportIntakeService } from './report-intake.service';
+import { SpotCheckGraderService } from './spot-check-grader.service';
 import { DialogHistoryService } from './dialog-history.service';
 import { AGENT_TOOLS } from './tool';
 import {
@@ -75,8 +77,17 @@ export const TOOL_CLASSES = [
     UsageService,
     AuthenticityService,
     EnrichmentService,
+    ReportIntakeService,
+    SpotCheckGraderService,
     AgentService,
   ],
-  exports: [AgentService, UsageService, AuthenticityService, EnrichmentService],
+  exports: [
+    AgentService,
+    UsageService,
+    AuthenticityService,
+    EnrichmentService,
+    ReportIntakeService,
+    SpotCheckGraderService,
+  ],
 })
 export class AiModule {}

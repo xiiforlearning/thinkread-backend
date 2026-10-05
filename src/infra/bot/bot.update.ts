@@ -1,38 +1,26 @@
 import { Logger } from '@nestjs/common';
 import { Action, Ctx, Next, On, Start, Update, Use } from 'nestjs-telegraf';
 import { Context, Markup } from 'telegraf';
-import { AppError } from '../../common/errors';
+import { AppConfigService } from '../../config/config.service';
 import { AccessService } from '../../domain/admins/access.service';
-import { AgentService } from '../../domain/ai/agent.service';
-import { aiMessages } from '../../domain/ai/messages';
 import { GroupsService } from '../../domain/groups/groups.service';
 import { GROUP_LEVELS, GroupLevel } from '../../domain/groups/level';
 import { LEVEL_LABELS, groupMessages } from '../../domain/groups/messages';
+import { studentMessages } from '../../domain/students/messages';
 import { RegistrationService } from '../../domain/students/registration.service';
 import { StudentsService } from '../../domain/students/students.service';
-import { EnrichmentService } from '../../domain/ai/enrichment.service';
-import { importKeyboard } from '../../domain/ai/tools/vocabulary.tools';
-import { wordMessages } from '../../domain/words/messages';
-import { lemmaOf } from '../../domain/words/normalize';
-import { WordImportsService } from '../../domain/words/word-imports.service';
 import { TeacherResolverService } from '../teacher/teacher-resolver.service';
-import { isWordFile, MAX_WORD_FILE_BYTES, parseWordFile } from './utils/word-file';
 
 const LEVEL_ACTION = /^level:(-?\d+):([A-Z_]+)$/;
-const IMPORT_ACTION = /^wimport:(ok|no):([0-9a-f-]{36})$/;
 
 type ActionContext = Context & { match: RegExpExecArray };
 
-function toKeyboard(
-  rows: Array<Array<{ text: string; callbackData: string }>> | undefined,
-): ReturnType<typeof Markup.inlineKeyboard> | undefined {
-  return rows
-    ? Markup.inlineKeyboard(
-        rows.map((row) => row.map((b) => Markup.button.callback(b.text, b.callbackData))),
-      )
-    : undefined;
-}
-
+/**
+ * The Telegram gateway. Since 01.10.2026 the student works only in the Mini
+ * App: in private chat the bot answers every message with one line and an
+ * "open the app" button, and sends reminders. Groups (membership, teachers)
+ * and the owner's level prompt stay here.
+ */
 @Update()
 export class BotUpdate {
   private readonly logger = new Logger(BotUpdate.name);
@@ -43,9 +31,7 @@ export class BotUpdate {
     private readonly teacher: TeacherResolverService,
     private readonly access: AccessService,
     private readonly registration: RegistrationService,
-    private readonly agent: AgentService,
-    private readonly imports: WordImportsService,
-    private readonly enrichment: EnrichmentService,
+    private readonly config: AppConfigService,
   ) {}
 
   @Use()
@@ -139,120 +125,30 @@ export class BotUpdate {
     await ctx.editMessageText(groupMessages.levelSet(group.title, level)).catch(() => undefined);
   }
 
-  // --- private chat ---------------------------------------------------------
+  // --- private chat: one door to the Mini App -------------------------------
 
   @Start()
   async onStart(@Ctx() ctx: Context): Promise<void> {
-    return this.onText(ctx);
+    return this.onMessage(ctx);
   }
 
-  @On('text')
-  async onText(@Ctx() ctx: Context): Promise<void> {
+  @On('message')
+  async onMessage(@Ctx() ctx: Context): Promise<void> {
     if (ctx.chat?.type !== 'private' || !ctx.from || ctx.from.is_bot) return;
-    const text = ctx.message && 'text' in ctx.message ? ctx.message.text : '';
-    // A forwarded report is an authenticity signal (recorded quietly, never mentioned).
-    const forwarded =
-      ctx.message !== undefined &&
-      'forward_origin' in ctx.message &&
-      ctx.message.forward_origin !== undefined;
 
-    const gate = await this.registration.gate(
-      { telegramUserId: ctx.from.id, username: ctx.from.username ?? null },
-      text,
-    );
-    if (gate.kind === 'reply') {
-      await ctx.reply(gate.text);
-      return;
-    }
-
-    try {
-      const reply = await this.agent.handle(gate.student, text, new Date(), { forwarded });
-      await ctx.reply(reply.text, toKeyboard(reply.keyboard));
-      if (reply.document) {
-        await ctx.replyWithDocument({
-          source: Buffer.from(reply.document.content, 'utf8'),
-          filename: reply.document.filename,
-        });
-      }
-    } catch (err) {
-      const code = err instanceof AppError ? err.code : 'unknown';
-      this.logger.error(`AI turn failed for ${ctx.from.id}: ${code} ${(err as Error).message}`);
-      await ctx.reply(aiMessages.unavailable);
-    }
+    const gate = await this.registration.gate({
+      telegramUserId: ctx.from.id,
+      username: ctx.from.username ?? null,
+    });
+    const text = gate.kind === 'reply' ? gate.text : studentMessages.openApp;
+    const showButton = gate.kind === 'student' || text === studentMessages.finishInApp;
+    await ctx.reply(text, showButton ? this.openAppKeyboard() : undefined);
   }
 
-  // --- vocabulary: files and import confirmation ----------------------------
-
-  /** A .txt / .csv / .xlsx list of words → preview with confirm / cancel buttons. */
-  @On('document')
-  async onDocument(@Ctx() ctx: Context): Promise<void> {
-    if (ctx.chat?.type !== 'private' || !ctx.from || ctx.from.is_bot) return;
-    const doc = ctx.message && 'document' in ctx.message ? ctx.message.document : undefined;
-    if (!doc) return;
-
-    const gate = await this.registration.gate(
-      { telegramUserId: ctx.from.id, username: ctx.from.username ?? null },
-      '',
-    );
-    if (gate.kind === 'reply') {
-      await ctx.reply(gate.text);
-      return;
-    }
-    if (!isWordFile(doc.file_name) || (doc.file_size ?? 0) > MAX_WORD_FILE_BYTES) {
-      await ctx.reply(wordMessages.fileUnsupported);
-      return;
-    }
-    try {
-      const link = await ctx.telegram.getFileLink(doc.file_id);
-      const data = Buffer.from(await (await fetch(link.href)).arrayBuffer());
-      const parsed = parseWordFile(doc.file_name ?? 'words.txt', data);
-      if (parsed.length === 0) {
-        await ctx.reply(wordMessages.fileEmpty);
-        return;
-      }
-      const preview = await this.imports.createPreview(gate.student, parsed);
-      await ctx.reply(
-        wordMessages.importPreview(preview.found, preview.duplicates, preview.toAdd),
-        preview.toAdd > 0 ? toKeyboard(importKeyboard(preview.importId, preview.toAdd)) : undefined,
-      );
-    } catch (err) {
-      this.logger.error(`word file import failed for ${ctx.from.id}: ${(err as Error).message}`);
-      await ctx.reply(aiMessages.unavailable);
-    }
-  }
-
-  @Action(IMPORT_ACTION)
-  async onImportDecision(@Ctx() ctx: ActionContext): Promise<void> {
-    const decision = ctx.match[1];
-    const importId = ctx.match[2];
-    const student = ctx.from ? await this.students.findByTelegramId(ctx.from.id) : null;
-    if (!student) {
-      await ctx.answerCbQuery(wordMessages.importNotYours, { show_alert: true });
-      return;
-    }
-    try {
-      if (decision === 'ok') {
-        const result = await this.imports.confirm(importId, student);
-        if (result.added.length > 0) {
-          this.enrichment.enrichLater(
-            result.added.map((w) => w.lemma ?? lemmaOf(w.word)),
-            student.id,
-          );
-        }
-        await ctx.answerCbQuery();
-        await ctx
-          .editMessageText(wordMessages.importConfirmed(result.added.length))
-          .catch(() => undefined);
-      } else {
-        await this.imports.cancel(importId, student);
-        await ctx.answerCbQuery();
-        await ctx.editMessageText(wordMessages.importCancelled).catch(() => undefined);
-      }
-    } catch (err) {
-      const code = err instanceof AppError ? err.code : 'unknown';
-      this.logger.warn(`import ${decision} failed for ${student.id}: ${code}`);
-      await ctx.answerCbQuery(wordMessages.importExpired, { show_alert: true });
-      await ctx.editMessageReplyMarkup(undefined).catch(() => undefined);
-    }
+  /** A web_app button when the Mini App URL is configured; nothing otherwise. */
+  private openAppKeyboard(): ReturnType<typeof Markup.inlineKeyboard> | undefined {
+    const url = this.config.webAppUrl;
+    if (!url) return undefined;
+    return Markup.inlineKeyboard([Markup.button.webApp(studentMessages.openAppButton, url)]);
   }
 }

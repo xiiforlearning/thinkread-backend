@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { LessThan, Not, Repository } from 'typeorm';
+import { addDays, format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { globalConfig } from '../../config/global.config';
@@ -179,6 +181,82 @@ export class ReportsService {
   ): Promise<boolean> {
     const today = await this.countToday(studentId, type, now, timeZone);
     return today >= globalConfig.norms.maxReportsPerTypePerDay;
+  }
+
+  /** Newest first, cursor = createdAt of the last item of the previous page. */
+  async history(studentId: string, limit = 20, before?: Date): Promise<Report[]> {
+    return this.repo.find({
+      where: before ? { studentId, createdAt: LessThan(before) } : { studentId },
+      order: { createdAt: 'DESC' },
+      take: Math.min(limit, 100),
+    });
+  }
+
+  /** Per-week counts for the last `weeks` weeks (newest first), for the calendar. */
+  async calendar(
+    studentId: string,
+    weeks: number,
+    now: Date,
+    timeZone: string,
+  ): Promise<WeekProgress[]> {
+    const current = weekStart(now, timeZone);
+    const starts: string[] = [];
+    let cursor = toZonedTime(new Date(`${current}T12:00:00Z`), 'UTC');
+    for (let i = 0; i < weeks; i += 1) {
+      starts.push(format(cursor, 'yyyy-MM-dd'));
+      cursor = addDays(cursor, -7);
+    }
+    const rows = await this.repo
+      .createQueryBuilder('r')
+      .select('r.week_start', 'weekStart')
+      .addSelect('r.type', 'type')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.student_id = :studentId', { studentId })
+      .andWhere('r.week_start IN (:...starts)', { starts })
+      .groupBy('r.week_start')
+      .addGroupBy('r.type')
+      .getRawMany<{ weekStart: string | Date; type: ReportType; count: string }>();
+    const key = (d: string | Date): string =>
+      d instanceof Date ? format(d, 'yyyy-MM-dd') : String(d).slice(0, 10);
+    return starts.map((start) => ({
+      weekStart: start,
+      reading: Number(
+        rows.find((r) => key(r.weekStart) === start && r.type === ReportType.READING)?.count ?? 0,
+      ),
+      listening: Number(
+        rows.find((r) => key(r.weekStart) === start && r.type === ReportType.LISTENING)?.count ?? 0,
+      ),
+      readingNorm: globalConfig.norms.readingPerWeek,
+      listeningNorm: globalConfig.norms.listeningPerWeek,
+    }));
+  }
+
+  /** The student corrects parsed fields on the result screen (within a day). */
+  async updateFields(
+    report: Report,
+    patch: Partial<
+      Pick<
+        Report,
+        | 'sourceTitle'
+        | 'episode'
+        | 'pages'
+        | 'summary'
+        | 'firstPassPct'
+        | 'secondPassPct'
+        | 'listenCount'
+      >
+    >,
+  ): Promise<Report> {
+    if (Date.now() - report.createdAt.getTime() > 24 * 3_600_000) {
+      throw new AppError({
+        level: ErrorLevel.LOW_BUSINESS,
+        service: ServiceCode.REPORTS,
+        error: ErrorCode.INVALID_STATE,
+        message: 'report is older than a day',
+      });
+    }
+    Object.assign(report, patch);
+    return this.repo.save(report);
   }
 
   /** Latest reports of one type, newest first — context for the authenticity check. */

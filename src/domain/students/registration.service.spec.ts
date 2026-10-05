@@ -45,11 +45,9 @@ function makeStudents(existing: Student | null): StudentsFake {
 
 function makeMembership(memberOf: Group[]): MembershipFake {
   return {
-    lookup: jest.fn().mockResolvedValue({
-      memberOf,
-      failedGroups: [],
-      level: memberOf[0]?.level ?? null,
-    }),
+    lookup: jest
+      .fn()
+      .mockResolvedValue({ memberOf, failedGroups: [], level: memberOf[0]?.level ?? null }),
     reconcile: jest.fn(),
   };
 }
@@ -66,18 +64,17 @@ function make(
 
 const PRE = Object.assign(new Group(), { chatId: -1, level: GroupLevel.PRE_INTERMEDIATE });
 
-describe('RegistrationService.gate', () => {
+describe('RegistrationService.resolve (Mini App auth)', () => {
   it('refuses an unknown user who is in no group, without creating anything', async () => {
     const { service, students } = make(null, []);
-    const g = await service.gate(user, 'hi');
-    expect(g).toEqual({ kind: 'reply', text: studentMessages.notAMember });
+    expect(await service.resolve(user)).toEqual({ status: 'NOT_MEMBER', student: null });
     expect(students.create).not.toHaveBeenCalled();
   });
 
-  it('registers a group member and asks for the name', async () => {
+  it('creates a group member as PENDING_NAME', async () => {
     const { service, students } = make(null, [PRE]);
-    const g = await service.gate(user, '/start');
-    expect(g).toEqual({ kind: 'reply', text: studentMessages.askName });
+    const r = await service.resolve(user);
+    expect(r.status).toBe('PENDING_NAME');
     expect(students.create).toHaveBeenCalledWith({
       telegramUserId: 100,
       username: 'nine_nine',
@@ -86,32 +83,15 @@ describe('RegistrationService.gate', () => {
     });
   });
 
-  it('re-asks when the name is not a real name', async () => {
-    const pending = student({ status: StudentStatus.PENDING_NAME, firstName: null });
-    const { service, students } = make(pending);
-    const g = await service.gate(user, '9_9');
-    expect(g).toEqual({ kind: 'reply', text: studentMessages.askNameAgain });
-    expect(students.setName).not.toHaveBeenCalled();
-  });
-
-  it('accepts a real name and welcomes the student', async () => {
-    const pending = student({ status: StudentStatus.PENDING_NAME, firstName: null });
-    const { service, students } = make(pending);
-    const g = await service.gate(user, 'акмаль хадиев');
-    expect(students.setName).toHaveBeenCalledWith(pending, 'Акмаль', 'Хадиев');
-    expect(g).toEqual({ kind: 'reply', text: studentMessages.welcome('Акмаль') });
-  });
-
-  it('passes an active student through to the dialog and records activity', async () => {
+  it('reports an active student and records activity without re-checking membership', async () => {
     const active = student({});
     const { service, students, membership } = make(active);
-    const g = await service.gate(user, 'прочитал 10 страниц');
-    expect(g).toEqual({ kind: 'student', student: active });
+    expect(await service.resolve(user)).toEqual({ status: 'ACTIVE', student: active });
     expect(students.touchActivity).toHaveBeenCalledWith('s1');
     expect(membership.lookup).not.toHaveBeenCalled();
   });
 
-  it('tells an archived student access is suspended when still out of the groups', async () => {
+  it('keeps an archived student archived when still out of the groups', async () => {
     const archived = student({
       status: StudentStatus.ARCHIVED,
       archiveReason: ArchiveReason.LEFT_GROUP,
@@ -123,8 +103,7 @@ describe('RegistrationService.gate', () => {
       levelChanged: false,
       failedGroups: [],
     });
-    const g = await service.gate(user, 'hello?');
-    expect(g).toEqual({ kind: 'reply', text: studentMessages.archived });
+    expect((await service.resolve(user)).status).toBe('ARCHIVED');
   });
 
   it('restores an archived student who is back in a group right away', async () => {
@@ -139,14 +118,43 @@ describe('RegistrationService.gate', () => {
       levelChanged: false,
       failedGroups: [],
     });
-    const g = await service.gate(user, 'hello?');
-    expect(g).toEqual({ kind: 'reply', text: studentMessages.restored });
+    expect((await service.resolve(user)).status).toBe('ACTIVE');
   });
 
   it('keeps the stored username in sync', async () => {
     const active = student({ username: 'old' });
     const { service, students } = make(active);
-    await service.gate(user, 'hi');
+    await service.resolve(user);
     expect(students.updateUsername).toHaveBeenCalledWith('s1', 'nine_nine');
+  });
+});
+
+describe('RegistrationService.setName', () => {
+  it('accepts a real name, capitalized', async () => {
+    const pending = student({ status: StudentStatus.PENDING_NAME, firstName: null });
+    const { service, students } = make(pending);
+    await service.setName(pending, 'акмаль', 'хадиев');
+    expect(students.setName).toHaveBeenCalledWith(pending, 'Акмаль', 'Хадиев');
+  });
+
+  it('rejects nicknames and digits with NAME_INVALID', async () => {
+    const pending = student({ status: StudentStatus.PENDING_NAME, firstName: null });
+    const { service, students } = make(pending);
+    await expect(service.setName(pending, '9_9', 'x')).rejects.toMatchObject({ code: '203261' });
+    expect(students.setName).not.toHaveBeenCalled();
+  });
+});
+
+describe('RegistrationService.gate (bot)', () => {
+  it('points a PENDING_NAME student to the app', async () => {
+    const pending = student({ status: StudentStatus.PENDING_NAME, firstName: null });
+    const { service } = make(pending);
+    expect(await service.gate(user)).toEqual({ kind: 'reply', text: studentMessages.finishInApp });
+  });
+
+  it('passes an active student through', async () => {
+    const active = student({});
+    const { service } = make(active);
+    expect(await service.gate(user)).toEqual({ kind: 'student', student: active });
   });
 });

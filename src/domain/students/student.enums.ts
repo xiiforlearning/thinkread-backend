@@ -31,4 +31,15 @@ export interface DialogState {
   pendingWordImportId?: string;
   /** Spot check to weave into the next conversation. */
   pendingSpotCheckId?: string;
+  /** Report being clarified in the Mini App (missing fields after the first parse). */
+  reportDraft?: ReportDraft;
+}
+
+export interface ReportDraft {
+  id: string;
+  type: 'READING' | 'LISTENING';
+  /** Everything the student wrote so far, joined. */
+  text: string;
+  missingFields: string[];
+  createdAt: string;
 }
