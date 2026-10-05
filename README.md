@@ -67,3 +67,9 @@ AI core, reports, vocabulary) and stage 6 (REST API) is in progress: Mini App si
 registration via `initData`, and the whole student API — profile, progress, calendar, reports with
 AI parsing and one clarification, vocabulary with imports and export, teacher's word lists, spot
 checks. Admin endpoints, cards and reminders follow, then the frontend.
+
+## Mini App (frontend)
+
+The student's Telegram Mini App lives in [`frontend/`](frontend/README.md) — React + Vite on the
+ThinkRead Design System. `cd frontend && pnpm install && pnpm dev`; outside Telegram it runs on
+demo data, inside Telegram it signs in with `initData` against this API (`VITE_API_URL`).

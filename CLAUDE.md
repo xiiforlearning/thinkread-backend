@@ -29,6 +29,19 @@ imports, export, reports with CLARIFY round-trip, recommendations, spot check). 
 (students, flags, groups, word lists with coverage, membership checks, settings, AI usage),
 then stage 7 cards and stage 8 reminders — all API-first.
 
+### Mini App (`frontend/`)
+
+- Separate Vite project (React 19 + TS, TanStack Query, React Router with hash routing) in
+  `frontend/` — its own `package.json`, lockfile and CI job; the Nest build never touches it.
+- UI = ThinkRead Design System: `src/ui/tokens.css` and `components.css` are verbatim copies of
+  the artifact, `src/ui/components.tsx` is the React port of its bundle. Screens are transcribed
+  from the artboards of «ThinkRead — кликабельный дизайн»; keep them in sync when a screen changes.
+- `src/api/types.ts` mirrors `me/serializers.ts`; `Api` (client.ts) has two implementations:
+  `HttpApi` (real backend, JWT in sessionStorage) and `MockApi` (in-memory demo with the same
+  rules). Outside Telegram or with `VITE_DEMO=1` the app runs on the mock — that is the demo.
+- Commands: `pnpm dev | build | lint | typecheck | format`. `pages.yml` deploys the demo to
+  GitHub Pages; the production build goes to `WEBAPP_URL`.
+
 ### REST API (`infra/api`)
 
 - Auth: `telegram-signature.ts` verifies initData (`HMAC("WebAppData", token)`) and the Login
@@ -138,8 +151,8 @@ src/
     └── teacher/             — teacher detection via group admin custom title
 ```
 
-Planned infra modules: `ai/` (Claude + tools), `api/` (REST for Mini App / dashboard),
-`scheduler/` (reminders, weekly summary, monthly membership check).
+`frontend/` — the Telegram Mini App (see above). Planned: `infra/scheduler/` (reminders, weekly
+summary, monthly membership check), `/admin/*` API, web dashboard.
 
 ### Rules
 

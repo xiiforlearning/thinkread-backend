@@ -51,3 +51,24 @@ jobs:
           out=$(pnpm typeorm migration:generate src/infra/db/migrations/CiDrift 2>&1)
           echo "$out"
           echo "$out" | grep -q "No changes in database schema were found"
+
+  webapp:
+    name: Mini App (frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm build
