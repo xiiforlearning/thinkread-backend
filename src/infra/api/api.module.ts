@@ -6,11 +6,22 @@ import { AppConfigModule } from '../../config/config.module';
 import { AppConfigService } from '../../config/config.service';
 import { AdminsModule } from '../../domain/admins/admins.module';
 import { AiModule } from '../../domain/ai/ai.module';
+import { FlagsModule } from '../../domain/flags/flags.module';
 import { GroupsModule } from '../../domain/groups/groups.module';
+import { MembershipModule } from '../../domain/membership/membership.module';
+import { SettingsModule } from '../../domain/settings/settings.module';
 import { ReportsModule } from '../../domain/reports/reports.module';
 import { RegistrationModule } from '../../domain/students/registration.module';
 import { StudentsModule } from '../../domain/students/students.module';
 import { WordsModule } from '../../domain/words/words.module';
+import { SchedulerModule } from '../scheduler/scheduler.module';
+import { AdminFlagsController } from './admin/flags.controller';
+import { AdminGroupsController } from './admin/groups.controller';
+import { AdminOverviewController } from './admin/overview.controller';
+import { AdminScopeService } from './admin/scope';
+import { AdminSettingsController } from './admin/settings.controller';
+import { AdminStudentsController } from './admin/students.controller';
+import { AdminWordListsController } from './admin/word-lists.controller';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtAuthGuard, StudentGuard } from './auth/guards';
@@ -37,10 +48,26 @@ import { MeWordsController } from './me/words.controller';
     ReportsModule,
     WordsModule,
     AiModule,
+    FlagsModule,
+    MembershipModule,
+    SettingsModule,
+    SchedulerModule,
   ],
-  controllers: [AuthController, MeController, MeWordsController, MeReportsController],
+  controllers: [
+    AuthController,
+    MeController,
+    MeWordsController,
+    MeReportsController,
+    AdminOverviewController,
+    AdminStudentsController,
+    AdminFlagsController,
+    AdminGroupsController,
+    AdminWordListsController,
+    AdminSettingsController,
+  ],
   providers: [
     AuthService,
+    AdminScopeService,
     JwtAuthGuard,
     StudentGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },

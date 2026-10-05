@@ -12,6 +12,10 @@ import { Student } from '../students/student.entity';
 import { ListeningReportInput } from './listening-fields';
 import { Report, ReportType } from './report.entity';
 
+function weekKeyOf(d: string | Date): string {
+  return d instanceof Date ? format(d, 'yyyy-MM-dd') : String(d).slice(0, 10);
+}
+
 export interface ReadingReportInput {
   bookTitle: string;
   pages: number | null;
@@ -181,6 +185,69 @@ export class ReportsService {
   ): Promise<boolean> {
     const today = await this.countToday(studentId, type, now, timeZone);
     return today >= globalConfig.norms.maxReportsPerTypePerDay;
+  }
+
+  /**
+   * Per-student, per-week report counts for the given Mondays — one query
+   * for the whole dashboard. Map key: `${studentId}|${weekStart}`.
+   */
+  async countsByWeek(
+    studentIds: string[],
+    weekStarts: string[],
+  ): Promise<Map<string, { reading: number; listening: number }>> {
+    const out = new Map<string, { reading: number; listening: number }>();
+    if (studentIds.length === 0 || weekStarts.length === 0) return out;
+    const rows = await this.repo
+      .createQueryBuilder('r')
+      .select('r.student_id', 'studentId')
+      .addSelect('r.week_start', 'weekStart')
+      .addSelect('r.type', 'type')
+      .addSelect('COUNT(*)', 'count')
+      .where('r.student_id IN (:...studentIds)', { studentIds })
+      .andWhere('r.week_start IN (:...weekStarts)', { weekStarts })
+      .groupBy('r.student_id')
+      .addGroupBy('r.week_start')
+      .addGroupBy('r.type')
+      .getRawMany<{
+        studentId: string;
+        weekStart: string | Date;
+        type: ReportType;
+        count: string;
+      }>();
+    for (const row of rows) {
+      const key = `${row.studentId}|${weekKeyOf(row.weekStart)}`;
+      const cell = out.get(key) ?? { reading: 0, listening: 0 };
+      if (row.type === ReportType.READING) cell.reading += Number(row.count);
+      else cell.listening += Number(row.count);
+      out.set(key, cell);
+    }
+    return out;
+  }
+
+  /** Pages read per student in one week, most first. */
+  async topReaders(
+    studentIds: string[],
+    weekStart: string,
+    limit = 3,
+  ): Promise<Array<{ studentId: string; pages: number; reports: number }>> {
+    if (studentIds.length === 0) return [];
+    const rows = await this.repo
+      .createQueryBuilder('r')
+      .select('r.student_id', 'studentId')
+      .addSelect('COALESCE(SUM(r.pages), 0)', 'pages')
+      .addSelect('COUNT(*)', 'reports')
+      .where('r.student_id IN (:...studentIds)', { studentIds })
+      .andWhere('r.week_start = :weekStart', { weekStart })
+      .andWhere('r.type = :type', { type: ReportType.READING })
+      .groupBy('r.student_id')
+      .orderBy('pages', 'DESC')
+      .limit(limit)
+      .getRawMany<{ studentId: string; pages: string; reports: string }>();
+    return rows.map((r) => ({
+      studentId: r.studentId,
+      pages: Number(r.pages),
+      reports: Number(r.reports),
+    }));
   }
 
   /** Newest first, cursor = createdAt of the last item of the previous page. */

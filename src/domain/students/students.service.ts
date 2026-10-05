@@ -64,6 +64,55 @@ export class StudentsService {
     return this.repo.find({ where: { status: StudentStatus.ACTIVE, dmBlocked: false } });
   }
 
+  /** Dashboard list: by status (default — everyone but LEAD), optionally only the given ids. */
+  findAll(filter: { statuses?: StudentStatus[]; ids?: string[] } = {}): Promise<Student[]> {
+    if (filter.ids && filter.ids.length === 0) return Promise.resolve([]);
+    return this.repo.find({
+      where: {
+        kind: StudentKind.STUDENT,
+        ...(filter.statuses ? { status: In(filter.statuses) } : {}),
+        ...(filter.ids ? { id: In(filter.ids) } : {}),
+      },
+      order: { registeredAt: 'ASC' },
+    });
+  }
+
+  async countByStatus(): Promise<Record<StudentStatus, number>> {
+    const rows = await this.repo
+      .createQueryBuilder('s')
+      .select('s.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .where('s.kind = :kind', { kind: StudentKind.STUDENT })
+      .groupBy('s.status')
+      .getRawMany<{ status: StudentStatus; count: string }>();
+    const out = { PENDING_NAME: 0, ACTIVE: 0, ARCHIVED: 0 } as Record<StudentStatus, number>;
+    for (const r of rows) out[r.status] = Number(r.count);
+    return out;
+  }
+
+  /** Current group ids of many students at once (dashboard lists). */
+  async memberGroupIdsFor(studentIds: string[]): Promise<Map<string, number[]>> {
+    const out = new Map<string, number[]>();
+    if (studentIds.length === 0) return out;
+    const rows = await this.groupsRepo.find({
+      where: { studentId: In(studentIds), isMember: true },
+    });
+    for (const r of rows) out.set(r.studentId, [...(out.get(r.studentId) ?? []), r.groupChatId]);
+    return out;
+  }
+
+  /** Students currently in a group, per group — for the groups page. */
+  async memberCountsByGroup(): Promise<Map<number, number>> {
+    const rows = await this.groupsRepo
+      .createQueryBuilder('sg')
+      .select('sg.group_chat_id', 'chatId')
+      .addSelect('COUNT(*)', 'count')
+      .where('sg.is_member = TRUE')
+      .groupBy('sg.group_chat_id')
+      .getRawMany<{ chatId: string; count: string }>();
+    return new Map(rows.map((r) => [Number(r.chatId), Number(r.count)]));
+  }
+
   async create(input: CreateStudentInput): Promise<Student> {
     const student = await this.repo.save(
       this.repo.create({

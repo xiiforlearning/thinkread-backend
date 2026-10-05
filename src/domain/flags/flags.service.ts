@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { Flag } from './flag.entity';
@@ -43,6 +43,60 @@ export class FlagsService {
 
   findNew(): Promise<Flag[]> {
     return this.flags.find({ where: { status: FlagStatus.NEW }, order: { createdAt: 'ASC' } });
+  }
+
+  findById(id: string): Promise<Flag | null> {
+    return this.flags.findOne({ where: { id } });
+  }
+
+  async getById(id: string): Promise<Flag> {
+    const flag = await this.findById(id);
+    if (!flag) {
+      throw new AppError({
+        level: ErrorLevel.LOW_BUSINESS,
+        service: ServiceCode.FLAGS,
+        error: ErrorCode.NOT_FOUND,
+        meta: { id },
+      });
+    }
+    return flag;
+  }
+
+  /** Dashboard inbox: newest first; `studentIds` limits a teacher to their groups. */
+  list(filter: {
+    status?: FlagStatus;
+    kind?: FlagKind;
+    studentId?: string;
+    studentIds?: string[] | null;
+    limit?: number;
+  }): Promise<Flag[]> {
+    if (filter.studentIds && filter.studentIds.length === 0) return Promise.resolve([]);
+    return this.flags.find({
+      where: {
+        ...(filter.status ? { status: filter.status } : {}),
+        ...(filter.kind ? { kind: filter.kind } : {}),
+        ...(filter.studentId ? { studentId: filter.studentId } : {}),
+        ...(filter.studentIds ? { studentId: In(filter.studentIds) } : {}),
+      },
+      order: { createdAt: 'DESC' },
+      take: Math.min(filter.limit ?? 100, 500),
+    });
+  }
+
+  /** NEW flags per student — the badge in the student list. */
+  async countNewByStudent(studentIds: string[] | null): Promise<Map<string, number>> {
+    const out = new Map<string, number>();
+    if (studentIds && studentIds.length === 0) return out;
+    const qb = this.flags
+      .createQueryBuilder('f')
+      .select('f.student_id', 'studentId')
+      .addSelect('COUNT(*)', 'count')
+      .where('f.status = :status', { status: FlagStatus.NEW })
+      .groupBy('f.student_id');
+    if (studentIds) qb.andWhere('f.student_id IN (:...studentIds)', { studentIds });
+    const rows = await qb.getRawMany<{ studentId: string; count: string }>();
+    for (const r of rows) out.set(r.studentId, Number(r.count));
+    return out;
   }
 
   async review(id: string, status: FlagStatus.REVIEWED | FlagStatus.DISMISSED): Promise<void> {

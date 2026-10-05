@@ -31,6 +31,16 @@ export function estimateCostUsd(model: string, usage: Anthropic.Usage): number {
   );
 }
 
+export interface UsageReport {
+  from: string;
+  to: string;
+  costUsd: number;
+  tokens: number;
+  calls: number;
+  byPurpose: Array<{ purpose: AiPurpose; costUsd: number; tokens: number; calls: number }>;
+  topStudents: Array<{ studentId: string; costUsd: number; tokens: number }>;
+}
+
 export function totalTokens(usage: Anthropic.Usage): number {
   return (
     usage.input_tokens +
@@ -65,6 +75,58 @@ export class UsageService {
         costUsd: estimateCostUsd(model, usage).toFixed(6),
       }),
     );
+  }
+
+  /** Cost report for a period: totals, by purpose and the heaviest students. */
+  async report(from: Date, to: Date, topLimit = 5): Promise<UsageReport> {
+    const base = (): ReturnType<Repository<AiUsage>['createQueryBuilder']> =>
+      this.repo
+        .createQueryBuilder('u')
+        .where('u.created_at >= :from', { from })
+        .andWhere('u.created_at < :to', { to });
+    const tokensExpr =
+      'SUM(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens)';
+    const [totals, byPurpose, top] = await Promise.all([
+      base()
+        .select('COALESCE(SUM(u.cost_usd), 0)', 'cost')
+        .addSelect(`COALESCE(${tokensExpr}, 0)`, 'tokens')
+        .addSelect('COUNT(*)', 'calls')
+        .getRawOne<{ cost: string; tokens: string; calls: string }>(),
+      base()
+        .select('u.purpose', 'purpose')
+        .addSelect('COALESCE(SUM(u.cost_usd), 0)', 'cost')
+        .addSelect(`COALESCE(${tokensExpr}, 0)`, 'tokens')
+        .addSelect('COUNT(*)', 'calls')
+        .groupBy('u.purpose')
+        .getRawMany<{ purpose: AiPurpose; cost: string; tokens: string; calls: string }>(),
+      base()
+        .andWhere('u.student_id IS NOT NULL')
+        .select('u.student_id', 'studentId')
+        .addSelect('COALESCE(SUM(u.cost_usd), 0)', 'cost')
+        .addSelect(`COALESCE(${tokensExpr}, 0)`, 'tokens')
+        .groupBy('u.student_id')
+        .orderBy('tokens', 'DESC')
+        .limit(topLimit)
+        .getRawMany<{ studentId: string; cost: string; tokens: string }>(),
+    ]);
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      costUsd: Number(totals?.cost ?? 0),
+      tokens: Number(totals?.tokens ?? 0),
+      calls: Number(totals?.calls ?? 0),
+      byPurpose: byPurpose.map((r) => ({
+        purpose: r.purpose,
+        costUsd: Number(r.cost),
+        tokens: Number(r.tokens),
+        calls: Number(r.calls),
+      })),
+      topStudents: top.map((r) => ({
+        studentId: r.studentId,
+        costUsd: Number(r.cost),
+        tokens: Number(r.tokens),
+      })),
+    };
   }
 
   /** Tokens spent by a student since `since` (the start of the local day for the daily cap). */

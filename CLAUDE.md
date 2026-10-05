@@ -22,12 +22,13 @@ Registration (first and last name) happens in the Mini App. The dialog `AgentSer
 tools stay in the code for the teacher's per-student chat and as a fallback, but no student
 traffic goes through them.
 
-**Current stage:** stage 6 in progress — REST API: `POST /auth/webapp` (initData → status
+**Current stage:** stage 6 done — REST API: `POST /auth/webapp` (initData → status
 NOT_MEMBER / PENDING_NAME / ACTIVE / ARCHIVED + JWT), `POST /auth/telegram-login` (dashboard,
 staff only), all `/me/*` endpoints (profile, register, calm mode, progress, calendar, words,
-imports, export, reports with CLARIFY round-trip, recommendations, spot check). Next: `/admin/*`
-(students, flags, groups, word lists with coverage, membership checks, settings, AI usage),
-then stage 7 cards and stage 8 reminders — all API-first.
+imports, export, reports with CLARIFY round-trip, recommendations, spot check) and `/admin/*`
+(overview, students, flags, groups, membership checks, word lists with coverage, settings, staff,
+AI usage). Next: stage 7 cards (API + Mini App), the dashboard frontend, stage 8 reminders and
+the teacher's AI chat — all API-first.
 
 ### Mini App (`frontend/`)
 
@@ -59,6 +60,16 @@ then stage 7 cards and stage 8 reminders — all API-first.
   call; the verdict is never returned to the student.
 - Env: `JWT_SECRET` (required), `WEBAPP_URL`, `CORS_ORIGINS`. Throttling: 60 req/min per IP,
   stricter on auth and AI endpoints.
+- `/admin/*` (`api/admin`): `@Roles(OWNER, TEACHER)`; `AdminScopeService` turns the principal
+  into a scope — the owner sees everything, a teacher only the active groups they teach
+  (`AccessService.visibleGroupIds`) and the students in them; owner-only actions call
+  `scope.assertOwner()`. Lists are built from batch queries (`ReportsService.countsByWeek`,
+  `WordsService.countsFor`, `FlagsService.countNewByStudent`), never per student.
+  `domain/students/health.ts` is the one health function (silence days + blocked bot) for the
+  dashboard, the Mini App and the summary.
+- Settings: `SettingsService` keeps owner overrides of `globalConfig` in the `settings` table and
+  writes them into `globalConfig` in place at boot and on every change, so the rest of the code
+  keeps reading `globalConfig`. Only the keys in `EDITABLE_SETTINGS` (with ranges) can change.
 
 ### AI layer (`domain/ai`)
 

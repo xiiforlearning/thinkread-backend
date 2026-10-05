@@ -8,6 +8,7 @@ import { NormsModule } from './domain/norms/norms.module';
 import { AnthropicModule } from './infra/ai/anthropic.module';
 import { GroupsModule } from './domain/groups/groups.module';
 import { MembershipModule } from './domain/membership/membership.module';
+import { SettingsModule } from './domain/settings/settings.module';
 import { RegistrationModule } from './domain/students/registration.module';
 import { StudentsModule } from './domain/students/students.module';
 import { WordsModule } from './domain/words/words.module';
@@ -31,6 +32,7 @@ import { TeacherModule } from './infra/teacher/teacher.module';
     AnthropicModule,
     AiModule,
     MembershipModule,
+    SettingsModule,
     RegistrationModule,
     TeacherModule,
     BotModule,

@@ -5,6 +5,7 @@ import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { GroupLevel } from '../groups/level';
 import { Student } from '../students/student.entity';
+import { StudentStatus } from '../students/student.enums';
 import { StudentsService } from '../students/students.service';
 import { lemmaOf, ParsedWordLine } from './normalize';
 import { WordList, WordListDismissal, WordListItem } from './word-list.entity';
@@ -18,6 +19,18 @@ export interface CreateWordListInput {
   level?: GroupLevel | null;
   createdBy: number;
   items: ParsedWordLine[];
+}
+
+export interface ListCoverage {
+  /** Active students the list is addressed to. */
+  studentsAddressed: number;
+  words: number;
+  /** Students who accepted at least one word. */
+  studentsAdded: number;
+  wordsAdded: number;
+  wordsLearned: number;
+  /** Students who hid at least one item of the list. */
+  studentsHidden: number;
 }
 
 export interface Recommendation {
@@ -101,6 +114,50 @@ export class WordListsService {
 
   async setStatus(id: string, status: WordListStatus): Promise<void> {
     await this.lists.update({ id }, { status });
+  }
+
+  async setTitle(id: string, title: string): Promise<void> {
+    await this.lists.update({ id }, { title: title.trim() });
+  }
+
+  itemsOf(listId: string): Promise<WordListItem[]> {
+    return this.items.find({ where: { listId }, order: { position: 'ASC' } });
+  }
+
+  /** Active students a list is addressed to (its group, its level, or everyone). */
+  async addressedStudents(
+    list: Pick<WordList, 'scope' | 'groupChatId' | 'level'>,
+  ): Promise<Student[]> {
+    if (list.scope === WordListScope.GROUP) {
+      const members =
+        list.groupChatId === null ? [] : await this.students.findByGroups([list.groupChatId]);
+      return members.filter((s) => s.status === StudentStatus.ACTIVE);
+    }
+    const active = await this.students.findAll({ statuses: [StudentStatus.ACTIVE] });
+    return list.scope === WordListScope.ALL ? active : active.filter((s) => s.level === list.level);
+  }
+
+  /** The teacher's view of one list: how many students it reached and what they did with it. */
+  async coverage(list: WordList): Promise<ListCoverage> {
+    const [addressed, items, accepted, hidden] = await Promise.all([
+      this.addressedStudents(list),
+      this.items.count({ where: { listId: list.id } }),
+      this.words.coverageOfList(list.id),
+      this.dismissals
+        .createQueryBuilder('d')
+        .innerJoin(WordListItem, 'i', 'i.id = d.item_id')
+        .where('i.list_id = :listId', { listId: list.id })
+        .select('COUNT(DISTINCT d.student_id)', 'students')
+        .getRawOne<{ students: string }>(),
+    ]);
+    return {
+      studentsAddressed: addressed.length,
+      words: items,
+      studentsAdded: accepted.students,
+      wordsAdded: accepted.words,
+      wordsLearned: accepted.learned,
+      studentsHidden: Number(hidden?.students ?? 0),
+    };
   }
 
   /** Active lists addressed to this student: their groups, their level, or everyone. */

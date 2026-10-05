@@ -21,6 +21,18 @@ export function weekStart(instant: Date, timeZone: string): string {
   );
 }
 
+/** The last `count` Monday keys, newest first (the current week first). */
+export function recentWeekStarts(instant: Date, timeZone: string, count: number): string[] {
+  const current = weekStart(instant, timeZone);
+  const starts: string[] = [];
+  let cursor = new Date(`${current}T12:00:00Z`);
+  for (let i = 0; i < count; i += 1) {
+    starts.push(format(cursor, 'yyyy-MM-dd'));
+    cursor = addDays(cursor, -7);
+  }
+  return starts;
+}
+
 /** ISO week key, e.g. `2026-W40`. The reminder period key for weekly norms. */
 export function weekKey(instant: Date, timeZone: string): string {
   return format(toZonedTime(instant, timeZone), "RRRR-'W'II");

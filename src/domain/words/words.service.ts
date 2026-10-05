@@ -184,6 +184,41 @@ export class WordsService {
     return word;
   }
 
+  /** Vocabulary size per student in one query — the dashboard's student list. */
+  async countsFor(studentIds: string[]): Promise<Map<string, { total: number; learned: number }>> {
+    const out = new Map<string, { total: number; learned: number }>();
+    if (studentIds.length === 0) return out;
+    const rows = await this.repo
+      .createQueryBuilder('w')
+      .select('w.student_id', 'studentId')
+      .addSelect('COUNT(*)', 'total')
+      .addSelect(`COUNT(*) FILTER (WHERE w.status = '${WordStatus.LEARNED}')`, 'learned')
+      .where('w.student_id IN (:...studentIds)', { studentIds })
+      .groupBy('w.student_id')
+      .getRawMany<{ studentId: string; total: string; learned: string }>();
+    for (const r of rows)
+      out.set(r.studentId, { total: Number(r.total), learned: Number(r.learned) });
+    return out;
+  }
+
+  /** How a teacher list landed: students who accepted at least one word, words accepted, words learned. */
+  async coverageOfList(
+    listId: string,
+  ): Promise<{ students: number; words: number; learned: number }> {
+    const row = await this.repo
+      .createQueryBuilder('w')
+      .select('COUNT(DISTINCT w.student_id)', 'students')
+      .addSelect('COUNT(*)', 'words')
+      .addSelect(`COUNT(*) FILTER (WHERE w.status = '${WordStatus.LEARNED}')`, 'learned')
+      .where('w.source_list_id = :listId', { listId })
+      .getRawOne<{ students: string; words: string; learned: string }>();
+    return {
+      students: Number(row?.students ?? 0),
+      words: Number(row?.words ?? 0),
+      learned: Number(row?.learned ?? 0),
+    };
+  }
+
   /** Lemmas the student has (any status) — for teacher-list recommendations and import previews. */
   async ownedLemmas(studentId: string): Promise<Set<string>> {
     const rows = await this.repo

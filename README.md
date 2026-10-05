@@ -68,6 +68,24 @@ registration via `initData`, and the whole student API — profile, progress, ca
 AI parsing and one clarification, vocabulary with imports and export, teacher's word lists, spot
 checks. Admin endpoints, cards and reminders follow, then the frontend.
 
+## Dashboard API (`/admin/*`)
+
+Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT from
+`POST /auth/telegram-login`:
+
+| Endpoint | What |
+|---|---|
+| `GET /admin/overview?week=this\|last` | norm rates with deltas, health by group, 8-week history, top readers, attention list |
+| `GET /admin/students`, `GET /admin/students/:id`, `/:id/reports`, `/:id/words` | list with health / silence / norms / flags, one student's card |
+| `PATCH /admin/students/:id`, `POST …/archive`, `…/restore`, `…/recheck` | rename (owner), archive / restore (owner), membership re-check |
+| `GET /admin/flags`, `GET /admin/flags/:id`, `POST /admin/flags/:id/review` | quiet flags inbox with the flagged report and previous ones; «проверено» / «ложная тревога» |
+| `GET /admin/groups`, `PATCH /admin/groups/:chatId` | groups with level, teachers, members, this-week rates; set level (owner) |
+| `GET /admin/membership-checks`, `POST …/run` | history of the monthly check; run now (owner, background) |
+| `GET/POST /admin/word-lists`, `GET/PATCH /admin/word-lists/:id` | teacher word lists with coverage (addressed / added / learned / hidden) |
+| `GET/PATCH /admin/settings`, `DELETE /admin/settings/:key` | owner overrides of norms, reminders, health thresholds, AI limits |
+| `GET/POST /admin/staff`, `DELETE /admin/staff/:telegramUserId` | teachers: explicit grants plus group-title detection |
+| `GET /admin/ai-usage?month=YYYY-MM` | AI spend: totals, by purpose, top students |
+
 ## Mini App (frontend)
 
 The student's Telegram Mini App lives in [`frontend/`](frontend/README.md) — React + Vite on the
