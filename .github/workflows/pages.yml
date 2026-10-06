@@ -6,7 +6,9 @@ name: Frontend (GitHub Pages)
 
 on:
   push:
-    branches: [main]
+    # claude/** too: the site is served from the work branch until the PR lands on main
+    # (workflow_dispatch only sees workflows that exist on the default branch).
+    branches: [main, 'claude/**']
     paths: ['frontend/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
