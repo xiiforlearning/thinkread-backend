@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { keys, useCalendar, useProfile, useSummary } from '../app/hooks';
 import { ErrorBox, Loading, Screen } from '../app/Shell';
-import { useApi } from '../app/session';
+import { openDashboard, useApi, useSession } from '../app/session';
 import { fmtLong, fmtWeek } from '../lib/dates';
 import { levelLabel } from '../lib/labels';
 import { haptic } from '../telegram/webapp';
@@ -22,6 +22,9 @@ const DAY_NAMES = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
 /** 09 · Профиль */
 export function ProfileScreen() {
   const api = useApi();
+  const { state, demo } = useSession();
+  const roles = state.kind === 'ready' ? state.roles : [];
+  const staff = roles.includes('OWNER') || roles.includes('TEACHER');
   const qc = useQueryClient();
   const profile = useProfile();
   const summary = useSummary();
@@ -104,6 +107,16 @@ export function ProfileScreen() {
           title="Слов выучено"
           date={summary.data ? `${summary.data.learned} из ${summary.data.total}` : '…'}
         />
+        {staff ? (
+          <Cell
+            tileIcon="grid"
+            tileTone="brand"
+            title="Дашборд учителя"
+            subtitle="Обзор, студенты, флаги"
+            chevron
+            onClick={() => openDashboard(roles, demo)}
+          />
+        ) : null}
       </ListGroup>
 
       <Card title="История недель" meta="норма 3 + 3">

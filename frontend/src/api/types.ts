@@ -3,7 +3,7 @@
  * in the backend). Keep in sync by hand — the API is the source of truth.
  */
 
-export type AccessStatus = 'NOT_MEMBER' | 'PENDING_NAME' | 'ACTIVE' | 'ARCHIVED';
+export type AccessStatus = 'NOT_MEMBER' | 'PENDING_NAME' | 'ACTIVE' | 'ARCHIVED' | 'STAFF';
 export type ApiRole = 'STUDENT' | 'TEACHER' | 'OWNER';
 
 export type GroupLevel =

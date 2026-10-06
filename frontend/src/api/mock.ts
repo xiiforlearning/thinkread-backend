@@ -454,8 +454,11 @@ export class MockApi implements Api {
       const status = this.access;
       return {
         status,
-        roles: status === 'ACTIVE' ? ['STUDENT'] : [],
-        token: status === 'ACTIVE' || status === 'PENDING_NAME' ? 'demo-token' : null,
+        roles: status === 'ACTIVE' ? ['STUDENT'] : status === 'STAFF' ? ['TEACHER'] : [],
+        token:
+          status === 'ACTIVE' || status === 'PENDING_NAME' || status === 'STAFF'
+            ? 'demo-token'
+            : null,
         startParam: null,
       };
     },

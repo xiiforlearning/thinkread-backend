@@ -83,6 +83,22 @@ describe('RegistrationService.resolve (Mini App auth)', () => {
     });
   });
 
+  it('a teacher (group admin) is STAFF, not a new student — nothing is created', async () => {
+    const { service, students, membership } = make(null, [PRE]);
+    expect(await service.resolve(user, { staff: true })).toEqual({
+      status: 'STAFF',
+      student: null,
+    });
+    expect(students.create).not.toHaveBeenCalled();
+    expect(membership.lookup).not.toHaveBeenCalled();
+  });
+
+  it('a staff member who already is an ACTIVE student keeps the student flow', async () => {
+    const active = student({});
+    const { service } = make(active);
+    expect((await service.resolve(user, { staff: true })).status).toBe('ACTIVE');
+  });
+
   it('reports an active student and records activity without re-checking membership', async () => {
     const active = student({});
     const { service, students, membership } = make(active);

@@ -49,11 +49,11 @@ export class AuthService {
       this.config.botToken,
       INIT_DATA_MAX_AGE_SEC,
     );
-    const { status, student } = await this.registration.resolve({
-      telegramUserId: user.id,
-      username: user.username ?? null,
-    });
     const staff = await this.access.staffRole(user.id);
+    const { status, student } = await this.registration.resolve(
+      { telegramUserId: user.id, username: user.username ?? null },
+      { staff: staff !== null },
+    );
     const roles: ApiRole[] = [];
     if (status === 'ACTIVE') roles.push('STUDENT');
     if (staff) roles.push(staff);

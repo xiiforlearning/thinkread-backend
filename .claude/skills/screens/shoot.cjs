@@ -41,7 +41,7 @@ function chromePath() {
       await page.screenshot({ path: path.join(OUT, `${name}-${scheme}.png`) });
     }
     if (scheme === 'light') {
-      for (const [name, q] of [['onboarding', '?demo=pending'], ['noaccess', '?demo=not_member']]) {
+      for (const [name, q] of [['onboarding', '?demo=pending'], ['noaccess', '?demo=not_member'], ['staff', '?demo=staff']]) {
         await page.goto(`${BASE}${q}#/`, { waitUntil: 'networkidle' });
         await page.waitForTimeout(600);
         await page.screenshot({ path: path.join(OUT, `${name}-light.png`) });

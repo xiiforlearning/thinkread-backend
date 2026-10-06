@@ -80,6 +80,21 @@ describe('AuthService.webApp', () => {
     expect(res.token).toEqual(expect.any(String));
   });
 
+  it('tells registration the caller is staff, so a teacher gets STAFF instead of a student form', async () => {
+    const { auth, registration } = make('STAFF', null, 'TEACHER');
+    const res = await auth.webApp(initDataFor(105));
+    expect(registration.resolve).toHaveBeenCalledWith(
+      { telegramUserId: 105, username: 'u105' },
+      { staff: true },
+    );
+    expect(res.status).toBe('STAFF');
+    expect(res.roles).toEqual(['TEACHER']);
+    expect(res.token).toEqual(expect.any(String));
+    const principal = await auth.verify(res.token as string);
+    expect(principal.roles).toEqual(['TEACHER']);
+    expect(principal.studentId).toBeNull();
+  });
+
   it('rejects a bad token on verify', async () => {
     const { auth } = make('ACTIVE', null);
     await expect(auth.verify('nope')).rejects.toMatchObject({ code: '201952' });

@@ -11,6 +11,7 @@ import { NotRegisteredScreen } from './screens/NotRegistered';
 import { OnboardingScreen } from './screens/Onboarding';
 import { ProfileScreen } from './screens/Profile';
 import { ReportsScreen } from './screens/Reports';
+import { StaffScreen } from './screens/Staff';
 import { SubmitReportScreen } from './screens/SubmitReport';
 import { TeacherWordsScreen } from './screens/TeacherWords';
 import { WordScreen } from './screens/Word';
@@ -43,6 +44,7 @@ function Gate() {
     ) : (
       <Navigate to="/onboarding" replace />
     );
+  if (state.status === 'STAFF') return <StaffScreen />;
   if (state.status !== 'ACTIVE')
     return <NotRegisteredScreen archived={state.status === 'ARCHIVED'} />;
   return (

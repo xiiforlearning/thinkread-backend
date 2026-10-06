@@ -53,7 +53,11 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 
 - Auth: `telegram-signature.ts` verifies initData (`HMAC("WebAppData", token)`) and the Login
   Widget (`SHA256(token)`); `AuthService.webApp()` calls `RegistrationService.resolve()` and
-  signs a JWT whose claims carry `studentId`, status and roles. `JwtAuthGuard` → `req.principal`,
+  signs a JWT whose claims carry `studentId`, status and roles. The owner and teachers are group
+  admins, so `RegistrationService.resolve(user, { staff: true })` answers `STAFF` instead of
+  registering them as students; the Mini App then hands them to `admin.html` with the same JWT
+  (`openDashboard()` writes the dashboard's localStorage session). A staff member who already is
+  an ACTIVE student keeps the student flow and gets a dashboard link in the profile. `JwtAuthGuard` → `req.principal`,
   `StudentGuard` → `req.student` (ACTIVE only unless `@AllowPendingName()`), `@Roles()` for staff.
 - Every success is `{ data }` (lists return `{ data, meta: { nextCursor } }`), every failure
   `{ error: { code, message, details? } }` with the `{level}{service}{error}` code; the HTTP

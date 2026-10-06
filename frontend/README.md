@@ -19,7 +19,8 @@ pnpm dev                    # http://localhost:5173
   backend at `VITE_API_URL`.
 - **Outside Telegram** (a browser, `VITE_DEMO=1`) it runs on in-memory demo data (`src/api/mock.ts`)
   with the same API contract — nothing to deploy to show the UI. `?demo=pending` shows the first
-  login (name form), `?demo=not_member` the "no access" screen.
+  login (name form), `?demo=not_member` the "no access" screen, `?demo=staff` the teacher's
+  hand-over to the dashboard.
 
 `pnpm build` → `dist/` (static, relative paths — any static host works; `base: './'`).
 `.github/workflows/pages.yml` publishes the build to GitHub Pages — the public HTTPS address

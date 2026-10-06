@@ -9,9 +9,9 @@ import {
 } from 'react';
 import { type Api, HttpApi } from '../api/client';
 import { MockApi } from '../api/mock';
-import type { AccessStatus } from '../api/types';
+import type { AccessStatus, ApiRole } from '../api/types';
 import { apiBaseUrl } from '../lib/api-url';
-import { initData, insideTelegram } from '../telegram/webapp';
+import { initData, insideTelegram, tg } from '../telegram/webapp';
 
 const TOKEN_KEY = 'thinkread.token';
 
@@ -29,13 +29,46 @@ function demoAccess(): AccessStatus {
   if (v === 'pending') return 'PENDING_NAME';
   if (v === 'not_member') return 'NOT_MEMBER';
   if (v === 'archived') return 'ARCHIVED';
+  if (v === 'staff') return 'STAFF';
   return 'ACTIVE';
+}
+
+/** Dashboard session keys (admin/session.tsx reads them; both pages share the origin). */
+const ADMIN_TOKEN_KEY = 'thinkread.admin.token';
+const ADMIN_USER_KEY = 'thinkread.admin.user';
+const ADMIN_DEMO_KEY = 'thinkread.admin.demo';
+
+/**
+ * Hand a staff member over to the dashboard page with the same JWT: the token from
+ * /auth/webapp already carries the OWNER / TEACHER role. In demo mode the dashboard demo is
+ * switched on instead.
+ */
+export function openDashboard(roles: ApiRole[], demo: boolean): void {
+  const role = roles.includes('OWNER') ? 'OWNER' : 'TEACHER';
+  const tgUser = tg()?.initDataUnsafe.user;
+  const name = tgUser?.first_name || (role === 'OWNER' ? 'Владелец' : 'Учитель');
+  try {
+    if (demo) {
+      localStorage.setItem(ADMIN_DEMO_KEY, JSON.stringify('1'));
+    } else {
+      localStorage.removeItem(ADMIN_DEMO_KEY);
+      const token = sessionStorage.getItem(TOKEN_KEY);
+      if (token) localStorage.setItem(ADMIN_TOKEN_KEY, JSON.stringify(token));
+    }
+    localStorage.setItem(
+      ADMIN_USER_KEY,
+      JSON.stringify({ name, role, telegramUserId: tgUser?.id ?? null }),
+    );
+  } catch {
+    /* private mode: the dashboard will ask to sign in */
+  }
+  window.location.assign('./admin.html');
 }
 
 export type SessionState =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; status: AccessStatus };
+  | { kind: 'ready'; status: AccessStatus; roles: ApiRole[] };
 
 interface SessionValue {
   api: Api;
@@ -72,7 +105,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         if (res.token) sessionStorage.setItem(TOKEN_KEY, res.token);
         else sessionStorage.removeItem(TOKEN_KEY);
-        setState({ kind: 'ready', status: res.status });
+        setState({ kind: 'ready', status: res.status, roles: res.roles });
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -84,7 +117,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [api, attempt]);
 
   const refresh = useCallback(() => setAttempt((n) => n + 1), []);
-  const activate = useCallback(() => setState({ kind: 'ready', status: 'ACTIVE' }), []);
+  const activate = useCallback(
+    () =>
+      setState((s) => ({
+        kind: 'ready',
+        status: 'ACTIVE',
+        roles: s.kind === 'ready' ? [...new Set<ApiRole>(['STUDENT', ...s.roles])] : ['STUDENT'],
+      })),
+    [],
+  );
 
   const value = useMemo<SessionValue>(
     () => ({ api, demo, state, refresh, activate }),

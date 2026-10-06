@@ -13,8 +13,11 @@ export interface IncomingUser {
   username: string | null;
 }
 
-/** Where a Telegram user stands with ThinkRead — the answer of `POST /auth/webapp`. */
-export type AccessStatus = 'NOT_MEMBER' | 'PENDING_NAME' | 'ACTIVE' | 'ARCHIVED';
+/**
+ * Where a Telegram user stands with ThinkRead — the answer of `POST /auth/webapp`.
+ * STAFF = owner or teacher without a student account: the Mini App sends them to the dashboard.
+ */
+export type AccessStatus = 'NOT_MEMBER' | 'PENDING_NAME' | 'ACTIVE' | 'ARCHIVED' | 'STAFF';
 
 export interface Resolution {
   status: AccessStatus;
@@ -48,8 +51,16 @@ export class RegistrationService {
    * Unknown users are created only if they are in one of the groups; archived
    * students are re-checked and restored on return.
    */
-  async resolve(user: IncomingUser): Promise<Resolution> {
+  /**
+   * `staff` = the caller is the owner or a teacher: they are group admins, so the membership
+   * lookup would register them as students. Without a finished student account they stay STAFF;
+   * a staff member who already is an ACTIVE student keeps the student flow.
+   */
+  async resolve(user: IncomingUser, opts: { staff?: boolean } = {}): Promise<Resolution> {
     const existing = await this.students.findByTelegramId(user.telegramUserId);
+
+    if (opts.staff && (!existing || existing.status === StudentStatus.PENDING_NAME))
+      return { status: 'STAFF', student: existing };
 
     if (!existing) {
       const { memberOf, level } = await this.membership.lookup(user.telegramUserId);
@@ -112,6 +123,8 @@ export class RegistrationService {
         return { kind: 'reply', text: studentMessages.finishInApp };
       case 'ACTIVE':
         return { kind: 'student', student: student as Student };
+      case 'STAFF':
+        return { kind: 'reply', text: studentMessages.staffInApp };
     }
   }
 
