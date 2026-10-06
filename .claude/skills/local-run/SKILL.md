@@ -19,7 +19,7 @@ AI_MODE=claude-cli pnpm ai:skill parse_listening_report "слушал 6 Minute E
 ```
 
 Скиллы (`src/domain/ai/skills.ts`): parse_reading_report, parse_listening_report, enrich_words,
-authenticity, spot_check_grade, sentence_check. Каждый = промпт + принудительный инструмент +
+authenticity, spot_check_grade, sentence_check, teacher_chat, parent_report. Каждый = промпт + принудительный инструмент +
 симулятор; `pnpm ai:skill` печатает ответ модели (или симулятора) для текста.
 
 ## 1. База
@@ -88,6 +88,11 @@ cd frontend && pnpm install && pnpm dev          # http://localhost:5173
    «Открыть ThinkRead»: вход по initData, регистрация имени, отчёты через локальный Claude.
 6. Чтобы стать студентом, добавьте бота в тестовую группу Telegram и вступите в неё сами;
    владелец задаёт уровень группы через `PATCH /admin/groups/:chatId` или в дашборде.
+7. Рассылки руками (владелец, дашборд → Настройки → «Рассылки» или curl):
+   `POST /admin/reminders/run {"kind":"CARDS"|"REPORTS"}` — напоминания в личку студентам,
+   `POST /admin/weekly-summary/run` — сводка недели владельцу и учителям + флаги
+   NORM_MISSED_WEEK. По расписанию: карточки в `reminders.cardsTime`, отчёты по чт/сб в
+   `reminders.reportsTime`, сводка в понедельник 09:00 (Asia/Tashkent).
 
 Токен бота живёт только в `.env` (в gitignore); после демо его можно перевыпустить в BotFather.
 

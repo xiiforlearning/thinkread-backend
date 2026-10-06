@@ -39,8 +39,9 @@ design system and the `/admin/*` API (`src/admin/api.ts` mirrors `admin/serializ
   calendar, reports feed, vocabulary, AI chat), Flags (inbox + flagged report vs previous ones,
   «проверено» / «ложная тревога»), Groups (levels, membership checks, teacher word lists),
   Settings (owner: norms, reminders, health thresholds, staff, AI spend).
-- The teacher's AI chat and the parents' report are stage 8: the demo answers from the mock,
-  against the real API they are marked «скоро» (`AdminApi.features`).
+- The teacher's AI chat (`POST /admin/students/:id/chat`, history kept in memory) and the parents'
+  report (`…/parent-report`) answer from facts the backend computes; the demo answers from the mock.
+  Settings → «Рассылки» runs the reminders and the weekly summary on demand (owner).
 - Teachers see only their groups (the API scopes everything); the Settings page is owner-only.
 
 ## Layout

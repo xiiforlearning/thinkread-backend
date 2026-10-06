@@ -14,6 +14,8 @@ import { EnrichmentService } from './enrichment.service';
 import { ReportIntakeService } from './report-intake.service';
 import { SentenceCheckService } from './sentence-check.service';
 import { SpotCheckGraderService } from './spot-check-grader.service';
+import { StudentFactsService } from './student-facts.service';
+import { TeacherChatService } from './teacher-chat.service';
 import { DialogHistoryService } from './dialog-history.service';
 import { AGENT_TOOLS } from './tool';
 import {
@@ -81,6 +83,8 @@ export const TOOL_CLASSES = [
     ReportIntakeService,
     SpotCheckGraderService,
     SentenceCheckService,
+    StudentFactsService,
+    TeacherChatService,
     AgentService,
   ],
   exports: [
@@ -91,6 +95,8 @@ export const TOOL_CLASSES = [
     ReportIntakeService,
     SpotCheckGraderService,
     SentenceCheckService,
+    StudentFactsService,
+    TeacherChatService,
   ],
 })
 export class AiModule {}

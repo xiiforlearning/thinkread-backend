@@ -64,11 +64,10 @@ change (pass threshold 95%).
 ## Status
 
 The student works only in the Telegram Mini App (decision of 01.10.2026); the bot in private chat
-only sends reminders and opens the app. Stages 0–5 are done (data model, groups and registration,
-AI core, reports, vocabulary) and stage 6 (REST API) is in progress: Mini App sign-in and
-registration via `initData`, and the whole student API — profile, progress, calendar, reports with
-AI parsing and one clarification, vocabulary with imports and export, teacher's word lists, spot
-checks. Admin endpoints, cards and reminders follow, then the frontend.
+only sends reminders and opens the app. Stages 0–8 are done: data model, groups and registration,
+AI core, reports, vocabulary, the REST API (student `/me/*`, staff `/admin/*`), the Mini App with
+cards, the web dashboard, scheduled reminders, the Monday summary with the `NORM_MISSED_WEEK`
+flag, the teacher's AI chat and the parents' report. Next: production rollout with the customer.
 
 ## AI modes and skills
 
@@ -136,6 +135,8 @@ Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT 
 | `GET/PATCH /admin/settings`, `DELETE /admin/settings/:key` | owner overrides of norms, reminders, health thresholds, AI limits |
 | `GET/POST /admin/staff`, `DELETE /admin/staff/:telegramUserId` | teachers: explicit grants plus group-title detection |
 | `GET /admin/ai-usage?month=YYYY-MM` | AI spend: totals, by purpose, top students |
+| `POST /admin/students/:id/chat`, `POST …/parent-report` | the teacher's AI about one student (facts computed by the system); the parents' report for a month |
+| `POST /admin/reminders/run`, `GET /admin/weekly-summary`, `POST …/run` | send today's reminders now (owner); preview / send the Monday summary |
 
 ## Mini App and dashboard (frontend)
 

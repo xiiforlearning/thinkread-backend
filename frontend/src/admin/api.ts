@@ -257,6 +257,43 @@ export interface ChatReply {
   copyable: boolean;
 }
 
+export interface ChatTurn {
+  role: 'teacher' | 'ai';
+  text: string;
+}
+
+export interface ReminderRun {
+  kind: 'CARDS' | 'REPORTS';
+  day: string;
+  candidates: number;
+  sent: number;
+  skipped: { calm: number; done: number; reminded: number; failed: number; notReportDay: number };
+}
+
+export interface WeeklySummary {
+  weekStart: string;
+  weekLabel: string;
+  students: number;
+  readingRate: number;
+  readingRateDelta: number;
+  listeningRate: number;
+  listeningRateDelta: number;
+  cardsAnswered: number;
+  health: { good: number; warn: number; bad: number };
+  groups: Array<{
+    chatId: number;
+    title: string;
+    students: number;
+    readingRate: number;
+    listeningRate: number;
+  }>;
+  missed: Array<{ id: string; name: string; groups: string; silentDays: number }>;
+  topReaders: Array<{ id: string; name: string; groups: string; pages: number }>;
+  newFlags: number;
+  /** The Telegram text as the owner / teacher would receive it. */
+  text: string;
+}
+
 export interface AdminApi {
   /** Stage 8 features the backend does not serve yet; the demo has them. */
   readonly features: { teacherChat: boolean; parentReport: boolean };
@@ -310,21 +347,24 @@ export interface AdminApi {
   };
   aiUsage(month?: string): Promise<AiUsage>;
   ai: {
-    /** Teacher's per-student chat (AiPurpose.TEACHER_CHAT) — stage 8. */
-    ask(studentId: string, question: string): Promise<ChatReply>;
-    /** Parents' report for the current month (AiPurpose.PARENT_REPORT) — stage 8. */
+    /** Teacher's per-student chat (AiPurpose.TEACHER_CHAT). */
+    ask(studentId: string, question: string, history: ChatTurn[]): Promise<ChatReply>;
+    /** Parents' report for the current month (AiPurpose.PARENT_REPORT). */
     parentReport(studentId: string): Promise<ChatReply>;
+  };
+  ops: {
+    /** Owner: send today's reminders now. */
+    runReminders(kind: 'CARDS' | 'REPORTS'): Promise<ReminderRun>;
+    weeklySummary(week: 'this' | 'last'): Promise<WeeklySummary>;
+    /** Owner: flag last week's no-shows and send the summary now. */
+    runWeeklySummary(): Promise<{ summary: WeeklySummary; flagged: number; sentTo: number[] }>;
   };
 }
 
 type TokenSource = () => string | null;
 
-function notYet(): never {
-  throw new ApiError('NOT_IMPLEMENTED', 'Появится на следующем этапе (AI-чат учителя).', 501);
-}
-
 export class HttpAdminApi implements AdminApi {
-  readonly features = { teacherChat: false, parentReport: false };
+  readonly features = { teacherChat: true, parentReport: true };
 
   constructor(
     private readonly baseUrl: string,
@@ -438,7 +478,27 @@ export class HttpAdminApi implements AdminApi {
     this.call('GET', '/admin/ai-usage', undefined, { month });
 
   ai: AdminApi['ai'] = {
-    ask: async () => notYet(),
-    parentReport: async () => notYet(),
+    ask: async (studentId, question, history) => {
+      const r = await this.call<{ text: string; draft: boolean }>(
+        'POST',
+        `/admin/students/${studentId}/chat`,
+        { question, history },
+      );
+      return { text: r.text, copyable: r.draft };
+    },
+    parentReport: async (studentId) => {
+      const r = await this.call<{ text: string }>(
+        'POST',
+        `/admin/students/${studentId}/parent-report`,
+        {},
+      );
+      return { text: r.text, copyable: true };
+    },
+  };
+
+  ops: AdminApi['ops'] = {
+    runReminders: (kind) => this.call('POST', '/admin/reminders/run', { kind }),
+    weeklySummary: (week) => this.call('GET', '/admin/weekly-summary', undefined, { week }),
+    runWeeklySummary: () => this.call('POST', '/admin/weekly-summary/run'),
   };
 }

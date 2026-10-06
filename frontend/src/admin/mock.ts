@@ -17,11 +17,13 @@ import type {
   Health,
   MembershipCheck,
   Overview,
+  ReminderRun,
   SettingView,
   StaffMember,
   StudentCard,
   StudentDetail,
   StudentRow,
+  WeeklySummary,
   WordListView,
 } from './api';
 
@@ -1473,4 +1475,108 @@ export class MockAdminApi implements AdminApi {
       };
     },
   };
+
+  ops: AdminApi['ops'] = {
+    runReminders: async (kind) => {
+      this.assertOwner();
+      await delay(800);
+      const active = STUDENTS.filter((s) => !this.archived.has(s.id) && !s.blocked);
+      const sent =
+        kind === 'CARDS'
+          ? active.filter((s) => s.silent < 4).length
+          : active.filter((s) => s.r < 3 || s.l < 3).length;
+      const run: ReminderRun = {
+        kind,
+        day: isoDay(new Date()),
+        candidates: active.length,
+        sent,
+        skipped: {
+          calm: 0,
+          done: active.length - sent,
+          reminded: 0,
+          failed: STUDENTS.filter((s) => s.blocked).length,
+          notReportDay: 0,
+        },
+      };
+      return run;
+    },
+    weeklySummary: async (week) => {
+      await delay();
+      const o = await this.overview(week);
+      const missed = o.attention.filter((a) => a.week.reading === 0 && a.week.listening === 0);
+      const groups = o.healthByGroup.map((g) => ({
+        chatId: g.chatId,
+        title: g.title,
+        students: g.members,
+        readingRate: 0.4 + (g.good / Math.max(1, g.members)) * 0.5,
+        listeningRate: 0.3 + (g.good / Math.max(1, g.members)) * 0.4,
+      }));
+      const label = weekLabelOf(o.weekStart);
+      const lines = [
+        `Итоги недели ${label}`,
+        `Студентов: ${o.stats.activeStudents}. Норма по чтению — ${Math.round(o.stats.readingRate * 100)}%, по аудированию — ${Math.round(o.stats.listeningRate * 100)}%. Карточек отвечено: ${o.stats.cardsThisWeek}.`,
+        `Здоровье: ${o.healthTotals.good} активны · ${o.healthTotals.warn} отстают · ${o.healthTotals.bad} проблемных.`,
+        '',
+        'По группам:',
+        ...groups.map(
+          (g) =>
+            `• ${g.title} — чтение ${Math.round(g.readingRate * 100)}%, аудирование ${Math.round(g.listeningRate * 100)}% (${g.students})`,
+        ),
+        '',
+        `Ни одного отчёта за неделю — ${missed.length} (повод для презентации):`,
+        ...missed.map(
+          (m) =>
+            `• ${m.name} (${m.groups.map((g) => g.title).join(', ')}) — ${m.silentDays} дн. тишины`,
+        ),
+        '',
+        'Топ читателей:',
+        ...o.topReaders.map((t, i) => `${i + 1}. ${t.name} — ${t.pages} стр.`),
+        '',
+        `Новых флагов на проверку: ${o.stats.newFlags} — откройте дашборд.`,
+      ];
+      const summary: WeeklySummary = {
+        weekStart: o.weekStart,
+        weekLabel: label,
+        students: o.stats.activeStudents,
+        readingRate: o.stats.readingRate,
+        readingRateDelta: o.stats.readingRateDelta,
+        listeningRate: o.stats.listeningRate,
+        listeningRateDelta: o.stats.listeningRateDelta,
+        cardsAnswered: o.stats.cardsThisWeek,
+        health: o.healthTotals,
+        groups,
+        missed: missed.map((m) => ({
+          id: m.id,
+          name: m.name,
+          groups: m.groups.map((g) => g.title).join(', '),
+          silentDays: m.silentDays,
+        })),
+        topReaders: o.topReaders.map((t) => ({
+          id: t.id,
+          name: t.name,
+          groups: t.groups.map((g) => g.title).join(', '),
+          pages: t.pages,
+        })),
+        newFlags: o.stats.newFlags,
+        text: lines.join('\n'),
+      };
+      return summary;
+    },
+    runWeeklySummary: async () => {
+      this.assertOwner();
+      await delay(800);
+      const summary = await this.ops.weeklySummary('last');
+      return { summary, flagged: summary.missed.length, sentTo: [1, 777] };
+    },
+  };
+}
+
+function weekLabelOf(weekStart: string): string {
+  const start = new Date(`${weekStart}T12:00:00`);
+  const end = new Date(start.getTime() + 6 * DAY);
+  const m = (x: Date): string =>
+    new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(x).replace('.', '');
+  return m(start) === m(end)
+    ? `${start.getDate()}–${end.getDate()} ${m(end)}`
+    : `${start.getDate()} ${m(start)} – ${end.getDate()} ${m(end)}`;
 }

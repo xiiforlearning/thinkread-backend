@@ -250,3 +250,101 @@ export function gradeSentence(text: string): Record<string, unknown> {
 export function simulateReply(text: string): string {
   return `Фейковый AI (AI_MODE=fake): настоящий ответ появится с ANTHROPIC_API_KEY. Получил ${text.length} символов.`;
 }
+
+/* ---------- teacher chat and parents' report (stage 8) ---------- */
+
+interface FactsLike {
+  student?: { name?: string; firstName?: string | null; silentDays?: number; health?: string };
+  weeksMet?: { reading?: number; listening?: number; of?: number };
+  totals?: {
+    reports?: number;
+    reading?: number;
+    listening?: number;
+    pages?: number;
+    sources?: string[];
+  };
+  vocabulary?: {
+    total?: number;
+    learned?: number;
+    addedInPeriod?: number;
+    learnedInPeriod?: number;
+  };
+  stuckWords?: Array<{ word?: string; stage?: number; daysInLearning?: number }>;
+  period?: { label?: string };
+}
+
+function parseFacts(text: string): { facts: FactsLike; question: string } {
+  try {
+    const parsed = JSON.parse(text) as { facts?: FactsLike; question?: string };
+    return { facts: parsed.facts ?? {}, question: String(parsed.question ?? '') };
+  } catch {
+    return { facts: {}, question: text };
+  }
+}
+
+/** Answers the teacher from the facts block with templates; a feedback draft when asked for one. */
+export function teacherReply(text: string): Record<string, unknown> {
+  const { facts, question } = parseFacts(text);
+  const q = question.toLowerCase();
+  const name = facts.student?.firstName || facts.student?.name?.split(' ')[0] || 'студент';
+  const met = facts.weeksMet ?? {};
+  const of = met.of ?? 4;
+  const t = facts.totals ?? {};
+  const v = facts.vocabulary ?? {};
+  if (/черновик|обратн|фидбек|feedback/.test(q)) {
+    return {
+      draft: true,
+      text: `${name}, за ${facts.period?.label ?? 'последние недели'} ты сдал(а) ${t.reports ?? 0} отчётов и добавил(а) ${v.addedInPeriod ?? 0} слов — хорошая динамика, так держать. Норма по чтению выполнена ${met.reading ?? 0} из ${of} недель, по аудированию — ${met.listening ?? 0} из ${of}. Попробуй один короткий подкаст в середине недели, чтобы не оставлять всё на выходные.`,
+    };
+  }
+  if (/застря|слов/.test(q)) {
+    const stuck = facts.stuckWords ?? [];
+    return {
+      draft: false,
+      text:
+        stuck.length === 0
+          ? 'Застрявших слов нет: все слова в изучении добавлены меньше двух недель назад или уже прошли стадии.'
+          : `Дольше всего в изучении: ${stuck
+              .slice(0, 3)
+              .map((w) => `${w.word} (стадия ${w.stage}, ${w.daysInLearning} дн.)`)
+              .join(
+                ', ',
+              )}. На уроке можно дать с ними по одному предложению — после верного ответа они уйдут дальше.`,
+    };
+  }
+  if (/хуже|слаб|трудн/.test(q)) {
+    const r = met.reading ?? 0;
+    const l = met.listening ?? 0;
+    const side = l < r ? 'аудирование' : r < l ? 'чтение' : null;
+    return {
+      draft: false,
+      text: side
+        ? `Хуже даётся ${side}: норма выполнена ${side === 'аудирование' ? l : r} из ${of} недель против ${side === 'аудирование' ? r : l} по ${side === 'аудирование' ? 'чтению' : 'аудированию'}. ${side === 'аудирование' ? 'Предложите один короткий подкаст в середине недели.' : 'Страниц мало — можно взять книгу полегче.'}`
+        : `Обе нормы идут ровно: чтение ${r} из ${of} недель, аудирование ${l} из ${of}. Слабое место скорее словарь: выучено ${v.learned ?? 0} из ${v.total ?? 0}.`,
+    };
+  }
+  const s = facts.student ?? {};
+  return {
+    draft: false,
+    text: `За ${facts.period?.label ?? 'период'} ${name}: отчётов ${t.reports ?? 0} (чтение ${t.reading ?? 0}, аудирование ${t.listening ?? 0}), норма по чтению выполнена ${met.reading ?? 0} из ${of} недель, по аудированию — ${met.listening ?? 0} из ${of}. Слов в словаре ${v.total ?? 0}, выучено ${v.learned ?? 0}. Тишина: ${s.silentDays ?? 0} дн.${s.health === 'bad' ? ' Это спад — стоит поговорить лично.' : s.health === 'warn' ? ' Темп чуть ниже нормы, но регулярность есть.' : ' Стабильный темп.'}`,
+  };
+}
+
+export function parentReport(text: string): Record<string, unknown> {
+  const { facts } = parseFacts(text);
+  const name = facts.student?.name ?? 'Студент';
+  const t = facts.totals ?? {};
+  const met = facts.weeksMet ?? {};
+  const v = facts.vocabulary ?? {};
+  if (!t.reports)
+    return {
+      text: `За ${facts.period?.label ?? 'период'} ${name} не сдавал(а) отчётов о чтении и аудировании. Словарь: ${v.total ?? 0} слов, выучено ${v.learned ?? 0}. Будем рады, если занятия продолжатся в обычном ритме.`,
+    };
+  const sources = (t.sources ?? [])
+    .slice(0, 3)
+    .map((x) => `«${x}»`)
+    .join(', ');
+  return {
+    text: `За ${facts.period?.label ?? 'период'} ${name} сдал(а) ${t.reading ?? 0} отчётов о чтении и ${t.listening ?? 0} об аудировании: норма по чтению выполнена ${met.reading ?? 0} недели из ${met.of ?? 4}, по аудированию — ${met.listening ?? 0} из ${met.of ?? 4}. Прочитано около ${t.pages ?? 0} страниц${sources ? ` (${sources})` : ''}. В словарь добавлено ${v.addedInPeriod ?? 0} слов, выучено ${v.learnedInPeriod ?? 0}.`,
+  };
+}

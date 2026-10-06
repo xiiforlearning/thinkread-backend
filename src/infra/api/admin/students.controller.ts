@@ -10,7 +10,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { fromZonedTime } from 'date-fns-tz';
 import { AppConfigService } from '../../../config/config.service';
+import { TeacherChatService } from '../../../domain/ai/teacher-chat.service';
 import { globalConfig } from '../../../config/global.config';
 import { AdminRole } from '../../../domain/admins/admin.entity';
 import { FlagsService } from '../../../domain/flags/flags.service';
@@ -28,7 +31,7 @@ import { JwtAuthGuard } from '../auth/guards';
 import { CurrentPrincipal, Principal, Roles } from '../auth/principal';
 import { ListQueryDto } from '../me/dto';
 import { reportView, weekView, wordView } from '../me/serializers';
-import { RenameStudentDto, StudentsQueryDto } from './dto';
+import { ParentReportDto, RenameStudentDto, StudentsQueryDto, TeacherChatDto } from './dto';
 import { AdminScope, AdminScopeService } from './scope';
 import { flagView, GroupRef, studentDetail, studentRow } from './serializers';
 
@@ -47,6 +50,7 @@ export class AdminStudentsController {
     private readonly flags: FlagsService,
     private readonly words: WordsService,
     private readonly membership: MembershipService,
+    private readonly teacherChat: TeacherChatService,
     private readonly config: AppConfigService,
   ) {}
 
@@ -245,5 +249,49 @@ export class AdminStudentsController {
       failedGroups: outcome.failedGroups.map((g) => g.chatId),
       ...(await this.card(scope, outcome.student)),
     };
+  }
+
+  @Post(':id/chat')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @ApiOperation({
+    summary: "Teacher's AI about one student: an answer from the facts, or a draft to forward",
+  })
+  async chat(
+    @CurrentPrincipal() principal: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TeacherChatDto,
+  ): Promise<{ text: string; draft: boolean }> {
+    const scope = await this.scope.resolve(principal);
+    const student = await this.scope.student(scope, id);
+    return this.teacherChat.ask(student, dto.question, dto.history ?? []);
+  }
+
+  @Post(':id/parent-report')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: "Parents' report for a month (default: current) — text to forward" })
+  async parentReport(
+    @CurrentPrincipal() principal: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ParentReportDto,
+  ): Promise<{ month: string; text: string }> {
+    const scope = await this.scope.resolve(principal);
+    const student = await this.scope.student(scope, id);
+    const tz = this.config.timezone;
+    const month =
+      dto.month ??
+      new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit' }).format(
+        new Date(),
+      );
+    const [y, m] = month.split('-').map(Number);
+    const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+    const label = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' })
+      .format(new Date(y, m - 1, 1))
+      .replace(' г.', '');
+    const { text } = await this.teacherChat.parentReport(student, {
+      from: fromZonedTime(`${month}-01T00:00:00`, tz),
+      to: fromZonedTime(`${next}-01T00:00:00`, tz),
+      label,
+    });
+    return { month, text };
   }
 }

@@ -609,7 +609,12 @@ function TeacherChat({ id, name }: { id: string; name: string }) {
     setDraft('');
   }, [id]);
   const ask = useMutation({
-    mutationFn: (question: string) => api.ai.ask(id, question),
+    mutationFn: (question: string) =>
+      api.ai.ask(
+        id,
+        question,
+        chat.map((m) => ({ role: m.from === 'me' ? 'teacher' : 'ai', text: m.text })),
+      ),
     onSuccess: (reply) =>
       setChat((c) => [...c, { from: 'ai', text: reply.text, copyable: reply.copyable }]),
   });

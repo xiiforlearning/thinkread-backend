@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEnum,
   IsIn,
   IsInt,
@@ -10,6 +12,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { AdminRole } from '../../../domain/admins/admin.entity';
 import { FlagKind, FlagStatus } from '../../../domain/flags/flag.enums';
@@ -78,4 +81,29 @@ export class StaffDto {
 export class UsageQueryDto {
   /** `YYYY-MM`; default — the current month. */
   @IsOptional() @Matches(/^\d{4}-(0[1-9]|1[0-2])$/) month?: string;
+}
+
+export class ChatTurnDto {
+  @IsIn(['teacher', 'ai']) role!: 'teacher' | 'ai';
+  @IsString() @MaxLength(4000) text!: string;
+}
+
+export class TeacherChatDto {
+  @IsString() @MinLength(1) @MaxLength(1000) question!: string;
+  /** Previous turns of this conversation (the dashboard keeps them; nothing is stored). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => ChatTurnDto)
+  history?: ChatTurnDto[];
+}
+
+export class ParentReportDto {
+  /** `YYYY-MM`; default — the current month. */
+  @IsOptional() @Matches(/^\d{4}-(0[1-9]|1[0-2])$/) month?: string;
+}
+
+export class RunRemindersDto {
+  @IsIn(['CARDS', 'REPORTS']) kind!: 'CARDS' | 'REPORTS';
 }

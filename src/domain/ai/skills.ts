@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { AiPurpose } from '../ai-log/ai-usage.entity';
 import { AUTHENTICITY_SYSTEM_PROMPT, VERDICT_TOOL } from './authenticity.prompt';
 import { ENRICH_SYSTEM_PROMPT, ENRICH_TOOL } from './enrichment.prompt';
+import { PARENT_REPORT_SYSTEM_PROMPT, PARENT_REPORT_TOOL } from './parent-report.prompt';
 import { PARSE_SYSTEM_PROMPT, parseTool } from './report-intake.prompt';
 import { SENTENCE_SYSTEM_PROMPT, SENTENCE_TOOL } from './sentence-check.prompt';
 import {
@@ -10,12 +11,15 @@ import {
   gradeSentence,
   gradeSpotCheck,
   type JsonSchema,
+  parentReport,
   parseListening,
   parseReading,
   schemaProps,
+  teacherReply,
   verdict,
 } from './simulate';
 import { SPOT_CHECK_SYSTEM_PROMPT, SPOT_CHECK_TOOL } from './spot-check.prompt';
+import { TEACHER_CHAT_SYSTEM_PROMPT, TEACHER_REPLY_TOOL } from './teacher-chat.prompt';
 
 /**
  * An AI skill = one job the product gives the model: a cached system prompt,
@@ -108,6 +112,30 @@ export const AI_SKILLS: AiSkill[] = [
     example:
       '{"word":"postpone","translation":"откладывать","sentence":"i had to postpone my trip because of the rain"}',
     simulate: gradeSentence,
+  },
+  {
+    name: 'teacher_chat',
+    title: 'Чат учителя о студенте',
+    purpose: AiPurpose.TEACHER_CHAT,
+    description:
+      'TeacherChatService.ask (дашборд): вопрос учителя + блок facts, посчитанный системой → короткий ответ по фактам или черновик обратной связи (draft). Студент ничего не видит.',
+    system: TEACHER_CHAT_SYSTEM_PROMPT,
+    tool: TEACHER_REPLY_TOOL,
+    example:
+      '{"facts":{"student":{"name":"Акмаль Хадиев","firstName":"Акмаль","silentDays":0,"health":"good"},"norms":{"readingPerWeek":3,"listeningPerWeek":3,"cardsPerDay":5},"period":{"label":"последние 4 нед."},"weeksMet":{"reading":3,"listening":1,"of":4},"totals":{"reports":14,"reading":10,"listening":4,"pages":180,"sources":["Harry Potter"]},"vocabulary":{"total":42,"learned":9,"addedInPeriod":38,"learnedInPeriod":9},"stuckWords":[{"word":"resourceful","stage":2,"daysInLearning":31}],"flags":[]},"history":[],"question":"Что даётся хуже?"}',
+    simulate: teacherReply,
+  },
+  {
+    name: 'parent_report',
+    title: 'Отчёт родителям за месяц',
+    purpose: AiPurpose.PARENT_REPORT,
+    description:
+      'TeacherChatService.parentReport (дашборд, кнопка «Отчёт родителям»): факты за месяц → 4–7 предложений по-русски, без флагов и оценок. Учитель проверяет и пересылает сам.',
+    system: PARENT_REPORT_SYSTEM_PROMPT,
+    tool: PARENT_REPORT_TOOL,
+    example:
+      '{"facts":{"student":{"name":"Акмаль Хадиев"},"period":{"label":"сентябрь 2026"},"weeksMet":{"reading":3,"listening":2,"of":4},"totals":{"reports":15,"reading":9,"listening":6,"pages":180,"sources":["Harry Potter and the Philosopher’s Stone"]},"vocabulary":{"total":42,"learned":9,"addedInPeriod":38,"learnedInPeriod":9}}}',
+    simulate: parentReport,
   },
 ];
 

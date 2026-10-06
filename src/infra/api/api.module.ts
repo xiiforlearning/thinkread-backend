@@ -10,6 +10,7 @@ import { CardsModule } from '../../domain/cards/cards.module';
 import { FlagsModule } from '../../domain/flags/flags.module';
 import { GroupsModule } from '../../domain/groups/groups.module';
 import { MembershipModule } from '../../domain/membership/membership.module';
+import { NotifyModule } from '../../domain/notify/notify.module';
 import { SettingsModule } from '../../domain/settings/settings.module';
 import { ReportsModule } from '../../domain/reports/reports.module';
 import { RegistrationModule } from '../../domain/students/registration.module';
@@ -18,6 +19,7 @@ import { WordsModule } from '../../domain/words/words.module';
 import { SchedulerModule } from '../scheduler/scheduler.module';
 import { AdminFlagsController } from './admin/flags.controller';
 import { AdminGroupsController } from './admin/groups.controller';
+import { AdminOpsController } from './admin/ops.controller';
 import { AdminOverviewController } from './admin/overview.controller';
 import { AdminScopeService } from './admin/scope';
 import { AdminSettingsController } from './admin/settings.controller';
@@ -55,6 +57,7 @@ import { MeWordsController } from './me/words.controller';
     MembershipModule,
     SettingsModule,
     SchedulerModule,
+    NotifyModule,
   ],
   controllers: [
     AuthController,
@@ -68,6 +71,7 @@ import { MeWordsController } from './me/words.controller';
     AdminGroupsController,
     AdminWordListsController,
     AdminSettingsController,
+    AdminOpsController,
   ],
   providers: [
     AuthService,

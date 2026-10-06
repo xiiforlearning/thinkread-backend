@@ -223,7 +223,100 @@ export function SettingsScreen() {
           <UsageCard />
         </div>
       </form>
+      <OpsCard />
     </Shell>
+  );
+}
+
+/** Scheduled jobs on demand — for checking the texts and for the demo in Telegram. */
+function OpsCard() {
+  const api = useAdminApi();
+  const [log, setLog] = useState<string[]>([]);
+  const note = (line: string) => setLog((l) => [line, ...l].slice(0, 6));
+  const reminders = useMutation({
+    mutationFn: (kind: 'CARDS' | 'REPORTS') => api.ops.runReminders(kind),
+    onSuccess: (r) =>
+      note(
+        `${r.kind === 'CARDS' ? 'Карточки' : 'Отчёты'} · ${r.day}: отправлено ${r.sent} из ${r.candidates} (норма выполнена ${r.skipped.done}, уже напомнили ${r.skipped.reminded}, «устал» ${r.skipped.calm}, не доставлено ${r.skipped.failed})`,
+      ),
+    onError: (e) => note(errorText(e)),
+  });
+  const summary = useMutation({
+    mutationFn: () => api.ops.runWeeklySummary(),
+    onSuccess: (r) =>
+      note(
+        `Сводка «${r.summary.weekLabel}» отправлена ${r.sentTo.length} получателям, новых флагов NORM_MISSED_WEEK: ${r.flagged}`,
+      ),
+    onError: (e) => note(errorText(e)),
+  });
+  const preview = useQuery({
+    queryKey: ['weekly-summary'],
+    queryFn: () => api.ops.weeklySummary('last'),
+    enabled: false,
+  });
+  const busy = reminders.isPending || summary.isPending || preview.isFetching;
+  return (
+    <Card desktop title="Рассылки" meta="по расписанию они уходят сами; здесь — запустить сейчас">
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="bell"
+          disabled={busy}
+          onClick={() => reminders.mutate('CARDS')}
+        >
+          Напомнить о карточках
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="bell"
+          disabled={busy}
+          onClick={() => reminders.mutate('REPORTS')}
+        >
+          Напомнить об отчётах
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="list"
+          disabled={busy}
+          onClick={() => preview.refetch()}
+        >
+          Показать сводку недели
+        </Button>
+        <Button
+          variant="dark"
+          size="sm"
+          icon="send"
+          disabled={busy}
+          onClick={() => summary.mutate()}
+        >
+          Отправить сводку недели
+        </Button>
+      </div>
+      {preview.data ? <p className="ad-box">{preview.data.text}</p> : null}
+      {log.length > 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            fontSize: 12,
+            color: 'var(--ink-2)',
+          }}
+        >
+          {log.map((l, i) => (
+            <span key={i}>{l}</span>
+          ))}
+        </div>
+      ) : null}
+      <span style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+        Напоминания уходят только тем, у кого норма не выполнена, не чаще раза в день и не в режиме
+        «устал». Сводка идёт владельцу и учителям по их группам и ставит тихий флаг за неделю без
+        отчётов.
+      </span>
+    </Card>
   );
 }
 

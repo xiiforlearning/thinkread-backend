@@ -83,7 +83,8 @@ export function reportMeta(r: AdminReport): string {
     if (r.listenCount !== null)
       parts.push(`${r.listenCount} ${plural(r.listenCount, 'раз', 'раза', 'раз')}`);
   }
-  parts.push(`+${r.wordsAdded.length} ${plural(r.wordsAdded.length, 'слово', 'слова', 'слов')}`);
+  const words = Array.isArray(r.wordsAdded) ? r.wordsAdded.length : Number(r.wordsAdded ?? 0);
+  parts.push(`+${words} ${plural(words, 'слово', 'слова', 'слов')}`);
   return parts.join(' · ');
 }
 

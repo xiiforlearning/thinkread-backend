@@ -22,9 +22,11 @@ Registration (first and last name) happens in the Mini App. The dialog `AgentSer
 tools stay in the code for the teacher's per-student chat and as a fallback, but no student
 traffic goes through them.
 
-**Current stage:** stages 6 and 7 done — REST API (`/auth/*`, all `/me/*` including cards,
-`/admin/*`) and the Mini App on it. Next: the dashboard frontend, stage 8 reminders and the
-weekly summary, the teacher's AI chat and the parents' report — all API-first.
+**Current stage:** stages 6–8 done — REST API (`/auth/*`, all `/me/*` including cards,
+`/admin/*`), the Mini App and the web dashboard (`frontend/admin.html`) on it, scheduled
+reminders, the Monday summary with the `NORM_MISSED_WEEK` flag, the teacher's AI chat and the
+parents' report (`domain/notify`, `infra/scheduler`, `TeacherChatService`). Next: production
+rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the customer.
 
 ### Mini App (`frontend/`)
 
@@ -158,6 +160,32 @@ weekly summary, the teacher's AI chat and the parents' report — all API-first.
   `recommendedFor(student)` = items of active lists for the student's groups / level / everyone,
   minus owned lemmas, minus dismissed. Accepting adds with `source: TEACHER`, `sourceListId`.
 - A tool may return `document` (filename + content); the bot sends it after the text reply.
+
+### Reminders and the weekly summary (`domain/notify`, `infra/scheduler`)
+
+- `ReminderPlannerService.runCards()` / `runReports()` pick who gets a DM: active students only,
+  norm not met, not reminded today on any channel (`RemindersService`, the AI's woven reminder
+  counts), not in calm mode (`dialogState.tiredUntil`), not `dmBlocked`; each send is logged
+  `SCHEDULED` so re-runs are idempotent. Reports go out on `reminders.reportDays` (Thu, Sat).
+  `RemindersCron` ticks every minute and fires each run once per local day within two hours after
+  `reminders.cardsTime` / `reportsTime` (owner settings, read at run time).
+- `WeeklySummaryService.build()` = last week's rates with deltas, health, per-group rates, the
+  no-shows, top readers; `run()` raises `NORM_MISSED_WEEK` once per student and week (reason
+  carries the week label) and sends the owner the whole school, each teacher their groups.
+  `WeeklySummaryCron` runs Monday 09:00; `POST /admin/reminders/run`, `GET/POST
+  /admin/weekly-summary[/run]` do the same on demand (owner; preview for staff).
+- `NotifierPort.sendToUser(id, text, { openApp })` attaches the Mini App button when `WEBAPP_URL`
+  is set. Texts live in `domain/notify/messages.ts`.
+
+### Teacher's AI (`domain/ai/teacher-chat.service.ts`)
+
+- `StudentFactsService.collect()` computes everything the model may say: norms per week, reports
+  of the period, vocabulary counts, stuck words, flags — the model only explains.
+  `TeacherChatService.ask()` (`AiPurpose.TEACHER_CHAT`, forced tool `teacher_reply {text, draft}`)
+  answers `POST /admin/students/:id/chat`; `parentReport()` (`AiPurpose.PARENT_REPORT`, tool
+  `parent_report`) answers `POST /admin/students/:id/parent-report` for a month. Nothing is
+  stored; the dashboard keeps the chat history in memory. Both are AI skills (`teacher_chat`,
+  `parent_report`) with simulators for `AI_MODE=fake`.
 
 ### Ports (domain ↔ Telegram)
 
