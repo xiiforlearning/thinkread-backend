@@ -1,7 +1,8 @@
-# ThinkRead — Mini App (frontend)
+# ThinkRead — Mini App and dashboard (frontend)
 
-Telegram Mini App for students: React 19 + Vite 7 + TypeScript, TanStack Query, React Router
-(hash routing). The UI is the **ThinkRead Design System** (artifact): `src/ui/tokens.css` and
+Two pages in one Vite project: the students' Telegram Mini App (`index.html`) and the owner's /
+teachers' web dashboard (`admin.html`). React 19 + Vite 7 + TypeScript, TanStack Query, React
+Router (hash routing). The UI is the **ThinkRead Design System** (artifact): `src/ui/tokens.css` and
 `src/ui/components.css` are copied from it verbatim, `src/ui/components.tsx` is the React port of
 its component bundle. Screens follow the artboards of «ThinkRead — кликабельный дизайн».
 
@@ -23,17 +24,38 @@ pnpm dev                    # http://localhost:5173
 `pnpm build` → `dist/` (static, relative paths — any static host works; `base: './'`).
 `.github/workflows/pages.yml` publishes the demo build to GitHub Pages.
 
+## Dashboard (`admin.html`)
+
+`http://localhost:5173/admin.html` — the web dashboard for Рустам and the teachers, on the same
+design system and the `/admin/*` API (`src/admin/api.ts` mirrors `admin/serializers.ts`).
+
+- **Sign-in**: the Telegram Login Widget (`VITE_BOT_USERNAME`, the bot needs `/setdomain` in
+  @BotFather) → `POST /auth/telegram-login`; only OWNER / TEACHER get a JWT (kept in
+  localStorage). For local work paste a token from `pnpm dev:token owner` into «Войти по токену
+  разработчика». **Demo**: the «Демо» buttons, `?demo=1` or `VITE_DEMO=1` run `MockAdminApi`
+  (`src/admin/mock.ts`) — the school of the artboards, no backend.
+- **Screens** (`src/admin/screens/`): Overview (norm rates, health by group, 8-week chart, top
+  readers, attention list), Students (list pane + card: rename / archive / recheck, quiet flags,
+  calendar, reports feed, vocabulary, AI chat), Flags (inbox + flagged report vs previous ones,
+  «проверено» / «ложная тревога»), Groups (levels, membership checks, teacher word lists),
+  Settings (owner: norms, reminders, health thresholds, staff, AI spend).
+- The teacher's AI chat and the parents' report are stage 8: the demo answers from the mock,
+  against the real API they are marked «скоро» (`AdminApi.features`).
+- Teachers see only their groups (the API scopes everything); the Settings page is owner-only.
+
 ## Layout
 
 ```
 src/
 ├── api/        types.ts (API shapes), client.ts (Api interface + HttpApi), mock.ts (MockApi)
+├── admin/      the dashboard: api.ts (AdminApi + HttpAdminApi), mock.ts, session.tsx, Shell.tsx,
+│               Login.tsx, format.ts, screens/{Overview,Students,Flags,Groups,Settings}.tsx
 ├── app/        session.tsx (sign-in, demo switch), hooks.ts (queries, BackButton), Shell.tsx (Screen frame)
 ├── screens/    Onboarding, NotRegistered, Main, Cards, Dictionary, Word, AddWords, TeacherWords,
 │               Reports, SubmitReport, Method, Profile
 ├── telegram/   webapp.ts — typed wrapper over window.Telegram.WebApp (theme, BackButton, haptics)
 ├── lib/        dates.ts (ru formatting, Asia/Tashkent), labels.ts (levels, methods, method steps)
-└── ui/         tokens.css, components.css, components.tsx, app.css — the design system
+└── ui/         tokens.css, components.css, components.tsx, app.css, admin.css — the design system
 ```
 
 Rules: every colour / radius / size is a token from `tokens.css`; user-facing text is Russian; the

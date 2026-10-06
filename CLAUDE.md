@@ -38,6 +38,14 @@ weekly summary, the teacher's AI chat and the parents' report — all API-first.
   rules). Outside Telegram or with `VITE_DEMO=1` the app runs on the mock — that is the demo.
 - Commands: `pnpm dev | build | lint | typecheck | format`. `pages.yml` deploys the demo to
   GitHub Pages; the production build goes to `WEBAPP_URL`.
+- **Dashboard** = the second Vite page `admin.html` → `src/admin/`: `api.ts` (`AdminApi` types
+  mirror `admin/serializers.ts`; `HttpAdminApi`), `mock.ts` (`MockAdminApi`, the demo school),
+  `session.tsx` (Telegram Login Widget → `POST /auth/telegram-login`, dev token, demo; JWT in
+  localStorage), `Shell.tsx` (sidebar + optional list pane), `screens/` transcribed from the
+  AdminOverview / AdminStudents / AdminFlags / AdminGroups / AdminSettings artboards. Desktop
+  variants of the components (`desktop` prop, `NavItem`, `HealthDot`, `ChatMessage`, `Composer`)
+  live in `components.tsx`, layout classes `ad-*` in `admin.css`. `AdminApi.features` marks the
+  stage-8 AI features (teacher chat, parents' report) that only the mock serves for now.
 
 ### REST API (`infra/api`)
 

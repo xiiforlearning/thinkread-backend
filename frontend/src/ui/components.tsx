@@ -52,6 +52,11 @@ const PATHS = {
   refresh: 'M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6',
   star: 'M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z',
   send: 'M22 2L11 13M22 2l-7 20-4-9-9-4z',
+  grid: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  sliders: 'M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0M14 4v4M6 10v4M16 16v4',
+  phone: 'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2',
+  copy: 'M9 9h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2zM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1',
+  logout: 'M10 17l5-5-5-5M15 12H3M21 3v18h-8',
 } as const;
 
 export type IconName = keyof typeof PATHS;
@@ -384,12 +389,15 @@ export interface CellProps extends Clickable {
   toggle?: boolean;
   onToggle?: (checked: boolean) => void;
   disabled?: boolean;
+  health?: HealthStatus;
+  flag?: boolean;
+  avatarTone?: Tone;
 }
 
 export function Cell(p: CellProps) {
   let leading = p.leading;
   if (!leading) {
-    if (p.avatar) leading = <Avatar name={p.avatar} size="sm" />;
+    if (p.avatar) leading = <Avatar name={p.avatar} size="sm" tone={p.avatarTone ?? 'solid'} />;
     else if (p.cover) leading = <BookCover title={p.cover} tone={p.coverTone} />;
     else if (p.podcast)
       leading = <PodcastTile label={typeof p.podcast === 'string' ? p.podcast : undefined} />;
@@ -403,7 +411,7 @@ export function Cell(p: CellProps) {
       );
   }
   let trailing = p.trailing;
-  if (!trailing && (p.badge || p.date || p.norms || p.toggle !== undefined)) {
+  if (!trailing && (p.badge || p.date || p.norms || p.toggle !== undefined || p.health || p.flag)) {
     trailing = (
       <>
         {p.date ? <span>{p.date}</span> : null}
@@ -414,6 +422,8 @@ export function Cell(p: CellProps) {
             })
           : null}
         {p.badge ? <Badge tone={p.badgeTone ?? 'brand'}>{p.badge}</Badge> : null}
+        {p.health ? <HealthDot status={p.health} dotOnly /> : null}
+        {p.flag ? <Icon name="flag" label="есть флаг" style={{ color: 'var(--bad)' }} /> : null}
         {p.toggle !== undefined ? (
           <Switch
             checked={p.toggle}
@@ -490,18 +500,20 @@ export function ListGroup({
   footer,
   className,
   style,
+  desktop,
   children,
 }: {
   header?: ReactNode;
   footer?: ReactNode;
   className?: string;
   style?: CSSProperties;
+  desktop?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className={cx('tr', 'tr-col', className)} style={{ gap: 0, ...style }}>
       {header ? <div className="tr-group-header">{header}</div> : null}
-      <div className="tr-group">{children}</div>
+      <div className={cx('tr-group', desktop && 'tr-group-desktop')}>{children}</div>
       {footer ? <div className="tr-group-footer">{footer}</div> : null}
     </div>
   );
@@ -518,6 +530,7 @@ export function Card({
   className,
   style,
   to,
+  desktop,
   children,
 }: {
   tone?: CardTone;
@@ -526,11 +539,13 @@ export function Card({
   className?: string;
   style?: CSSProperties;
   to?: string;
+  desktop?: boolean;
   children?: ReactNode;
 }) {
   const cls = cx(
     'tr',
     'tr-card',
+    desktop && 'tr-card-desktop',
     tone === 'hero' && 'tr-card-hero',
     tone === 'brand' && 'tr-card-brand',
     tone.startsWith('wash-') && `tr-card-${tone}`,
@@ -747,7 +762,7 @@ export function Select({
   size,
   className,
   ...rest
-}: SelectHTMLAttributes<HTMLSelectElement> & {
+}: Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> & {
   label?: ReactNode;
   hint?: ReactNode;
   options: Array<{ value: string; label: string }>;
@@ -777,14 +792,20 @@ export function SegmentedControl<T extends string>({
   options,
   onChange,
   label,
+  desktop,
 }: {
   value: T;
   options: Array<{ value: T; label: string; to?: string }>;
   onChange?: (v: T) => void;
   label?: string;
+  desktop?: boolean;
 }) {
   return (
-    <div className="tr tr-seg" role="group" aria-label={label}>
+    <div
+      className={cx('tr', 'tr-seg', desktop && 'tr-seg-desktop')}
+      role="group"
+      aria-label={label}
+    >
       {options.map((o) =>
         o.to ? (
           <Link key={o.value} to={o.to} aria-current={o.value === value ? 'true' : undefined}>
@@ -1028,5 +1049,167 @@ export function CheckRow({
         </span>
       ) : null}
     </label>
+  );
+}
+
+/* ---------- Desktop: HealthDot, NavItem, ChatMessage, Composer ---------- */
+
+export type HealthStatus = 'good' | 'warn' | 'bad';
+const HEALTH_LABEL: Record<HealthStatus, string> = {
+  good: 'Активен',
+  warn: 'Отстаёт',
+  bad: 'Проблема',
+};
+
+export function HealthDot({
+  status = 'good',
+  dotOnly,
+  children,
+}: {
+  status?: HealthStatus;
+  dotOnly?: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <span className={cx('tr', 'tr-health', `tr-health-${status}`)}>
+      <span className="tr-health-dot" aria-hidden="true" />
+      {dotOnly ? (
+        <span className="tr-visually-hidden">{HEALTH_LABEL[status]}</span>
+      ) : (
+        (children ?? HEALTH_LABEL[status])
+      )}
+    </span>
+  );
+}
+
+export function NavItem({
+  icon,
+  to,
+  href,
+  active,
+  count,
+  alert,
+  onClick,
+  children,
+}: Clickable & {
+  icon?: IconName;
+  active?: boolean;
+  count?: number | string | null;
+  alert?: boolean;
+  children: ReactNode;
+}) {
+  const inner = (
+    <>
+      {icon ? <Icon name={icon} style={{ width: 18, height: 18 }} /> : null}
+      <span className="tr-nav-label">{children}</span>
+      {count !== undefined && count !== null ? (
+        <span className={cx('tr-nav-count', alert && 'tr-nav-count-alert')}>{count}</span>
+      ) : null}
+    </>
+  );
+  if (to)
+    return (
+      <Link
+        to={to}
+        className="tr tr-nav"
+        aria-current={active ? 'page' : undefined}
+        onClick={onClick}
+      >
+        {inner}
+      </Link>
+    );
+  if (href)
+    return (
+      <a href={href} className="tr tr-nav" target="_blank" rel="noreferrer">
+        {inner}
+      </a>
+    );
+  return (
+    <button
+      type="button"
+      className="tr tr-nav"
+      aria-current={active ? 'page' : undefined}
+      onClick={onClick}
+    >
+      {inner}
+    </button>
+  );
+}
+
+export function ChatMessage({
+  from,
+  who,
+  actions,
+  children,
+}: {
+  from?: 'me' | 'ai';
+  who?: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cx('tr', 'tr-msg', from === 'me' && 'tr-msg-me')}>
+      {who ? <span className="tr-msg-who">{who}</span> : null}
+      <div className="tr-msg-bubble">{children}</div>
+      {actions ? <div className="tr-msg-actions">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function Composer({
+  value,
+  onChange,
+  onSend,
+  placeholder,
+  disabled,
+  hint,
+  sendLabel = 'Отправить',
+  icon = 'send',
+  variant = 'dark',
+  children,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSend: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  hint?: ReactNode;
+  sendLabel?: string;
+  icon?: IconName;
+  variant?: ButtonVariant;
+  children?: ReactNode;
+}) {
+  return (
+    <form
+      className="tr tr-composer"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!disabled && value.trim()) onSend(value.trim());
+      }}
+    >
+      {children ? <div className="tr-composer-chips">{children}</div> : null}
+      <div className="tr-composer-row">
+        <input
+          className="tr-input"
+          type="text"
+          autoComplete="off"
+          aria-label={placeholder ?? 'Сообщение'}
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+        />
+        <Button
+          variant={variant}
+          size="md"
+          icon={icon}
+          type="submit"
+          disabled={disabled || !value.trim()}
+        >
+          {sendLabel}
+        </Button>
+      </div>
+      {hint ? <span className="tr-composer-hint">{hint}</span> : null}
+    </form>
   );
 }

@@ -71,6 +71,11 @@ cd frontend && pnpm install && pnpm dev          # http://localhost:5173
 
 В браузере (вне Telegram) приложение работает на моках — этого хватает для экранов.
 
+Дашборд владельца: `http://localhost:5173/admin.html`. Вход для локальной работы — «Войти по
+токену разработчика» с токеном из `pnpm dev:token owner` (нужен `VITE_API_URL` в
+`frontend/.env`); кнопка Telegram появляется при `VITE_BOT_USERNAME` и `/setdomain` у бота;
+`?demo=1` — демо на данных макета без сервера.
+
 ## 4. Показ в настоящем Telegram
 
 1. @BotFather → `/newbot` → токен в `BOT_TOKEN`; `ADMIN_TELEGRAM_ID` = ваш Telegram id (владелец).

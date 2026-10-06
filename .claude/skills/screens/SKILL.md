@@ -1,9 +1,9 @@
 ---
 name: screens
-description: Проверить экраны Mini App ThinkRead глазами — собрать фронт, снять скриншоты всех экранов в светлой и тёмной теме через Playwright (390×844) и сравнить с артбордами дизайна. Использовать после любых изменений в frontend/src.
+description: Проверить экраны Mini App и дашборда ThinkRead глазами — собрать фронт, снять скриншоты всех экранов в светлой и тёмной теме через Playwright (390×844 для Mini App, 1280×800 для дашборда) и сравнить с артбордами дизайна. Использовать после любых изменений в frontend/src.
 ---
 
-# Экраны Mini App
+# Экраны Mini App и дашборда
 
 Экраны должны один в один повторять артборды «ThinkRead — кликабельный дизайн»
 (https://claude.ai/artifact/GTWaTTfrxZ6QWE1Pho2fZs) и собираться только из компонентов
@@ -13,7 +13,8 @@ description: Проверить экраны Mini App ThinkRead глазами �
 
 ```bash
 cd frontend && pnpm build && pnpm preview --port 4173 --host 127.0.0.1 &
-node .claude/skills/screens/shoot.cjs          # из корня репозитория; нужен playwright-core (npm i -g playwright-core или в scratchpad)
+node .claude/skills/screens/shoot.cjs          # Mini App, 390×844; из корня репозитория; нужен playwright-core (npm i -g playwright-core или NODE_PATH на установку в scratchpad)
+node .claude/skills/screens/shoot-admin.cjs    # дашборд (admin.html?demo=1), 1280×800: login, overview, students, flags, groups, settings
 ```
 
 Скрипт обходит маршруты `#/`, `#/cards`, `#/words`, `#/words/add`, `#/words/teacher`,

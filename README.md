@@ -137,8 +137,11 @@ Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT 
 | `GET/POST /admin/staff`, `DELETE /admin/staff/:telegramUserId` | teachers: explicit grants plus group-title detection |
 | `GET /admin/ai-usage?month=YYYY-MM` | AI spend: totals, by purpose, top students |
 
-## Mini App (frontend)
+## Mini App and dashboard (frontend)
 
-The student's Telegram Mini App lives in [`frontend/`](frontend/README.md) — React + Vite on the
-ThinkRead Design System. `cd frontend && pnpm install && pnpm dev`; outside Telegram it runs on
-demo data, inside Telegram it signs in with `initData` against this API (`VITE_API_URL`).
+The student's Telegram Mini App and the owner's web dashboard live in
+[`frontend/`](frontend/README.md) — React + Vite on the ThinkRead Design System.
+`cd frontend && pnpm install && pnpm dev`: the Mini App at `/`, the dashboard at `/admin.html`.
+Outside Telegram the Mini App runs on demo data, inside Telegram it signs in with `initData`
+against this API (`VITE_API_URL`). The dashboard signs in with the Telegram Login Widget
+(`VITE_BOT_USERNAME`, staff only) or a `pnpm dev:token` JWT, and has a demo mode too.
