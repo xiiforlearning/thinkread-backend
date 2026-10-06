@@ -95,13 +95,20 @@ cd frontend && pnpm install && pnpm dev          # http://localhost:5173
 ## 4. Показ в настоящем Telegram
 
 1. @BotFather → `/newbot` → токен в `BOT_TOKEN`; `ADMIN_TELEGRAM_ID` = ваш Telegram id (владелец).
-2. Два HTTPS-туннеля (например cloudflared): `cloudflared tunnel --url http://localhost:3000`
-   (API) и `cloudflared tunnel --url http://localhost:5173` (Mini App). ngrok тоже подходит.
-3. Бэкенд `.env`: `BOT_LAUNCH=true`, `AI_MODE=claude-cli`, `WEBAPP_URL=<туннель 5173>`,
-   `CORS_ORIGINS=<туннель 5173>`. Фронт `frontend/.env`: `VITE_API_URL=<туннель 3000>`.
-4. `pnpm start:dev` (polling включён) и `cd frontend && pnpm dev --host`.
-5. @BotFather → `/newapp` (или `/setmenubutton`) с адресом туннеля 5173. Открыть бота, нажать
-   «Открыть ThinkRead»: вход по initData, регистрация имени, отчёты через локальный Claude.
+2. Фронт уже опубликован на GitHub Pages (`pages.yml`): `https://<owner>.github.io/<repo>/`,
+   дашборд — `…/admin.html`. Нужен только один HTTPS-туннель до API:
+   `cloudflared tunnel --url http://localhost:3000` (ngrok тоже подходит). Альтернатива —
+   второй туннель до `pnpm dev --host` (5173), если хочется править фронт на лету.
+3. Бэкенд `.env`: `BOT_LAUNCH=true`, `AI_MODE=claude-cli`,
+   `WEBAPP_URL=https://<owner>.github.io/<repo>/?api=<туннель 3000>`,
+   `CORS_ORIGINS=https://<owner>.github.io`. Параметр `?api=` говорит фронту, где API; он
+   запоминается в браузере, а при новом адресе туннеля меняется там же. Постоянный адрес можно
+   зашить в сборку переменной репозитория `API_URL` (Settings → Variables) и перезапустить
+   `pages.yml`; `BOT_USERNAME` там же включает кнопку входа Telegram в дашборде.
+4. `pnpm start:dev` (polling включён).
+5. @BotFather → `/newapp` (или `/setmenubutton`) с тем же адресом, что в `WEBAPP_URL`;
+   для дашборда `/setdomain` → `<owner>.github.io`. Открыть бота, нажать «Открыть ThinkRead»:
+   вход по initData, регистрация имени, отчёты через локальный Claude.
 6. Чтобы стать студентом, добавьте бота в тестовую группу Telegram и вступите в неё сами;
    владелец задаёт уровень группы через `PATCH /admin/groups/:chatId` или в дашборде.
 7. Рассылки руками (владелец, дашборд → Настройки → «Рассылки» или curl):

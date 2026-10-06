@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
 import type { ApiRole } from '../api/types';
+import { apiBaseUrl } from '../lib/api-url';
 import { type AdminApi, HttpAdminApi, type TelegramLoginPayload } from './api';
 import { MockAdminApi } from './mock';
 
@@ -89,7 +90,7 @@ function initialState(): SessionState {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>(initialState);
-  const apiUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+  const apiUrl = useMemo(apiBaseUrl, []);
   const botUsername = import.meta.env.VITE_BOT_USERNAME ?? '';
 
   const signOut = useCallback(() => {

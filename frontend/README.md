@@ -22,7 +22,12 @@ pnpm dev                    # http://localhost:5173
   login (name form), `?demo=not_member` the "no access" screen.
 
 `pnpm build` → `dist/` (static, relative paths — any static host works; `base: './'`).
-`.github/workflows/pages.yml` publishes the demo build to GitHub Pages.
+`.github/workflows/pages.yml` publishes the build to GitHub Pages — the public HTTPS address
+Telegram needs (`https://<owner>.github.io/<repo>/`, the dashboard at `…/admin.html`). The API
+address is `VITE_API_URL` at build time (repository variable `API_URL`) or, at run time,
+`?api=https://…` in the page URL (remembered in localStorage; `?api=` forgets it) — so the Pages
+build can point at a local backend behind a cloudflared / ngrok tunnel. Outside Telegram the Mini
+App still runs on demo data; the dashboard has its demo buttons.
 
 ## Dashboard (`admin.html`)
 

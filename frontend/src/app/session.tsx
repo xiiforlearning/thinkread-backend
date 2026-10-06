@@ -10,6 +10,7 @@ import {
 import { type Api, HttpApi } from '../api/client';
 import { MockApi } from '../api/mock';
 import type { AccessStatus } from '../api/types';
+import { apiBaseUrl } from '../lib/api-url';
 import { initData, insideTelegram } from '../telegram/webapp';
 
 const TOKEN_KEY = 'thinkread.token';
@@ -55,9 +56,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo<Api>(() => {
     if (demo) return new MockApi({ access: demoAccess() });
-    const base = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
     return new HttpApi(
-      base,
+      apiBaseUrl(),
       () => sessionStorage.getItem(TOKEN_KEY),
       () => sessionStorage.removeItem(TOKEN_KEY),
     );
