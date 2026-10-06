@@ -107,14 +107,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return new HttpAdminApi(apiUrl, () => read<string>(TOKEN_KEY), signOut);
   }, [demo, role, apiUrl, signOut]);
 
-  const loginWithToken = useCallback((token: string, name?: string) => {
+  const loginWithToken = useCallback((pasted: string, name?: string) => {
+    // Accept the whole terminal output of `pnpm dev:token`: the JWT is the first a.b.c token in it.
+    const token = pasted.match(/[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/)?.[0];
+    if (!token)
+      throw new Error(
+        'Не нашёл JWT в тексте: нужен токен вида xxx.yyy.zzz из `pnpm dev:token owner`.',
+      );
     const claims = claimsOf(token);
     const staff = claims.roles.includes('OWNER')
       ? 'OWNER'
       : claims.roles.includes('TEACHER')
         ? 'TEACHER'
         : null;
-    if (!staff) throw new Error('В токене нет роли OWNER или TEACHER.');
+    if (!staff)
+      throw new Error(
+        `В токене нет роли OWNER или TEACHER (роли: ${claims.roles.length ? claims.roles.join(', ') : 'не прочитаны'}). Токен владельца даёт \`pnpm dev:token owner\`, учителя — \`pnpm dev:token teacher <telegram id>\`.`,
+      );
     const user: StaffUser = {
       name: name?.trim() || (staff === 'OWNER' ? 'Владелец' : 'Учитель'),
       role: staff,
