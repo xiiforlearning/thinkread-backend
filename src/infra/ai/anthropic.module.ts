@@ -1,13 +1,15 @@
 import { Global, Module } from '@nestjs/common';
 import { AppConfigModule } from '../../config/config.module';
 import { AppConfigService } from '../../config/config.service';
-import { LLM_PORT } from '../../domain/ai/llm.port';
+import { LLM_PORT, LlmPort } from '../../domain/ai/llm.port';
 import { AnthropicLlmAdapter } from './anthropic-llm.adapter';
+import { ClaudeCliLlmAdapter } from './claude-cli-llm.adapter';
 import { FakeLlmAdapter } from './fake-llm.adapter';
 
 /**
  * Global so domain modules inject LLM_PORT without importing infra.
- * `AI_MODE=fake` (or no ANTHROPIC_API_KEY) swaps Claude for the rule-based stub.
+ * AI_MODE picks the adapter: `anthropic` (API key), `claude-cli` (local Claude
+ * Code CLI, no key) or `fake` (rule-based stub).
  */
 @Global()
 @Module({
@@ -16,8 +18,16 @@ import { FakeLlmAdapter } from './fake-llm.adapter';
     {
       provide: LLM_PORT,
       inject: [AppConfigService],
-      useFactory: (config: AppConfigService) =>
-        config.aiMode === 'fake' ? new FakeLlmAdapter() : new AnthropicLlmAdapter(config),
+      useFactory: (config: AppConfigService): LlmPort => {
+        switch (config.aiMode) {
+          case 'fake':
+            return new FakeLlmAdapter();
+          case 'claude-cli':
+            return new ClaudeCliLlmAdapter(config);
+          default:
+            return new AnthropicLlmAdapter(config);
+        }
+      },
     },
   ],
   exports: [LLM_PORT],

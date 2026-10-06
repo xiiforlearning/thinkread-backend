@@ -44,6 +44,8 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `DATABASE_URL` or `DATABASE_HOST/PORT/USER/PASSWORD/NAME` | yes | PostgreSQL |
 | `DATABASE_SSL` | no | `true` for managed Postgres |
 | `ANTHROPIC_API_KEY` | yes | Claude API key (student dialog) |
+| `AI_MODE` | no | `anthropic` / `claude-cli` / `fake` — who answers the AI calls (see below) |
+| `CLAUDE_CLI_PATH`, `CLAUDE_CLI_MODEL`, `CLAUDE_CLI_TIMEOUT_MS` | no | For `AI_MODE=claude-cli`: binary (`claude`), model alias (`haiku`), timeout (120000) |
 | `AI_MODEL_DIALOG` | no | Default `claude-haiku-4-5` |
 | `AI_MODEL_AUTHENTICITY` | no | Report authenticity check; defaults to `AI_MODEL_DIALOG` |
 | `JWT_SECRET` | yes | Signs the API's JWTs |
@@ -68,10 +70,29 @@ registration via `initData`, and the whole student API — profile, progress, ca
 AI parsing and one clarification, vocabulary with imports and export, teacher's word lists, spot
 checks. Admin endpoints, cards and reminders follow, then the frontend.
 
-## Local run without keys
+## AI modes and skills
 
-Everything runs without `ANTHROPIC_API_KEY` and without Telegram: AI falls back to a rule-based
-stub (`AI_MODE=fake`), polling is off with `BOT_LAUNCH=false`.
+`AI_MODE` decides who answers the product's AI calls:
+
+| Mode | When | Needs |
+|---|---|---|
+| `anthropic` | production | `ANTHROPIC_API_KEY` |
+| `claude-cli` | local development and demos — the backend runs the Claude Code CLI installed on the machine (`claude -p --json-schema …`), signed in with your own account | `claude` on PATH and `claude login` done |
+| `fake` | CI, tests, offline — rule-based stub with deterministic answers | nothing |
+
+Every AI job is a **skill** in `src/domain/ai/skills.ts` (prompt + forced tool + simulator):
+`parse_reading_report`, `parse_listening_report`, `enrich_words`, `authenticity`,
+`spot_check_grade`, `sentence_check`. Run one from the terminal to tune a prompt:
+
+```bash
+pnpm ai:skill                                            # list
+AI_MODE=claude-cli pnpm ai:skill parse_listening_report "слушал 6 Minute English, 70%, 3 раза. The episode was about sleep."
+```
+
+## Local run
+
+Everything runs without `ANTHROPIC_API_KEY`: set `AI_MODE=claude-cli` to use your local Claude
+Code, or leave it on the rule-based stub (`fake`). Telegram polling is off with `BOT_LAUNCH=false`.
 
 ```bash
 docker compose up -d postgres && cp -n .env.example .env   # fill ADMIN_TELEGRAM_ID, JWT_SECRET, BOT_TOKEN (any 123:abc)
@@ -81,7 +102,12 @@ pnpm dev:token owner                                       # Bearer token for /a
 cd frontend && pnpm install && pnpm dev                    # Mini App on demo data at http://localhost:5173
 ```
 
-Details and the curl smoke table: `.claude/skills/local-run/SKILL.md`, `.claude/skills/api-smoke/SKILL.md`.
+To show the real thing in Telegram: create a bot in @BotFather (`/newbot` → `BOT_TOKEN`), set
+`BOT_LAUNCH=true`, expose the Mini App over HTTPS (for example `cloudflared tunnel --url
+http://localhost:5173`), put that URL into `WEBAPP_URL`, `CORS_ORIGINS` and the frontend's
+`VITE_API_URL` (pointing at a tunnel to :3000), then `/newapp` or the menu button in @BotFather
+with the same URL. Details and the curl smoke table: `.claude/skills/local-run/SKILL.md`,
+`.claude/skills/api-smoke/SKILL.md`.
 
 ## Cards API (`/me/cards`)
 

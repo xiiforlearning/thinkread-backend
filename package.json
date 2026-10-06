@@ -30,7 +30,8 @@
     "dev:api": "BOT_LAUNCH=false AI_MODE=${AI_MODE:-fake} nest start --watch",
     "dev:token": "ts-node --transpile-only scripts/dev-token.ts",
     "dev:seed": "ts-node --transpile-only scripts/seed-dev.ts",
-    "verify": "pnpm lint:check && pnpm build && pnpm test"
+    "verify": "pnpm lint:check && pnpm build && pnpm test",
+    "ai:skill": "ts-node --transpile-only scripts/ai-skill.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

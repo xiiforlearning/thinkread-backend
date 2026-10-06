@@ -8,29 +8,12 @@ import { ReportsService } from '../reports/reports.service';
 import { Student } from '../students/student.entity';
 import { StudentsService } from '../students/students.service';
 import { LLM_PORT, LlmPort } from './llm.port';
+import {
+  SPOT_CHECK_SYSTEM_PROMPT,
+  SPOT_CHECK_TOOL,
+  SPOT_CHECK_TOOL_NAME,
+} from './spot-check.prompt';
 import { UsageService } from './usage.service';
-
-const TOOL_NAME = 'spot_check_verdict';
-
-const TOOL: Anthropic.Tool = {
-  name: TOOL_NAME,
-  description: 'Оценка ответа студента на вопрос по прослушанному.',
-  strict: true,
-  input_schema: {
-    type: 'object',
-    properties: {
-      verdict: {
-        type: 'string',
-        enum: [SpotCheckVerdict.OK, SpotCheckVerdict.VAGUE, SpotCheckVerdict.WRONG],
-      },
-      reason: { type: 'string' },
-    },
-    required: ['verdict', 'reason'],
-    additionalProperties: false,
-  },
-};
-
-const SYSTEM = `Студент школы английского сдал отчёт об аудировании с пересказом. Позже ему задали лёгкий вопрос по содержанию того же выпуска. Оцени его ответ: OK — конкретно и согласуется с пересказом или правдоподобно для такого выпуска; VAGUE — общие слова без конкретики; WRONG — противоречит пересказу. Язык ответа и ошибки не важны. Вызови инструмент ${TOOL_NAME} ровно один раз.`;
 
 /**
  * Grades the answer to a spot-check question shown in the Mini App (there is
@@ -95,9 +78,11 @@ export class SpotCheckGraderService {
       const response = await this.llm.complete({
         model,
         maxTokens: 200,
-        system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-        tools: [TOOL],
-        toolChoice: { type: 'tool', name: TOOL_NAME },
+        system: [
+          { type: 'text', text: SPOT_CHECK_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        ],
+        tools: [SPOT_CHECK_TOOL],
+        toolChoice: { type: 'tool', name: SPOT_CHECK_TOOL_NAME },
         messages: [
           {
             role: 'user',
@@ -112,7 +97,8 @@ export class SpotCheckGraderService {
       });
       await this.usage.record(student.id, AiPurpose.AUTHENTICITY, model, response.usage);
       const call = response.content.find(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === TOOL_NAME,
+        (b): b is Anthropic.ToolUseBlock =>
+          b.type === 'tool_use' && b.name === SPOT_CHECK_TOOL_NAME,
       );
       const verdict = (call?.input as { verdict?: string } | undefined)?.verdict;
       return verdict === SpotCheckVerdict.OK || verdict === SpotCheckVerdict.WRONG

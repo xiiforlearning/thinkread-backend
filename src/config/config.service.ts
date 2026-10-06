@@ -32,14 +32,31 @@ export class AppConfigService {
   }
 
   /**
-   * `anthropic` (default when ANTHROPIC_API_KEY is set) or `fake` — a rule-based
-   * stub for local runs and CI. Without a key the app falls back to `fake`.
+   * Who answers LLM_PORT: `anthropic` (the API, default when ANTHROPIC_API_KEY is
+   * set), `claude-cli` (the local Claude Code CLI signed in with the developer's
+   * account — no key, for development and demos) or `fake` (rule-based stub for
+   * CI). Without a key and without AI_MODE the app runs on `fake`.
    */
-  get aiMode(): 'anthropic' | 'fake' {
+  get aiMode(): 'anthropic' | 'claude-cli' | 'fake' {
     const raw = (this.config.get<string>('AI_MODE') ?? '').toLowerCase();
     if (raw === 'fake') return 'fake';
+    if (raw === 'claude-cli' || raw === 'cli') return 'claude-cli';
     if (raw === 'anthropic') return 'anthropic';
     return this.config.get<string>('ANTHROPIC_API_KEY') ? 'anthropic' : 'fake';
+  }
+
+  /** Binary of the Claude Code CLI for AI_MODE=claude-cli. */
+  get claudeCliPath(): string {
+    return this.config.get<string>('CLAUDE_CLI_PATH') ?? 'claude';
+  }
+
+  /** Model alias / id passed to the CLI (`haiku`, `sonnet`, or a full id); undefined = the request's model. */
+  get claudeCliModel(): string | undefined {
+    return this.config.get<string>('CLAUDE_CLI_MODEL') || undefined;
+  }
+
+  get claudeCliTimeoutMs(): number {
+    return Number(this.config.get<string>('CLAUDE_CLI_TIMEOUT_MS') ?? 120_000);
   }
 
   get anthropicApiKey(): string {

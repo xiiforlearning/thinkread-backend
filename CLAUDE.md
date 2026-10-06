@@ -69,11 +69,16 @@ weekly summary, the teacher's AI chat and the parents' report — all API-first.
 
 ### AI layer (`domain/ai`)
 
-- `LLM_PORT` is the only way to reach the model; `infra/ai/AnthropicModule` provides it globally.
-  With `AI_MODE=fake` (the default when `ANTHROPIC_API_KEY` is empty) the port is
-  `FakeLlmAdapter` — a rule-based stub that answers every forced tool (`parsed_report`,
-  `enriched_words`, `report_verdict`, `spot_check_verdict`) deterministically, so the whole
-  product runs locally and in CI without tokens. A new forced tool needs a branch there and a spec.
+- `LLM_PORT` is the only way to reach the model; `infra/ai/AnthropicModule` provides it globally
+  and `AI_MODE` picks the adapter: `anthropic` (API key), `claude-cli` (`ClaudeCliLlmAdapter`
+  runs the local Claude Code CLI with `--json-schema`, signed in with the developer's account —
+  development and demos without a key) or `fake` (`FakeLlmAdapter`, deterministic, CI; the
+  default when there is no key).
+- **AI skills** (`domain/ai/skills.ts`): every job the product gives the model is one entry —
+  system prompt, forced tool, example input and a rule-based `simulate()` (`simulate.ts`). The
+  services build their requests from the same prompt files; the fake adapter and
+  `pnpm ai:skill <name> "<text>"` look skills up here. A new AI feature = a `*.prompt.ts`, a
+  skill entry with a simulator, a spec, and an eval case.
 - A tool = one class implementing `AgentTool` (`name`, `description`, JSON-schema `inputSchema`,
   `handle(input, ctx)`), registered in `TOOL_CLASSES` in `ai.module.ts`. Tools get the caller via
   `ctx.student` — never accept a student id from the model. Return `{ data }` (short JSON for the
