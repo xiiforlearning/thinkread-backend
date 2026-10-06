@@ -22,9 +22,9 @@ AI_MODE=claude-cli pnpm ai:skill parse_listening_report "слушал 6 Minute E
 делать. Диагностика по шагам:
 
 ```bash
-claude --version                      # нужен Claude Code 2.1+ (флаги --bare и --json-schema); иначе claude update
+claude --version                      # нужен Claude Code 2.1+ (флаг --json-schema); иначе claude update
 claude auth status                    # loggedIn: true; иначе claude login
-echo hi | claude -p --bare --output-format json --tools "" --model haiku   # сырой вызов: должен вернуть {"is_error":false,"result":"…"}
+echo hi | claude -p --setting-sources "" --output-format json --tools "" --model haiku   # сырой вызов: должен вернуть {"is_error":false,"result":"…"}
 AI_MODE=claude-cli pnpm ai:skill sentence_check                         # тот же вызов через адаптер
 ```
 
