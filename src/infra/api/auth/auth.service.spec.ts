@@ -44,7 +44,10 @@ describe('AuthService.webApp', () => {
     const res = await auth.webApp(initDataFor(100));
     expect(res.status).toBe('ACTIVE');
     expect(res.roles).toEqual(['STUDENT']);
-    expect(registration.resolve).toHaveBeenCalledWith({ telegramUserId: 100, username: 'u100' });
+    expect(registration.resolve).toHaveBeenCalledWith(
+      { telegramUserId: 100, username: 'u100' },
+      { staff: false },
+    );
     const principal = await auth.verify(res.token as string);
     expect(principal).toEqual({
       telegramUserId: 100,
