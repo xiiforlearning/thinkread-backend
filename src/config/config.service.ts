@@ -31,6 +31,17 @@ export class AppConfigService {
     return telegramUserId === this.adminTelegramId;
   }
 
+  /**
+   * `anthropic` (default when ANTHROPIC_API_KEY is set) or `fake` — a rule-based
+   * stub for local runs and CI. Without a key the app falls back to `fake`.
+   */
+  get aiMode(): 'anthropic' | 'fake' {
+    const raw = (this.config.get<string>('AI_MODE') ?? '').toLowerCase();
+    if (raw === 'fake') return 'fake';
+    if (raw === 'anthropic') return 'anthropic';
+    return this.config.get<string>('ANTHROPIC_API_KEY') ? 'anthropic' : 'fake';
+  }
+
   get anthropicApiKey(): string {
     return this.require('ANTHROPIC_API_KEY');
   }

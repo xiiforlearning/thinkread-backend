@@ -74,6 +74,10 @@ the teacher's AI chat — all API-first.
 ### AI layer (`domain/ai`)
 
 - `LLM_PORT` is the only way to reach the model; `infra/ai/AnthropicModule` provides it globally.
+  With `AI_MODE=fake` (the default when `ANTHROPIC_API_KEY` is empty) the port is
+  `FakeLlmAdapter` — a rule-based stub that answers every forced tool (`parsed_report`,
+  `enriched_words`, `report_verdict`, `spot_check_verdict`) deterministically, so the whole
+  product runs locally and in CI without tokens. A new forced tool needs a branch there and a spec.
 - A tool = one class implementing `AgentTool` (`name`, `description`, JSON-schema `inputSchema`,
   `handle(input, ctx)`), registered in `TOOL_CLASSES` in `ai.module.ts`. Tools get the caller via
   `ctx.student` — never accept a student id from the model. Return `{ data }` (short JSON for the
@@ -182,6 +186,15 @@ summary, monthly membership check), `/admin/*` API, web dashboard.
   (students' reports are personal data).
 - Strict TypeScript, no `any` without a justifying comment. Conventional Commits.
 
+## Local run, agents and skills
+
+`.claude/skills/` holds the repo's workflows for Claude Code: `local-run` (Postgres, migrations,
+`pnpm dev:seed`, `pnpm dev:api` on the fake AI, `pnpm dev:token` for curl), `verify` (what CI
+runs), `api-smoke` (live curl table for `/me/*` and `/admin/*`), `screens` (Playwright
+screenshots of the Mini App) and `stage` (how to deliver a plan stage end to end).
+`.claude/agents/`: `reviewer` (CLAUDE.md checklist on a diff), `api-tester` (boots the API and
+runs the smoke), `screen-checker` (builds the Mini App and compares screens with the artboards).
+
 ## Commands
 
 | Command | Purpose |
@@ -190,6 +203,10 @@ summary, monthly membership check), `/admin/*` API, web dashboard.
 | `pnpm build` | Compile (strict) |
 | `pnpm lint` / `pnpm lint:check` | ESLint + Prettier (fix / check) |
 | `pnpm test` | Jest |
+| `pnpm verify` | lint:check + build + test (what CI runs for the backend) |
+| `pnpm dev:api` | API only: `BOT_LAUNCH=false AI_MODE=fake nest start --watch` |
+| `pnpm dev:seed [--reset]` | Demo data of the design artboards (groups, students, reports, words, list, flags) |
+| `pnpm dev:token owner \| teacher <tgId> \| student <uuid>` | JWT for curl / Swagger |
 | `pnpm migration:run` / `migration:revert` / `migration:show` | TypeORM migrations |
 | `pnpm typeorm migration:generate src/infra/db/migrations/<Name>` | Generate a migration from entity changes |
 

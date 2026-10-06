@@ -68,6 +68,21 @@ registration via `initData`, and the whole student API — profile, progress, ca
 AI parsing and one clarification, vocabulary with imports and export, teacher's word lists, spot
 checks. Admin endpoints, cards and reminders follow, then the frontend.
 
+## Local run without keys
+
+Everything runs without `ANTHROPIC_API_KEY` and without Telegram: AI falls back to a rule-based
+stub (`AI_MODE=fake`), polling is off with `BOT_LAUNCH=false`.
+
+```bash
+docker compose up -d postgres && cp -n .env.example .env   # fill ADMIN_TELEGRAM_ID, JWT_SECRET, BOT_TOKEN (any 123:abc)
+pnpm install && pnpm migration:run && pnpm dev:seed        # demo data from the design artboards
+pnpm dev:api                                               # http://localhost:3000/docs
+pnpm dev:token owner                                       # Bearer token for /admin/*; also: teacher 777, student <uuid from the seed>
+cd frontend && pnpm install && pnpm dev                    # Mini App on demo data at http://localhost:5173
+```
+
+Details and the curl smoke table: `.claude/skills/local-run/SKILL.md`, `.claude/skills/api-smoke/SKILL.md`.
+
 ## Dashboard API (`/admin/*`)
 
 Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT from
