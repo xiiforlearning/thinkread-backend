@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { Injectable, Logger } from '@nestjs/common';
 import { spawn } from 'child_process';
+import { tmpdir } from 'os';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { AppConfigService } from '../../config/config.service';
@@ -80,7 +81,12 @@ export class ClaudeCliLlmAdapter implements LlmPort {
 
     const args = [
       '-p',
-      '--bare',
+      // Not --bare: it reads only ANTHROPIC_API_KEY and ignores the claude.ai login this mode
+      // exists for. Isolation instead: no settings/hooks, no MCP, no skills; cwd is the temp dir.
+      '--setting-sources',
+      '',
+      '--strict-mcp-config',
+      '--disable-slash-commands',
       '--no-session-persistence',
       '--output-format',
       'json',
@@ -208,7 +214,7 @@ export function describeFailure(
   if (/authentication|not logged in|login/i.test(base))
     return `${base} — run \`claude auth status\` and \`claude login\` on this machine`;
   if (/unknown option|unrecognized|too many arguments/i.test(base))
-    return `${base} — Claude Code ≥ 2.1 is required (--bare, --json-schema): run \`claude update\``;
+    return `${base} — Claude Code ≥ 2.1 is required (--json-schema): run \`claude update\``;
   if (code === -1 || /ENOENT/.test(base))
     return `${base} — \`claude\` is not on PATH of this process; set CLAUDE_CLI_PATH to the binary`;
   return base;
@@ -288,6 +294,7 @@ const spawnRunner: CliRunner = (args, stdin, timeoutMs) =>
     const child = spawn(bin, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: childEnv(),
+      cwd: tmpdir(), // keeps the repo's CLAUDE.md out of the product's prompts
       windowsHide: true,
     });
     let stdout = '';
