@@ -1,6 +1,10 @@
 import {
   type AddWordsResult,
   ApiError,
+  type CardAnswer,
+  type CardsState,
+  type CardView,
+  type TodayCards,
   type ImportPreview,
   type IntakeResult,
   type Page,
@@ -54,6 +58,13 @@ export interface Api {
     patch(id: string, patch: { translation?: string; status?: WordStatus }): Promise<Word>;
     priority(id: string, priority: WordPriority): Promise<Word>;
     exportText(format: 'csv' | 'txt'): Promise<{ filename: string; content: string }>;
+  };
+  cards: {
+    state(): Promise<CardsState>;
+    next(): Promise<{ card: CardView | null; today: TodayCards }>;
+    answer(attemptId: string, answer: string): Promise<CardAnswer>;
+    giveUp(attemptId: string): Promise<CardAnswer>;
+    skip(attemptId: string): Promise<{ today: TodayCards }>;
   };
   reports: {
     list(limit: number, cursor?: string): Promise<Page<Report>>;
@@ -172,6 +183,14 @@ export class HttpApi implements Api {
     patch: (id, patch) => this.call('PATCH', `/me/words/${id}`, patch),
     priority: (id, priority) => this.call('PATCH', `/me/words/${id}/priority`, { priority }),
     exportText: (format) => this.call('GET', '/me/words/export', undefined, { format }),
+  };
+
+  cards: Api['cards'] = {
+    state: () => this.call('GET', '/me/cards'),
+    next: () => this.call('POST', '/me/cards/next', {}),
+    answer: (attemptId, answer) => this.call('POST', `/me/cards/${attemptId}/answer`, { answer }),
+    giveUp: (attemptId) => this.call('POST', `/me/cards/${attemptId}/give-up`, {}),
+    skip: (attemptId) => this.call('POST', `/me/cards/${attemptId}/skip`, {}),
   };
 
   reports: Api['reports'] = {

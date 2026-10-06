@@ -2,6 +2,7 @@ import { Body, Controller, Get, Patch, Post, Query, UseGuards } from '@nestjs/co
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { globalConfig } from '../../../config/global.config';
 import { AppConfigService } from '../../../config/config.service';
+import { CardsService } from '../../../domain/cards/cards.service';
 import { SpotCheckGraderService } from '../../../domain/ai/spot-check-grader.service';
 import { GroupsService } from '../../../domain/groups/groups.service';
 import { listeningMethodFor, requiresRetelling } from '../../../domain/groups/level';
@@ -35,6 +36,7 @@ export class MeController {
     private readonly words: WordsService,
     private readonly lists: WordListsService,
     private readonly spotChecks: SpotCheckGraderService,
+    private readonly cards: CardsService,
     private readonly config: AppConfigService,
   ) {}
 
@@ -90,17 +92,16 @@ export class MeController {
   }
 
   @Get('progress')
-  @ApiOperation({
-    summary:
-      'This week: reading and listening against the norm; cards norm (cards arrive with stage 7)',
-  })
+  @ApiOperation({ summary: 'This week: reading and listening against the norm; cards today' })
   async progress(@CurrentStudent() student: Student): Promise<Record<string, unknown>> {
     const now = new Date();
     const week = await this.reports.weekProgress(student.id, now, this.config.timezone);
     const summary = await this.words.summary(student.id);
+    const today = await this.cards.today(student.id, now, this.config.timezone);
+    const due = await this.cards.queue(student.id, now, this.config.timezone, 100);
     return {
       week: weekView(week),
-      cards: { done: 0, norm: globalConfig.norms.cardsPerDay, available: false },
+      cards: { ...today, due: due.length, available: true },
       words: {
         total: summary.total,
         learning: summary.learning,

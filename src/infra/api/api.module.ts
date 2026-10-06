@@ -6,6 +6,7 @@ import { AppConfigModule } from '../../config/config.module';
 import { AppConfigService } from '../../config/config.service';
 import { AdminsModule } from '../../domain/admins/admins.module';
 import { AiModule } from '../../domain/ai/ai.module';
+import { CardsModule } from '../../domain/cards/cards.module';
 import { FlagsModule } from '../../domain/flags/flags.module';
 import { GroupsModule } from '../../domain/groups/groups.module';
 import { MembershipModule } from '../../domain/membership/membership.module';
@@ -25,6 +26,7 @@ import { AdminWordListsController } from './admin/word-lists.controller';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtAuthGuard, StudentGuard } from './auth/guards';
+import { MeCardsController } from './me/cards.controller';
 import { MeController } from './me/me.controller';
 import { MeReportsController } from './me/reports.controller';
 import { MeWordsController } from './me/words.controller';
@@ -48,6 +50,7 @@ import { MeWordsController } from './me/words.controller';
     ReportsModule,
     WordsModule,
     AiModule,
+    CardsModule,
     FlagsModule,
     MembershipModule,
     SettingsModule,
@@ -58,6 +61,7 @@ import { MeWordsController } from './me/words.controller';
     MeController,
     MeWordsController,
     MeReportsController,
+    MeCardsController,
     AdminOverviewController,
     AdminStudentsController,
     AdminFlagsController,

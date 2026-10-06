@@ -38,7 +38,7 @@ src/
 
 Rules: every colour / radius / size is a token from `tokens.css`; user-facing text is Russian; the
 API is the source of truth for data shapes (`src/api/types.ts` mirrors `me/serializers.ts` in the
-backend). Cards (stage 7) run locally on the real queue until the cards API lands.
+backend). Cards go through `/me/cards` (one attempt at a time; the mock reproduces the same rules).
 
 ## Telegram setup
 

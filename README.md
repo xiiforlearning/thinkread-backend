@@ -83,6 +83,16 @@ cd frontend && pnpm install && pnpm dev                    # Mini App on demo da
 
 Details and the curl smoke table: `.claude/skills/local-run/SKILL.md`, `.claude/skills/api-smoke/SKILL.md`.
 
+## Cards API (`/me/cards`)
+
+| Endpoint | What |
+|---|---|
+| `GET /me/cards` | today's norm (`done / correct / norm`), queue preview (overdue → priority → due), the card currently shown |
+| `POST /me/cards/next` | show the next card (resumes an unanswered one); `card: null` when nothing is due |
+| `POST /me/cards/:attemptId/answer` `{ answer }` | stages 1–2 checked locally, stage 3 by AI; returns `correct`, `message`, `feedback`, the word's new stage / status |
+| `POST /me/cards/:attemptId/give-up` | «не помню» — a mistake, the word returns tomorrow |
+| `POST /me/cards/:attemptId/skip` | put aside for today, nothing changes |
+
 ## Dashboard API (`/admin/*`)
 
 Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT from

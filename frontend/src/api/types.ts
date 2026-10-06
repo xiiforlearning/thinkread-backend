@@ -52,8 +52,60 @@ export interface Week {
 
 export interface Progress {
   week: Week;
-  cards: { done: number; norm: number; available: boolean };
+  cards: TodayCards & { due: number; available: boolean };
   words: { total: number; learning: number; learned: number; priority: number };
+}
+
+export interface TodayCards {
+  /** Answered today (right or wrong) — the daily norm counts these. */
+  done: number;
+  correct: number;
+  norm: number;
+}
+
+export interface CardView {
+  attemptId: string;
+  wordId: string;
+  word: string;
+  stage: 1 | 2 | 3;
+  stageLabel: string;
+  question: string;
+  /** Big text on the card: the translation (stage 1), nothing (stage 2), the word (stage 3). */
+  shown: string | null;
+  hint: string | null;
+  placeholder: string;
+  canGiveUp: boolean;
+  today: TodayCards;
+}
+
+export interface CardQueueItem {
+  id: string;
+  word: string;
+  translation: string | null;
+  stage: 1 | 2 | 3;
+  priority: WordPriority;
+  source: WordSource;
+  overdue: boolean;
+  reason: 'OVERDUE' | 'PRIORITY' | 'DUE';
+  nextDueAt: string;
+}
+
+export interface CardsState {
+  today: TodayCards;
+  queue: CardQueueItem[];
+  current: CardView | null;
+}
+
+export interface CardAnswer {
+  attemptId: string;
+  correct: boolean;
+  expected: string;
+  message: string;
+  feedback: string | null;
+  advanced: boolean;
+  learned: boolean;
+  word: { id: string; stage: 1 | 2 | 3; status: WordStatus; nextDueAt: string };
+  today: TodayCards;
 }
 
 export interface Word {

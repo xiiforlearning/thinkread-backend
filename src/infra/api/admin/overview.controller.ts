@@ -1,12 +1,13 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppConfigService } from '../../../config/config.service';
+import { CardsService } from '../../../domain/cards/cards.service';
 import { globalConfig } from '../../../config/global.config';
 import { AdminRole } from '../../../domain/admins/admin.entity';
 import { FlagStatus } from '../../../domain/flags/flag.enums';
 import { FlagsService } from '../../../domain/flags/flags.service';
 import { GroupsService } from '../../../domain/groups/groups.service';
-import { recentWeekStarts } from '../../../domain/norms/week';
+import { recentWeekStarts, weekBounds } from '../../../domain/norms/week';
 import { ReportsService } from '../../../domain/reports/reports.service';
 import { Health, healthOf, silentDays } from '../../../domain/students/health';
 import { StudentStatus } from '../../../domain/students/student.enums';
@@ -18,6 +19,7 @@ import { AdminScopeService } from './scope';
 import { GroupRef, studentRef } from './serializers';
 
 const HISTORY_WEEKS = 8;
+const DAY_MS = 86_400_000;
 const ATTENTION_WEEKS = 3;
 
 /** 11 · Обзор — the owner's and teacher's landing page. */
@@ -33,6 +35,7 @@ export class AdminOverviewController {
     private readonly groups: GroupsService,
     private readonly reports: ReportsService,
     private readonly flags: FlagsService,
+    private readonly cards: CardsService,
     private readonly config: AppConfigService,
   ) {}
 
@@ -148,7 +151,7 @@ export class AdminOverviewController {
         listeningRate: rate(target, 'listening'),
         listeningRateDelta:
           Math.round((rate(target, 'listening') - rate(previous, 'listening')) * 100) / 100,
-        cardsThisWeek: null,
+        cardsThisWeek: await this.countCards(ids, target, tz),
         newFlags: newFlags.length,
       },
       healthByGroup,
@@ -165,5 +168,11 @@ export class AdminOverviewController {
       topReaders,
       attention,
     };
+  }
+
+  /** Answered cards in the local week starting on `weekStart`. */
+  private countCards(ids: string[], weekStart: string, tz: string): Promise<number> {
+    const { from } = weekBounds(new Date(`${weekStart}T12:00:00Z`), tz);
+    return this.cards.countAnswered(ids, from, new Date(from.getTime() + 7 * DAY_MS));
   }
 }

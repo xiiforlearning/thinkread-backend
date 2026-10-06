@@ -8,6 +8,9 @@ import type { Api } from './client';
 import {
   type AccessStatus,
   ApiError,
+  type CardAnswer,
+  type CardView,
+  type TodayCards,
   type Cefr,
   type ImportPreview,
   type IntakeResult,
@@ -136,6 +139,16 @@ export class MockApi implements Api {
   private spot: SpotCheck | null;
   private teacherList: Recommendation;
   private dismissed = false;
+  private attempts: Array<{
+    id: string;
+    wordId: string;
+    stage: 1 | 2 | 3;
+    question: string;
+    hint: string | null;
+    isCorrect: boolean | null;
+    skipped: boolean;
+    createdAt: Date;
+  }> = [];
 
   constructor(opts: MockOptions = {}) {
     this.access = opts.access ?? 'ACTIVE';
@@ -337,10 +350,12 @@ export class MockApi implements Api {
       'neglect',
       'obvious',
     ];
-    for (const w of filler)
-      this.wordsDb.push(
-        this.mkWord(w, { daysAgo: 12, translation: null, cefr: 'B2', example: null }),
-      );
+    // Filler words are not due yet, so the cards queue starts with the real ones.
+    filler.forEach((w, i) => {
+      const fw = this.mkWord(w, { daysAgo: 12, translation: null, cefr: 'B2', example: null });
+      fw.nextDueAt = new Date(this.now().getTime() + (1 + (i % 3)) * DAY).toISOString();
+      this.wordsDb.push(fw);
+    });
   }
 
   /* ----- helpers ----- */
@@ -481,7 +496,7 @@ export class MockApi implements Api {
       const learning = this.wordsDb.filter((w) => w.status !== 'LEARNED');
       return {
         week: this.weekOf(startOfWeek(this.now())),
-        cards: { done: 2, norm: 5, available: false },
+        cards: { ...this.cardsToday(), due: this.cardQueue().length, available: true },
         words: {
           total: this.wordsDb.length,
           learning: learning.length,
@@ -548,6 +563,218 @@ export class MockApi implements Api {
       this.spot = null;
     },
   };
+
+  /* ----- cards: the customer's rules, same as CardsService on the backend ----- */
+
+  private cardsToday(): TodayCards {
+    const today = isoDay(this.now());
+    const answered = this.attempts.filter(
+      (a) => a.isCorrect !== null && isoDay(a.createdAt) === today,
+    );
+    return { done: answered.length, correct: answered.filter((a) => a.isCorrect).length, norm: 5 };
+  }
+
+  private cardQueue(): Word[] {
+    const now = this.now();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const rank = (w: Word): number =>
+      w.nextDueAt && new Date(w.nextDueAt) < todayStart ? 0 : w.priority === 'HIGH' ? 1 : 2;
+    const due = this.wordsDb
+      .filter((w) => w.status === 'LEARNING' && w.nextDueAt && new Date(w.nextDueAt) <= now)
+      .sort((a, b) => rank(a) - rank(b) || String(a.nextDueAt).localeCompare(String(b.nextDueAt)));
+    const out: Word[] = [];
+    const deferred: Word[] = [];
+    let streak = 0;
+    for (const w of due) {
+      if (w.stage === 3 && streak >= 2) {
+        deferred.push(w);
+        continue;
+      }
+      streak = w.stage === 3 ? streak + 1 : 0;
+      out.push(w);
+    }
+    return [...out, ...deferred];
+  }
+
+  private cardView(a: (typeof this.attempts)[number], w: Word): CardView {
+    return {
+      attemptId: a.id,
+      wordId: w.id,
+      word: w.word,
+      stage: a.stage,
+      stageLabel: a.stage === 1 ? 'перевод' : a.stage === 2 ? 'в предложении' : 'своё предложение',
+      question: a.question,
+      shown: a.stage === 3 ? w.word : a.stage === 1 ? (w.translation ?? w.example ?? w.word) : null,
+      hint: a.stage === 2 ? a.hint : null,
+      placeholder:
+        a.stage === 1
+          ? 'Напиши по-английски'
+          : a.stage === 2
+            ? 'Впиши слово'
+            : 'Напиши предложение',
+      canGiveUp: a.stage !== 3,
+      today: this.cardsToday(),
+    };
+  }
+
+  private applyCard(w: Word, correct: boolean): { advanced: boolean; learned: boolean } {
+    const n = this.now().getTime();
+    if (!correct) {
+      w.nextDueAt = new Date(n + DAY).toISOString();
+      return { advanced: false, learned: false };
+    }
+    let advanced = false;
+    let learned = false;
+    if (w.stage < 3) {
+      w.stage = (w.stage + 1) as 1 | 2 | 3;
+      advanced = true;
+    } else {
+      w.status = 'LEARNED';
+      w.learnedAt = new Date(n).toISOString();
+      learned = true;
+    }
+    const intervals = [1, 3, 7];
+    const total = this.attempts.filter((a) => a.wordId === w.id && a.isCorrect).length + 1;
+    w.nextDueAt = new Date(n + intervals[Math.min(total - 1, 2)] * DAY).toISOString();
+    return { advanced, learned };
+  }
+
+  cards: Api['cards'] = {
+    state: async () => {
+      await this.tick();
+      const open = this.attempts.find((a) => a.isCorrect === null && !a.skipped);
+      const w = open ? this.wordsDb.find((x) => x.id === open.wordId) : undefined;
+      return {
+        today: this.cardsToday(),
+        queue: this.cardQueue()
+          .slice(0, 10)
+          .map((x) => ({
+            id: x.id,
+            word: x.word,
+            translation: x.translation,
+            stage: x.stage,
+            priority: x.priority,
+            source: x.source,
+            overdue:
+              !!x.nextDueAt && new Date(x.nextDueAt).getTime() < this.now().setHours(0, 0, 0, 0),
+            reason: (x.nextDueAt &&
+            new Date(x.nextDueAt).getTime() < this.now().setHours(0, 0, 0, 0)
+              ? 'OVERDUE'
+              : x.priority === 'HIGH'
+                ? 'PRIORITY'
+                : 'DUE') as 'OVERDUE' | 'PRIORITY' | 'DUE',
+            nextDueAt: x.nextDueAt ?? this.now().toISOString(),
+          })),
+        current: open && w ? this.cardView(open, w) : null,
+      };
+    },
+    next: async () => {
+      await this.tick();
+      const open = this.attempts.find((a) => a.isCorrect === null && !a.skipped);
+      const openWord = open ? this.wordsDb.find((x) => x.id === open.wordId) : undefined;
+      if (open && openWord)
+        return { card: this.cardView(open, openWord), today: this.cardsToday() };
+      const today = isoDay(this.now());
+      const skipped = new Set(
+        this.attempts
+          .filter((a) => a.skipped && isoDay(a.createdAt) === today)
+          .map((a) => a.wordId),
+      );
+      const w = this.cardQueue().find((x) => !skipped.has(x.id));
+      if (!w) return { card: null, today: this.cardsToday() };
+      const lx = LEXICON[lemma(w.word)];
+      const gap = w.example ? w.example.replace(new RegExp(`\\b${w.word}\\w*`, 'i'), '___') : null;
+      const a = {
+        id: uid(),
+        wordId: w.id,
+        stage: w.stage,
+        question:
+          w.stage === 1
+            ? w.translation
+              ? 'Переведи на английский'
+              : 'Напиши это слово по-английски'
+            : w.stage === 2 && gap && gap !== w.example
+              ? gap
+              : w.stage === 2
+                ? 'Напиши это слово по-английски'
+                : 'Составь предложение со словом',
+        hint: w.stage === 2 ? `(${w.translation ?? lx?.ru ?? '…'})` : null,
+        isCorrect: null,
+        skipped: false,
+        createdAt: this.now(),
+      };
+      this.attempts.unshift(a);
+      return { card: this.cardView(a, w), today: this.cardsToday() };
+    },
+    answer: async (attemptId, answer) => this.gradeCard(attemptId, answer),
+    giveUp: async (attemptId) => this.gradeCard(attemptId, null),
+    skip: async (attemptId) => {
+      await this.tick();
+      const a = this.attempts.find((x) => x.id === attemptId);
+      if (a) a.skipped = true;
+      return { today: this.cardsToday() };
+    },
+  };
+
+  private async gradeCard(attemptId: string, answer: string | null): Promise<CardAnswer> {
+    await delay(this.latency + (answer && answer.split(' ').length > 2 ? 900 : 0));
+    const a = this.attempts.find((x) => x.id === attemptId);
+    const w = a ? this.wordsDb.find((x) => x.id === a.wordId) : undefined;
+    if (!a || !w) throw new ApiError('306002', 'Карточка не найдена', 404);
+    if (a.isCorrect !== null || a.skipped)
+      throw new ApiError('306251', 'Карточка уже отвечена', 409);
+    const norm = (s: string) =>
+      s
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s'-]/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^to /, '');
+    const given = answer ? norm(answer) : '';
+    let correct = false;
+    let feedback: string | null = null;
+    if (given) {
+      if (a.stage === 3) {
+        const hasWord = given.includes(norm(w.word).split(' ')[0]);
+        if (!hasWord) feedback = `В предложении должно быть само слово — ${w.word}.`;
+        else if (given.split(' ').length < 3)
+          feedback = 'Нужно целое предложение — хотя бы три слова с этим словом внутри.';
+        else {
+          correct = true;
+          if (/(^|\s)i\s/.test(answer ?? ''))
+            feedback = 'Местоимение I в английском всегда с большой буквы.';
+        }
+      } else correct = given === norm(w.word);
+    }
+    const { advanced, learned } = this.applyCard(w, correct);
+    a.isCorrect = correct;
+    const message = correct
+      ? learned
+        ? `Отлично, слово употреблено по смыслу — ${w.word} уходит в выученные.`
+        : a.stage === 1
+          ? `Точно, ${w.word}. Слово переходит на стадию 2 — в следующий раз встретимся с ним в предложении.`
+          : `Да, ${w.word}. Слово сидит — в следующий раз попросим составить с ним своё предложение.`
+      : a.stage === 3
+        ? `Похоже, слово употреблено не совсем по смыслу. ${w.word} — «${w.translation ?? '…'}». Попробуем в другой раз.`
+        : `Правильный ответ: ${w.word}. Ничего страшного, вернёмся к нему завтра.`;
+    return {
+      attemptId,
+      correct,
+      expected: w.word,
+      message,
+      feedback,
+      advanced,
+      learned,
+      word: {
+        id: w.id,
+        stage: w.stage,
+        status: w.status,
+        nextDueAt: w.nextDueAt ?? this.now().toISOString(),
+      },
+      today: this.cardsToday(),
+    };
+  }
 
   words: Api['words'] = {
     list: async (q) => {

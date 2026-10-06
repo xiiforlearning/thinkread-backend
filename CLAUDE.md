@@ -22,13 +22,9 @@ Registration (first and last name) happens in the Mini App. The dialog `AgentSer
 tools stay in the code for the teacher's per-student chat and as a fallback, but no student
 traffic goes through them.
 
-**Current stage:** stage 6 done — REST API: `POST /auth/webapp` (initData → status
-NOT_MEMBER / PENDING_NAME / ACTIVE / ARCHIVED + JWT), `POST /auth/telegram-login` (dashboard,
-staff only), all `/me/*` endpoints (profile, register, calm mode, progress, calendar, words,
-imports, export, reports with CLARIFY round-trip, recommendations, spot check) and `/admin/*`
-(overview, students, flags, groups, membership checks, word lists with coverage, settings, staff,
-AI usage). Next: stage 7 cards (API + Mini App), the dashboard frontend, stage 8 reminders and
-the teacher's AI chat — all API-first.
+**Current stage:** stages 6 and 7 done — REST API (`/auth/*`, all `/me/*` including cards,
+`/admin/*`) and the Mini App on it. Next: the dashboard frontend, stage 8 reminders and the
+weekly summary, the teacher's AI chat and the parents' report — all API-first.
 
 ### Mini App (`frontend/`)
 
@@ -112,6 +108,24 @@ the teacher's AI chat — all API-first.
 - Spot checks: for no-transcript listening reports the check may plant a question
   (`spotCheckProbability`); it lives in `dialogState.pendingSpotCheckId`, is shown in the state
   block until answered, and expires to `NO_ANSWER` after `spotCheckExpiryDays`.
+
+### Cards (`domain/cards`)
+
+- `CardsService` holds the customer's rules in one place: `queue()` = due LEARNING words ordered
+  overdue → priority HIGH → due, with `capStage3()` keeping at most `cards.maxStage3InRow`
+  stage-3 cards in a row; `next()` resumes the open attempt or shows the queue head (words
+  skipped today are left out); `answer()` checks stages 1–2 against `prompt.acceptedAnswers`
+  (word, lemma, lexicon forms, via `normalizeAnswer`) and stage 3 through `SentenceCheckService`
+  (one forced tool `sentence_verdict`, `AiPurpose.SENTENCE_CHECK`; an outage counts as correct);
+  `apply()` moves the stage after `correctToAdvance`, marks LEARNED after `stage3ToLearned` on
+  stage 3, schedules `intervalsDays` by `correctTotal`, a mistake or "не помню" = tomorrow with
+  stage and intervals kept. `today()` counts answered attempts since local midnight — the daily
+  norm; extra cards after the norm are plain answers (the Mini App shows them as an extra series).
+- A `CardAttempt` is created when the card is shown (`channel MINI_APP`, `prompt` stored so the
+  answer is checked against what was actually displayed) and completed by answer, give-up or skip.
+  Stage-2 material comes from `word_lexicon.gapSentences`, else the example with the word masked,
+  else the card falls back to translation → word. `/me/cards` (state), `POST /me/cards/next`,
+  `/:attemptId/answer | give-up | skip`.
 
 ### Vocabulary (`domain/words`)
 

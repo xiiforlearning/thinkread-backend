@@ -40,6 +40,8 @@ export class FakeLlmAdapter implements LlmPort {
         return verdict(text);
       case 'spot_check_verdict':
         return gradeSpotCheck(text);
+      case 'sentence_verdict':
+        return gradeSentence(text);
       default:
         return fillSchema(tool.input_schema as JsonSchema);
     }
@@ -309,6 +311,28 @@ export function gradeSpotCheck(text: string): Record<string, unknown> {
   return words >= 4
     ? { verdict: 'OK', reason: 'Фейковый AI: ответ достаточно конкретный.' }
     : { verdict: 'VAGUE', reason: 'Фейковый AI: слишком коротко.' };
+}
+
+/** ok when the sentence has at least three words and contains the word; a canned grammar hint for "i " lowercase. */
+export function gradeSentence(text: string): Record<string, unknown> {
+  let word = '';
+  let sentence = text;
+  try {
+    const parsed = JSON.parse(text) as { word?: string; sentence?: string };
+    word = String(parsed.word ?? '');
+    sentence = String(parsed.sentence ?? '');
+  } catch {
+    /* plain text */
+  }
+  const lower = sentence.toLowerCase();
+  const hasWord = word
+    ? lower.includes(word.toLowerCase().split(' ')[0].replace(/^to /, ''))
+    : true;
+  const ok = hasWord && sentence.trim().split(/\s+/).length >= 3;
+  const feedback = /(^|\s)i\s/.test(sentence)
+    ? 'Местоимение I в английском всегда с большой буквы.'
+    : null;
+  return { ok, feedback };
 }
 
 function fakeReply(text: string): string {
