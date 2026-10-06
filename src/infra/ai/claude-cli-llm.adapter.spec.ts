@@ -1,8 +1,11 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { SENTENCE_TOOL, SENTENCE_TOOL_NAME } from '../../domain/ai/sentence-check.prompt';
 import {
+  childEnv,
   ClaudeCliLlmAdapter,
+  cliModelFor,
   CliRunner,
+  describeFailure,
   extractJson,
   parseCliOutput,
   renderTranscript,
@@ -48,7 +51,7 @@ describe('ClaudeCliLlmAdapter', () => {
     expect(calls[0]).toEqual(
       expect.arrayContaining(['-p', '--output-format', 'json', '--json-schema']),
     );
-    expect(calls[0][calls[0].indexOf('--model') + 1]).toBe('claude-haiku-4-5');
+    expect(calls[0][calls[0].indexOf('--model') + 1]).toBe('haiku');
     expect(msg.stop_reason).toBe('tool_use');
     const block = msg.content[0] as Anthropic.ToolUseBlock;
     expect(block.name).toBe(SENTENCE_TOOL_NAME);
@@ -99,7 +102,7 @@ describe('ClaudeCliLlmAdapter', () => {
     expect((msg.content[0] as Anthropic.ToolUseBlock).name).toBe('get_progress');
   });
 
-  it('raises AI_UNAVAILABLE on a CLI error and serializes calls', async () => {
+  it('raises AI_UNAVAILABLE on a CLI error with the remedy in the message', async () => {
     const { llm } = adapter({ is_error: true, result: 'Authentication error' }, 0);
     await expect(
       llm.complete({
@@ -109,7 +112,30 @@ describe('ClaudeCliLlmAdapter', () => {
         tools: [],
         messages: [{ role: 'user', content: 'x' }],
       }),
-    ).rejects.toMatchObject({ code: expect.stringMatching(/310$/) });
+    ).rejects.toMatchObject({
+      code: expect.stringMatching(/310$/),
+      message: expect.stringContaining('claude login'),
+    });
+    expect(describeFailure(1, null, "error: unknown option '--bare'\n")).toContain('claude update');
+    expect(describeFailure(-1, null, 'spawn claude ENOENT')).toContain('CLAUDE_CLI_PATH');
+  });
+
+  it('maps API model ids to CLI aliases and lets CLAUDE_CLI_MODEL win', () => {
+    expect(cliModelFor('claude-haiku-4-5', undefined)).toBe('haiku');
+    expect(cliModelFor('claude-sonnet-5-5', undefined)).toBe('sonnet');
+    expect(cliModelFor('claude-haiku-4-5', 'opus')).toBe('opus');
+    expect(cliModelFor('custom', undefined)).toBe('custom');
+  });
+
+  it('drops an empty ANTHROPIC_API_KEY and the nested-session marker from the child env', () => {
+    const env = childEnv({
+      ANTHROPIC_API_KEY: '',
+      ANTHROPIC_BASE_URL: 'x',
+      CLAUDECODE: '1',
+      PATH: 'p',
+    });
+    expect(env).toEqual({ ANTHROPIC_BASE_URL: 'x', PATH: 'p' });
+    expect(childEnv({ ANTHROPIC_API_KEY: 'sk' }).ANTHROPIC_API_KEY).toBe('sk');
   });
 
   it('helpers: parse noisy output, extract json, render transcripts', () => {

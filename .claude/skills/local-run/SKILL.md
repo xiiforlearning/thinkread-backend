@@ -18,6 +18,22 @@ AI_MODE=claude-cli pnpm ai:skill              # список скиллов пр
 AI_MODE=claude-cli pnpm ai:skill parse_listening_report "слушал 6 Minute English, 70%, 3 раза. The episode was about sleep."
 ```
 
+Если `claude-cli` отвечает ошибкой (`AppError 310`, `claude-cli: …`), текст ошибки говорит что
+делать. Диагностика по шагам:
+
+```bash
+claude --version                      # нужен Claude Code 2.1+ (флаги --bare и --json-schema); иначе claude update
+claude auth status                    # loggedIn: true; иначе claude login
+echo hi | claude -p --bare --output-format json --tools "" --model haiku   # сырой вызов: должен вернуть {"is_error":false,"result":"…"}
+AI_MODE=claude-cli pnpm ai:skill sentence_check                         # тот же вызов через адаптер
+```
+
+Частые причины: не выполнен `claude login` на этой машине; старый Claude Code; `claude` не в
+PATH процесса, из которого запущен API (задать `CLAUDE_CLI_PATH=/полный/путь/claude`; на
+Windows — путь к `claude.exe` нативной сборки, `claude install`). Пустой `ANTHROPIC_API_KEY=`
+в `.env` не мешает: адаптер убирает его из окружения CLI. Модель: по умолчанию алиас
+`haiku`, переопределяется `CLAUDE_CLI_MODEL`.
+
 Скиллы (`src/domain/ai/skills.ts`): parse_reading_report, parse_listening_report, enrich_words,
 authenticity, spot_check_grade, sentence_check, teacher_chat, parent_report. Каждый = промпт + принудительный инструмент +
 симулятор; `pnpm ai:skill` печатает ответ модели (или симулятора) для текста.

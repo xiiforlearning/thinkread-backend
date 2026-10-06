@@ -87,7 +87,7 @@ export class ClaudeCliLlmAdapter implements LlmPort {
       '--tools',
       '',
       '--model',
-      this.config.claudeCliModel ?? request.model,
+      cliModelFor(request.model, this.config.claudeCliModel),
       '--system-prompt',
       systemText,
       ...(schema ? ['--json-schema', JSON.stringify(schema)] : []),
@@ -96,7 +96,7 @@ export class ClaudeCliLlmAdapter implements LlmPort {
     const { code, stdout, stderr } = await this.run(args, prompt, this.config.claudeCliTimeoutMs);
     const parsed = parseCliOutput(stdout);
     if (code !== 0 || !parsed || parsed.is_error) {
-      const detail = parsed?.result ?? stderr.trim().slice(0, 300) ?? `exit ${code}`;
+      const detail = describeFailure(code, parsed, stderr);
       this.logger.error(`claude-cli failed: ${detail}`);
       throw new AppError({
         level: ErrorLevel.HIGH_INTEGRATION,
@@ -168,6 +168,50 @@ export class ClaudeCliLlmAdapter implements LlmPort {
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
+/**
+ * The CLI takes model aliases (`haiku`, `sonnet`, `opus`) or full ids. `CLAUDE_CLI_MODEL` wins;
+ * otherwise the API model of the request is mapped to its alias so the CLI never sees an id it
+ * cannot resolve on a subscription account.
+ */
+export function cliModelFor(requestModel: string, override: string | undefined): string {
+  if (override) return override;
+  const m = requestModel.toLowerCase();
+  if (m.startsWith('claude-haiku')) return 'haiku';
+  if (m.startsWith('claude-sonnet')) return 'sonnet';
+  if (m.startsWith('claude-opus')) return 'opus';
+  return requestModel;
+}
+
+/**
+ * Environment for the child `claude` process: the developer's own login must win, so an empty
+ * `ANTHROPIC_API_KEY` from `.env` (dotenv exports it as "") is dropped, as is the marker of the
+ * Claude Code session the API may have been started from.
+ */
+export function childEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...base };
+  for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL'])
+    if (env[key] !== undefined && env[key].trim() === '') delete env[key];
+  delete env.CLAUDECODE;
+  return env;
+}
+
+/** One line for the log and the error: what the CLI said, plus the usual remedy. */
+export function describeFailure(
+  code: number | null,
+  parsed: CliResult | null,
+  stderr: string,
+): string {
+  const said = (parsed?.result ?? stderr.trim().split('\n')[0] ?? '').slice(0, 300);
+  const base = said || `exit ${code}`;
+  if (/authentication|not logged in|login/i.test(base))
+    return `${base} — run \`claude auth status\` and \`claude login\` on this machine`;
+  if (/unknown option|unrecognized|too many arguments/i.test(base))
+    return `${base} — Claude Code ≥ 2.1 is required (--bare, --json-schema): run \`claude update\``;
+  if (code === -1 || /ENOENT/.test(base))
+    return `${base} — \`claude\` is not on PATH of this process; set CLAUDE_CLI_PATH to the binary`;
+  return base;
 }
 
 /** The CLI prints one JSON object (`--output-format json`); tolerate noise around it. */
@@ -243,7 +287,8 @@ const spawnRunner: CliRunner = (args, stdin, timeoutMs) =>
     const bin = process.env.CLAUDE_CLI_PATH || 'claude';
     const child = spawn(bin, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, CLAUDECODE: '' },
+      env: childEnv(),
+      windowsHide: true,
     });
     let stdout = '';
     let stderr = '';
