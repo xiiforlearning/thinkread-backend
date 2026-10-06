@@ -3,6 +3,7 @@ import {
   CallHandler,
   Catch,
   ExceptionFilter,
+  ExecutionContext,
   HttpException,
   HttpStatus,
   Injectable,
@@ -41,6 +42,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger('API');
 
   catch(exception: unknown, host: ArgumentsHost): void {
+    // Global filters also wrap the bot's handlers (nestjs-telegraf); leave those to telegraf.
+    if (host.getType() !== 'http') throw exception;
     const res = host.switchToHttp().getResponse<Response>();
     if (exception instanceof AppError) {
       const status =
@@ -71,7 +74,10 @@ export class ApiExceptionFilter implements ExceptionFilter {
 /** Every success is `{ data }` (lists add `meta.nextCursor` themselves). */
 @Injectable()
 export class DataEnvelopeInterceptor implements NestInterceptor {
-  intercept(_ctx: unknown, next: CallHandler): Observable<unknown> {
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // Global interceptors also wrap the bot's handlers, and nestjs-telegraf replies with any
+    // truthy return value — an envelope there turns into a "[object Object]" message.
+    if (ctx.getType() !== 'http') return next.handle();
     return next.handle().pipe(
       map((value: unknown) => {
         if (value && typeof value === 'object' && 'data' in value && 'meta' in value) return value;
