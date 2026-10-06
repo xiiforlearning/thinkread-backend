@@ -5,11 +5,16 @@ export const ServiceCode = {
   STUDENTS: '03',
   WORDS: '04',
   REPORTS: '05',
-  PRESENTATIONS: '06',
+  CARDS: '06',
   SCHEDULER: '07',
   BOT: '08',
-  PARSER: '09',
+  AI: '09',
   HEALTH: '10',
+  API: '11',
+  NORMS: '12',
+  FLAGS: '13',
+  MEMBERSHIP: '14',
+  TEACHER_REPORTS: '15',
 } as const;
 
 export type ServiceCode = (typeof ServiceCode)[keyof typeof ServiceCode];

@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { DailyReport } from './daily-report.entity';
+import { Report } from './report.entity';
 import { ReportsService } from './reports.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DailyReport])],
+  imports: [TypeOrmModule.forFeature([Report])],
   providers: [ReportsService],
   exports: [ReportsService],
 })

@@ -1,0 +1,62 @@
+# Publishes the frontend (the students' Mini App at / and the dashboard at /admin.html) to
+# GitHub Pages — the public HTTPS address Telegram needs. Inside Telegram the Mini App talks to
+# the API at VITE_API_URL (repository variable API_URL) or at `?api=https://…` in the page URL;
+# outside Telegram it runs on demo data. Enable Pages → Source: GitHub Actions once.
+name: Frontend (GitHub Pages)
+
+on:
+  push:
+    # claude/** too: the site is served from the work branch until the PR lands on main
+    # (workflow_dispatch only sees workflows that exist on the default branch).
+    branches: [main, 'claude/**']
+    paths: ['frontend/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+        env:
+          # Repository variables (Settings → Secrets and variables → Actions → Variables);
+          # both optional: the API can be set at run time with ?api=…, the widget needs the bot.
+          VITE_API_URL: ${{ vars.API_URL }}
+          VITE_BOT_USERNAME: ${{ vars.BOT_USERNAME }}
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,35 +1,45 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 import { AppConfigModule } from './config/config.module';
-import { GroupsModule } from './domain/groups/groups.module';
-import { PresentationsModule } from './domain/presentations/presentations.module';
+import { AdminsModule } from './domain/admins/admins.module';
+import { AiModule } from './domain/ai/ai.module';
+import { CardsModule } from './domain/cards/cards.module';
+import { FlagsModule } from './domain/flags/flags.module';
 import { ReportsModule } from './domain/reports/reports.module';
+import { NormsModule } from './domain/norms/norms.module';
+import { AnthropicModule } from './infra/ai/anthropic.module';
+import { GroupsModule } from './domain/groups/groups.module';
+import { MembershipModule } from './domain/membership/membership.module';
+import { SettingsModule } from './domain/settings/settings.module';
+import { RegistrationModule } from './domain/students/registration.module';
 import { StudentsModule } from './domain/students/students.module';
 import { WordsModule } from './domain/words/words.module';
+import { ApiModule } from './infra/api/api.module';
 import { BotModule } from './infra/bot/bot.module';
 import { DatabaseModule } from './infra/db/db.module';
-import { ReportBuilderModule } from './infra/report-builder/report-builder.module';
-import { ReviewModule } from './infra/review/review.module';
 import { SchedulerModule } from './infra/scheduler/scheduler.module';
 import { TeacherModule } from './infra/teacher/teacher.module';
-import { ToolsModule } from './infra/tools/tools.module';
 
 @Module({
   imports: [
     AppConfigModule,
-    ScheduleModule.forRoot(),
     DatabaseModule,
     GroupsModule,
     StudentsModule,
-    WordsModule,
+    AdminsModule,
+    NormsModule,
     ReportsModule,
-    PresentationsModule,
-    ReviewModule,
-    ReportBuilderModule,
+    FlagsModule,
+    WordsModule,
+    AnthropicModule,
+    AiModule,
+    CardsModule,
+    MembershipModule,
+    SettingsModule,
+    RegistrationModule,
     TeacherModule,
     BotModule,
+    ApiModule,
     SchedulerModule,
-    ToolsModule,
   ],
 })
 export class AppModule {}

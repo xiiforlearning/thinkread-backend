@@ -28,7 +28,11 @@ export class AppError extends Error {
   }
 
   get code(): string {
-    return AppError.formatCode({ level: this.level, service: this.service, error: this.error });
+    return AppError.formatCode({
+      level: this.level,
+      service: this.service,
+      error: this.error,
+    });
   }
 
   static formatCode(params: { level: ErrorLevel; service: ServiceCode; error: ErrorCode }): string {

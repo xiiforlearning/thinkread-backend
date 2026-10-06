@@ -1,0 +1,181 @@
+/* App shell: the Mini App fills the Telegram viewport; everything else is design-system classes. */
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+a {
+  color: var(--brand);
+  text-decoration: none;
+}
+input,
+textarea,
+button {
+  font-family: inherit;
+}
+
+.tr-app {
+  height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+.tr-screen {
+  flex-grow: 1;
+  overflow: auto;
+  padding: 8px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+.tr-screen-head {
+  padding: 8px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tr-screen-head + .tr-screen {
+  padding-top: 4px;
+}
+.tr-h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.tr-h1-sm {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.tr-word-title {
+  margin: 0;
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.tr-muted {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--ink-2);
+}
+.tr-body {
+  font-size: 15px;
+  line-height: 22px;
+}
+.tr-chips {
+  display: flex;
+  gap: 8px;
+  overflow: auto;
+  margin: 0 -20px;
+  padding: 2px 20px;
+}
+.tr-center {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 32px;
+  gap: 20px;
+  text-align: center;
+}
+.tr-mainbar {
+  padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+}
+.tr-tabbar {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+}
+.tr-spin {
+  animation: tr-spin 0.9s linear infinite;
+}
+@keyframes tr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tr-check-row {
+  gap: 12px;
+}
+.tr-check-row input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brand);
+  margin: 0;
+  flex-shrink: 0;
+}
+.tr-stage-bar {
+  flex: 1 1 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+}
+.tr-stage-bar-on {
+  background: var(--brand);
+}
+.tr-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.tr-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--ink-2);
+  flex-wrap: wrap;
+}
+.tr-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.tr-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+.tr-demo-badge {
+  position: fixed;
+  top: 6px;
+  right: 8px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* A text field next to a button: the field shrinks, the button keeps its width. */
+.tr-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.tr-field-row > .tr-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.tr-field-row > .tr-btn {
+  flex-shrink: 0;
+}

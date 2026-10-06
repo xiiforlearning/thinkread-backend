@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bot
+          POSTGRES_PASSWORD: bot
+          POSTGRES_DB: thinkread
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bot -d thinkread"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USER: bot
+      DATABASE_PASSWORD: bot
+      DATABASE_NAME: thinkread
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint:check
+      - run: pnpm build
+      - run: pnpm test
+      - name: Migrations apply, revert and re-apply cleanly
+        run: |
+          pnpm migration:run
+          pnpm migration:revert
+          pnpm migration:run
+      - name: Entities match the migrated schema (no drift)
+        run: |
+          set +e
+          out=$(pnpm typeorm migration:generate src/infra/db/migrations/CiDrift 2>&1)
+          echo "$out"
+          echo "$out" | grep -q "No changes in database schema were found"
+
+  webapp:
+    name: Mini App (frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.20.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm build

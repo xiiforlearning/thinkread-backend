@@ -26,7 +26,9 @@ export class TeacherResolverService {
    */
   async refresh(chatId: number): Promise<number[]> {
     try {
-      const admins = (await this.bot.telegram.getChatAdministrators(chatId)) as ChatAdminWithTitle[];
+      const admins = (await this.bot.telegram.getChatAdministrators(
+        chatId,
+      )) as ChatAdminWithTitle[];
       const wanted = globalConfig.admin.teacherCustomTitle.toLowerCase();
       const ids = admins
         .filter((a) => (a.custom_title ?? '').toLowerCase() === wanted)
