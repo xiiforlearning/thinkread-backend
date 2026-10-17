@@ -4,7 +4,8 @@ const path = require('path');
 const { chromium } = require('playwright-core');
 
 const BASE = process.env.SCREENS_BASE || 'http://127.0.0.1:4173/';
-const OUT = path.resolve(__dirname, '../../../frontend/.screens');
+const FRONTEND = process.env.FRONTEND_DIR || path.resolve(__dirname, '../../../../thinkread-frontend');
+const OUT = path.join(FRONTEND, '.screens');
 const ROUTES = [
   ['admin-overview', '#/'],
   ['admin-students', '#/students'],

@@ -1,25 +1,27 @@
 ---
 name: screens
-description: Проверить экраны Mini App и дашборда ThinkRead глазами — собрать фронт, снять скриншоты всех экранов в светлой и тёмной теме через Playwright (390×844 для Mini App, 1280×800 для дашборда) и сравнить с артбордами дизайна. Использовать после любых изменений в frontend/src.
+description: Проверить экраны Mini App и дашборда ThinkRead глазами — собрать фронт, снять скриншоты всех экранов в светлой и тёмной теме через Playwright (390×844 для Mini App, 1280×800 для дашборда) и сравнить с артбордами дизайна. Использовать после любых изменений во фронте (репозиторий thinkread-frontend).
 ---
 
 # Экраны Mini App и дашборда
 
 Экраны должны один в один повторять артборды «ThinkRead — кликабельный дизайн»
 (https://claude.ai/artifact/GTWaTTfrxZ6QWE1Pho2fZs) и собираться только из компонентов
-дизайн-системы (`frontend/src/ui/components.tsx`, токены в `tokens.css`).
+дизайн-системы (`src/ui/components.tsx` в репозитории `thinkread-frontend`, токены в `tokens.css`).
+Фронт лежит в отдельном репозитории: склонируйте его рядом и укажите путь в `FRONTEND_DIR`
+(по умолчанию `../thinkread-frontend`).
 
 ## Снять скриншоты
 
 ```bash
-cd frontend && pnpm build && pnpm preview --port 4173 --host 127.0.0.1 &
+cd ../thinkread-frontend && pnpm build && pnpm preview --port 4173 --host 127.0.0.1 &
 node .claude/skills/screens/shoot.cjs          # Mini App, 390×844; из корня репозитория; нужен playwright-core (npm i -g playwright-core или NODE_PATH на установку в scratchpad)
 node .claude/skills/screens/shoot-admin.cjs    # дашборд (admin.html?demo=1), 1280×800: login, overview, students, flags, groups, settings
 ```
 
 Скрипт обходит маршруты `#/`, `#/cards`, `#/words`, `#/words/add`, `#/words/teacher`,
 `#/reports`, `#/reports/new`, `#/reports/method`, `#/profile`, плюс `?demo=pending` и
-`?demo=not_member`, в светлой и тёмной теме, и складывает PNG в `frontend/.screens/`
+`?demo=not_member`, в светлой и тёмной теме, и складывает PNG в `$FRONTEND_DIR/.screens/`
 (папка в .gitignore). Chromium берётся из `PLAYWRIGHT_BROWSERS_PATH` или `/opt/pw-browsers`.
 
 ## На что смотреть

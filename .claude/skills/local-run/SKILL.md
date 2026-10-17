@@ -82,14 +82,14 @@ curl -s -H "Authorization: Bearer $S" -H 'Content-Type: application/json' \
 ## 3. Mini App в браузере
 
 ```bash
-cd frontend && pnpm install && pnpm dev          # http://localhost:5173
+git clone https://github.com/xiiforlearning/thinkread-frontend && cd thinkread-frontend && pnpm install && pnpm dev   # http://localhost:5173
 ```
 
 В браузере (вне Telegram) приложение работает на моках — этого хватает для экранов.
 
 Дашборд владельца: `http://localhost:5173/admin.html`. Вход для локальной работы — «Войти по
 токену разработчика» с токеном из `pnpm dev:token owner` (нужен `VITE_API_URL` в
-`frontend/.env`); кнопка Telegram появляется при `VITE_BOT_USERNAME` и `/setdomain` у бота;
+`.env` фронта); кнопка Telegram появляется при `VITE_BOT_USERNAME` и `/setdomain` у бота;
 `?demo=1` — демо на данных макета без сервера.
 
 ## 4. Показ в настоящем Telegram
@@ -121,6 +121,6 @@ cd frontend && pnpm install && pnpm dev          # http://localhost:5173
 
 ## 5. Проверки перед коммитом
 
-`pnpm verify` (бэкенд: prettier, eslint, сборка, jest) и в `frontend/`: `pnpm format:check && pnpm lint && pnpm build`.
+`pnpm verify` (бэкенд: prettier, eslint, сборка, jest); фронт проверяется в своём репозитории: `pnpm format:check && pnpm lint && pnpm build`.
 Дрифт схемы: `pnpm typeorm migration:generate src/infra/db/migrations/Check` должен ответить
 «No changes in database schema were found» (файл не создаётся).

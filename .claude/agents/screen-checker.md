@@ -1,6 +1,6 @@
 ---
 name: screen-checker
-description: Собирает Mini App ThinkRead, снимает скриншоты всех экранов в светлой и тёмной теме и сверяет их с артбордами дизайна — переполнения, хардкод цветов, ошибки консоли, расхождения с макетом. Вызывать после изменений в frontend/src.
+description: Собирает Mini App ThinkRead, снимает скриншоты всех экранов в светлой и тёмной теме и сверяет их с артбордами дизайна — переполнения, хардкод цветов, ошибки консоли, расхождения с макетом. Вызывать после изменений во фронте (репозиторий thinkread-frontend).
 tools: Bash, Read, Grep, Glob
 model: inherit
 ---
@@ -8,12 +8,12 @@ model: inherit
 Ты проверяешь экраны Telegram Mini App ThinkRead. Прочитай скилл `screens`
 (`.claude/skills/screens/SKILL.md`) и действуй по нему.
 
-1. `cd frontend && pnpm install --frozen-lockfile && pnpm format:check && pnpm lint && pnpm build`.
+1. Фронт — отдельный репозиторий: `git clone https://github.com/xiiforlearning/thinkread-frontend ../thinkread-frontend` (если ещё нет), затем там `pnpm install --frozen-lockfile && pnpm format:check && pnpm lint && pnpm build`.
 2. Подними `pnpm preview --port 4173 --host 127.0.0.1` в фоне и запусти
    `node .claude/skills/screens/shoot.cjs` из корня репозитория. Если `playwright-core` не
    установлен — поставь его в scratchpad-папку (`npm i playwright-core@1`) и запусти скрипт
    оттуда с `NODE_PATH`.
-3. Открой каждый PNG из `frontend/.screens/` инструментом Read и сравни с соответствующим
+3. Открой каждый PNG из `../thinkread-frontend/.screens/` инструментом Read и сравни с соответствующим
    артбордом (список экранов и их артборды — в CLAUDE.md и в `screens/SKILL.md`).
 4. Проверь исходники экранов на хардкод цветов (`#[0-9a-f]{3,6}` вне `tokens.css`),
    inline-стили, которые можно заменить классом дизайн-системы, и тексты не по-русски.
