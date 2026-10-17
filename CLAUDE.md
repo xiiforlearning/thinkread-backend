@@ -23,15 +23,17 @@ tools stay in the code for the teacher's per-student chat and as a fallback, but
 traffic goes through them.
 
 **Current stage:** stages 6–8 done — REST API (`/auth/*`, all `/me/*` including cards,
-`/admin/*`), the Mini App and the web dashboard (`frontend/admin.html`) on it, scheduled
+`/admin/*`), the Mini App and the web dashboard (repo `thinkread-frontend`) on it, scheduled
 reminders, the Monday summary with the `NORM_MISSED_WEEK` flag, the teacher's AI chat and the
 parents' report (`domain/notify`, `infra/scheduler`, `TeacherChatService`). Next: production
 rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the customer.
 
-### Mini App (`frontend/`)
+### Mini App and dashboard (repo `xiiforlearning/thinkread-frontend`)
 
-- Separate Vite project (React 19 + TS, TanStack Query, React Router with hash routing) in
-  `frontend/` — its own `package.json`, lockfile and CI job; the Nest build never touches it.
+- Separate repository and Vite project (React 19 + TS, TanStack Query, React Router with hash
+  routing), deployed on Vercel; it was split out of `frontend/` here with its history. Changes to
+  `me/serializers.ts` or `admin/serializers.ts` must be mirrored there by hand (`src/api/types.ts`,
+  `src/admin/api.ts`).
 - UI = ThinkRead Design System: `src/ui/tokens.css` and `components.css` are verbatim copies of
   the artifact, `src/ui/components.tsx` is the React port of its bundle. Screens are transcribed
   from the artboards of «ThinkRead — кликабельный дизайн»; keep them in sync when a screen changes.
@@ -225,8 +227,9 @@ src/
     └── teacher/             — teacher detection via group admin custom title
 ```
 
-`frontend/` — the Telegram Mini App (see above). Planned: `infra/scheduler/` (reminders, weekly
-summary, monthly membership check), `/admin/*` API, web dashboard.
+The Telegram Mini App and the dashboard live in the `thinkread-frontend` repository (see above).
+Deploy: `Dockerfile` (migrations, then `start:prod`), `render.yaml` (Render Blueprint) or
+`railway.json`; `GET /health` is the liveness probe.
 
 ### Rules
 

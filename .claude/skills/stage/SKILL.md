@@ -26,7 +26,7 @@ description: Как делать этап «Плана разработки» Th
 5. **API** (`src/infra/api`): тонкий контроллер, DTO с class-validator, сериализатор, Swagger
    `@ApiOperation`. Студент — `/me/*` через `StudentGuard`; персонал — `/admin/*` через
    `@Roles` и `AdminScopeService`. Прогнать скилл `api-smoke`.
-6. **Mini App** (`frontend/`): типы в `src/api/types.ts` зеркалят сериализаторы, методы в
+6. **Mini App** (репозиторий `thinkread-frontend`): типы в `src/api/types.ts` зеркалят сериализаторы, методы в
    `Api` + `HttpApi` + `MockApi` (мок должен уметь то же, что бэкенд), экран из компонентов
    дизайн-системы по артборду, хуки в `app/hooks.ts`. Прогнать скилл `screens`.
 7. **Документация**: обновить CLAUDE.md (раздел этапа и «Current stage»), README (команды,

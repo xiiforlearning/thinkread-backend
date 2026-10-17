@@ -29,7 +29,7 @@ rm -f src/infra/db/migrations/*CiDrift*                              # если 
 ## Фронтенд
 
 ```bash
-cd frontend && pnpm format:check && pnpm lint && pnpm build
+cd ../thinkread-frontend && pnpm format:check && pnpm lint && pnpm build   # фронт — отдельный репозиторий
 ```
 
 Экранные проверки — скилл `screens`.

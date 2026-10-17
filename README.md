@@ -98,7 +98,7 @@ docker compose up -d postgres && cp -n .env.example .env   # fill ADMIN_TELEGRAM
 pnpm install && pnpm migration:run && pnpm dev:seed        # demo data from the design artboards
 pnpm dev:api                                               # http://localhost:3000/docs
 pnpm dev:token owner                                       # Bearer token for /admin/*; also: teacher 777, student <uuid from the seed>
-cd frontend && pnpm install && pnpm dev                    # Mini App on demo data at http://localhost:5173
+git clone https://github.com/xiiforlearning/thinkread-frontend && cd thinkread-frontend && pnpm install && pnpm dev   # Mini App on demo data at http://localhost:5173
 ```
 
 To show the real thing in Telegram: create a bot in @BotFather (`/newbot` → `BOT_TOKEN`), set
@@ -138,11 +138,27 @@ Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT 
 | `POST /admin/students/:id/chat`, `POST …/parent-report` | the teacher's AI about one student (facts computed by the system); the parents' report for a month |
 | `POST /admin/reminders/run`, `GET /admin/weekly-summary`, `POST …/run` | send today's reminders now (owner); preview / send the Monday summary |
 
-## Mini App and dashboard (frontend)
+## Deploy
+
+The backend is one long-running process (REST API, Telegram long polling, minute-level crons), so
+it needs a host that keeps a container alive — not a serverless platform. `Dockerfile` runs the
+migrations and then `start:prod`; `GET /health` is the liveness probe.
+
+- **Render**: New → Blueprint → this repo (`render.yaml` creates the web service and a Postgres);
+  then fill `BOT_TOKEN`, `ADMIN_TELEGRAM_ID`, `ANTHROPIC_API_KEY`, `WEBAPP_URL`, `CORS_ORIGINS`.
+- **Railway**: New project → Deploy from GitHub repo (the Dockerfile is detected, `railway.json`
+  sets the health check) → add a Postgres → set the same variables plus `DATABASE_URL`
+  (`${{Postgres.DATABASE_URL}}`), `DATABASE_SSL=true`, `NODE_ENV=production`, `AI_MODE=anthropic`,
+  `JWT_SECRET`, `TZ=Asia/Tashkent`.
+
+The frontend is static and lives on Vercel (see its repository); `WEBAPP_URL` is the Vercel site
+root and `CORS_ORIGINS` its origin.
+
+## Mini App and dashboard (separate repository)
 
 The student's Telegram Mini App and the owner's web dashboard live in
-[`frontend/`](frontend/README.md) — React + Vite on the ThinkRead Design System.
-`cd frontend && pnpm install && pnpm dev`: the Mini App at `/`, the dashboard at `/admin.html`.
+[https://github.com/xiiforlearning/thinkread-frontend](https://github.com/xiiforlearning/thinkread-frontend) — React + Vite on the ThinkRead Design System, deployed on Vercel.
+`pnpm install && pnpm dev` there: the Mini App at `/`, the dashboard at `/admin.html`.
 Outside Telegram the Mini App runs on demo data, inside Telegram it signs in with `initData`
 against this API (`VITE_API_URL`). The dashboard signs in with the Telegram Login Widget
 (`VITE_BOT_USERNAME`, staff only) or a `pnpm dev:token` JWT, and has a demo mode too.

@@ -27,6 +27,7 @@ import { AdminStudentsController } from './admin/students.controller';
 import { AdminWordListsController } from './admin/word-lists.controller';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
+import { HealthController } from './health.controller';
 import { JwtAuthGuard, StudentGuard } from './auth/guards';
 import { MeCardsController } from './me/cards.controller';
 import { MeController } from './me/me.controller';
@@ -60,6 +61,7 @@ import { MeWordsController } from './me/words.controller';
     NotifyModule,
   ],
   controllers: [
+    HealthController,
     AuthController,
     MeController,
     MeWordsController,
