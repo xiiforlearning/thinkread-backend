@@ -106,8 +106,9 @@ git clone https://github.com/xiiforlearning/thinkread-frontend && cd thinkread-f
    зашить в сборку переменной репозитория `API_URL` (Settings → Variables) и перезапустить
    `pages.yml`; `BOT_USERNAME` там же включает кнопку входа Telegram в дашборде.
 4. `pnpm start:dev` (polling включён).
-5. @BotFather → `/newapp` (или `/setmenubutton`) с тем же адресом, что в `WEBAPP_URL`;
-   для дашборда `/setdomain` → `<owner>.github.io`. Открыть бота, нажать «Открыть ThinkRead»:
+5. Кнопку меню «Открыть ThinkRead» и описание бот ставит себе сам при старте (по `WEBAPP_URL`,
+   `BotCommandsService`). Руками в @BotFather нужен только `/setdomain` → домен фронта
+   (для кнопки «Войти через Telegram» в дашборде). Открыть бота, нажать «Открыть ThinkRead»:
    вход по initData, регистрация имени, отчёты через локальный Claude.
 6. Чтобы стать студентом, добавьте бота в тестовую группу Telegram и вступите в неё сами;
    владелец задаёт уровень группы через `PATCH /admin/groups/:chatId` или в дашборде.

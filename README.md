@@ -152,7 +152,9 @@ migrations and then `start:prod`; `GET /health` is the liveness probe.
   `JWT_SECRET`, `TZ=Asia/Tashkent`.
 
 The frontend is static and lives on Vercel (see its repository); `WEBAPP_URL` is the Vercel site
-root and `CORS_ORIGINS` its origin.
+root and `CORS_ORIGINS` its origin. At boot the bot configures itself from `WEBAPP_URL` (menu
+button «Открыть ThinkRead», profile texts, no slash commands); the only manual @BotFather step is
+`/setdomain` → the frontend host, for the dashboard's Telegram Login Widget.
 
 ## Mini App and dashboard (separate repository)
 
