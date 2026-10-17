@@ -39,13 +39,15 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   from the artboards of «ThinkRead — кликабельный дизайн»; keep them in sync when a screen changes.
 - `src/api/types.ts` mirrors `me/serializers.ts`; `Api` (client.ts) has two implementations:
   `HttpApi` (real backend, JWT in sessionStorage) and `MockApi` (in-memory demo with the same
-  rules). Outside Telegram or with `VITE_DEMO=1` the app runs on the mock — that is the demo.
+  rules). The mock runs only on request (`?demo=1` in the URL or `VITE_DEMO=1` at build time) —
+  that is the demo; a plain browser otherwise gets the "open in Telegram" screen
+  (`VITE_BOT_USERNAME`). The dashboard shows its demo buttons under the same condition.
 - Commands: `pnpm dev | build | lint | typecheck | format`. `pages.yml` deploys the demo to
   GitHub Pages; the production build goes to `WEBAPP_URL`.
 - **Dashboard** = the second Vite page `admin.html` → `src/admin/`: `api.ts` (`AdminApi` types
   mirror `admin/serializers.ts`; `HttpAdminApi`), `mock.ts` (`MockAdminApi`, the demo school),
-  `session.tsx` (Telegram Login Widget → `POST /auth/telegram-login`, dev token, demo; JWT in
-  localStorage), `Shell.tsx` (sidebar + optional list pane), `screens/` transcribed from the
+  `session.tsx` ("Log in with Telegram" popup → `id_token` → `POST /auth/telegram-login`, dev
+  token, demo; JWT in localStorage), `Shell.tsx` (sidebar + optional list pane), `screens/` transcribed from the
   AdminOverview / AdminStudents / AdminFlags / AdminGroups / AdminSettings artboards. Desktop
   variants of the components (`desktop` prop, `NavItem`, `HealthDot`, `ChatMessage`, `Composer`)
   live in `components.tsx`, layout classes `ad-*` in `admin.css`. `AdminApi.features` marks the
@@ -53,8 +55,11 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 
 ### REST API (`infra/api`)
 
-- Auth: `telegram-signature.ts` verifies initData (`HMAC("WebAppData", token)`) and the Login
-  Widget (`SHA256(token)`); `AuthService.webApp()` calls `RegistrationService.resolve()` and
+- Auth: `telegram-signature.ts` verifies initData (`HMAC("WebAppData", token)`) and the legacy
+  Login Widget (`SHA256(token)`); `telegram-oidc.ts` verifies the OpenID Connect `id_token` of
+  "Log in with Telegram" against Telegram's JWKS (`aud` = bot id, `config.telegramLoginClientId`,
+  `GET /auth/login-config` publishes it; BotFather: Login Widget → OpenID Connect, trusted origin
+  + redirect URL `<frontend>/admin.html`). `AuthService.webApp()` calls `RegistrationService.resolve()` and
   signs a JWT whose claims carry `studentId`, status and roles. The owner and teachers are group
   admins, so `RegistrationService.resolve(user, { staff: true })` answers `STAFF` instead of
   registering them as students; the Mini App then hands them to `admin.html` with the same JWT

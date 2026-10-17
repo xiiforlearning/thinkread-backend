@@ -17,6 +17,16 @@ export class AppConfigService {
     return this.require('BOT_TOKEN');
   }
 
+  /**
+   * OAuth client id of "Log in with Telegram" (the dashboard sign-in): BotFather's Client ID
+   * for the bot, by default the bot id — the number before ":" in the token.
+   */
+  get telegramLoginClientId(): string {
+    const explicit = this.config.get<string>('TELEGRAM_LOGIN_CLIENT_ID');
+    if (explicit) return explicit;
+    return this.botToken.split(':')[0];
+  }
+
   get adminTelegramId(): number {
     const raw = this.require('ADMIN_TELEGRAM_ID');
     const parsed = Number(raw);

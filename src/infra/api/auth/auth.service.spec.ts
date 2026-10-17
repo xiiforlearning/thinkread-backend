@@ -24,17 +24,19 @@ function make(
   status: string,
   student: Student | null,
   staff: string | null = null,
-): { auth: AuthService; registration: { resolve: jest.Mock } } {
+): { auth: AuthService; registration: { resolve: jest.Mock }; oidc: { verify: jest.Mock } } {
   const registration = { resolve: jest.fn().mockResolvedValue({ status, student }) };
+  const oidc = { verify: jest.fn() };
   const access = { staffRole: jest.fn().mockResolvedValue(staff) };
   const jwt = new JwtService({ secret: 'test-secret' });
   const auth = new AuthService(
     jwt,
-    { botToken: TOKEN } as never,
+    { botToken: TOKEN, telegramLoginClientId: '123456' } as never,
     registration as never,
     access as never,
+    oidc as never,
   );
-  return { auth, registration };
+  return { auth, registration, oidc };
 }
 
 describe('AuthService.webApp', () => {
@@ -101,5 +103,29 @@ describe('AuthService.webApp', () => {
   it('rejects a bad token on verify', async () => {
     const { auth } = make('ACTIVE', null);
     await expect(auth.verify('nope')).rejects.toMatchObject({ code: '201952' });
+  });
+});
+
+describe('AuthService.telegramOidcLogin', () => {
+  it('signs a staff token for the Telegram user of a verified id_token', async () => {
+    const { auth, oidc } = make('STAFF', null, 'OWNER');
+    oidc.verify.mockResolvedValue({ id: 500, name: 'Рустам' });
+    const res = await auth.telegramOidcLogin('h.p.s');
+    expect(oidc.verify).toHaveBeenCalledWith('h.p.s', '123456');
+    expect(res.roles).toEqual(['OWNER']);
+    expect(res.name).toBe('Рустам');
+    const principal = await auth.verify(res.token);
+    expect(principal).toEqual({
+      telegramUserId: 500,
+      studentId: null,
+      status: null,
+      roles: ['OWNER'],
+    });
+  });
+
+  it('refuses a verified token of someone who is not staff', async () => {
+    const { auth, oidc } = make('ACTIVE', null, null);
+    oidc.verify.mockResolvedValue({ id: 501 });
+    await expect(auth.telegramOidcLogin('h.p.s')).rejects.toMatchObject({ code: '301004' });
   });
 });
