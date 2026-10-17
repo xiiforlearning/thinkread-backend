@@ -1,5 +1,11 @@
 import { generateKeyPairSync, KeyObject, sign } from 'crypto';
-import { Jwk, TELEGRAM_OIDC_ISSUER, TelegramOidcVerifier } from './telegram-oidc';
+import { Test } from '@nestjs/testing';
+import {
+  Jwk,
+  TELEGRAM_OIDC_ISSUER,
+  TELEGRAM_OIDC_VERIFIER,
+  TelegramOidcVerifier,
+} from './telegram-oidc';
 
 const NOW = new Date('2026-10-17T10:00:00Z');
 const CLIENT = '123456';
@@ -47,6 +53,11 @@ function make(keys: Jwk[] = [jwk(rsa.publicKey, 'rsa-1'), jwk(ec.publicKey, 'ec-
 }
 
 describe('TelegramOidcVerifier', () => {
+  it('is provided to Nest by a factory (the constructor takes a function, not a dependency)', async () => {
+    const mod = await Test.createTestingModule({ providers: [TELEGRAM_OIDC_VERIFIER] }).compile();
+    expect(mod.get(TelegramOidcVerifier)).toBeInstanceOf(TelegramOidcVerifier);
+  });
+
   it('accepts an RS256 token signed by a published key and returns the Telegram user', async () => {
     const { verifier, fetchJwks } = make();
     const claims = await verifier.verify(
