@@ -6,10 +6,18 @@ import { AppConfigService } from '../../../config/config.service';
 import { AccessService } from '../../../domain/admins/access.service';
 import { AccessStatus, RegistrationService } from '../../../domain/students/registration.service';
 import { ApiRole, Principal } from './principal';
+import { TelegramOidcVerifier } from './telegram-oidc';
 import { TelegramLoginPayload, verifyInitData, verifyTelegramLogin } from './telegram-signature';
 
 const INIT_DATA_MAX_AGE_SEC = 24 * 3600;
 const TOKEN_TTL = '12h';
+
+export interface StaffLoginResult {
+  token: string;
+  roles: ApiRole[];
+  /** Display name from Telegram, for the dashboard header. */
+  name: string | null;
+}
 
 export interface WebAppAuthResult {
   status: AccessStatus;
@@ -30,7 +38,8 @@ interface JwtClaims {
  * Who is calling the API. The Mini App signs in with Telegram's initData;
  * registration happens right here (a group member becomes PENDING_NAME and
  * gets a token that only opens /me/register). The dashboard signs in with
- * the Telegram Login Widget and needs a staff role.
+ * "Log in with Telegram" (an OpenID Connect id_token, or the legacy Login
+ * Widget payload) and needs a staff role.
  */
 @Injectable()
 export class AuthService {
@@ -41,6 +50,7 @@ export class AuthService {
     private readonly config: AppConfigService,
     private readonly registration: RegistrationService,
     private readonly access: AccessService,
+    private readonly oidc: TelegramOidcVerifier,
   ) {}
 
   async webApp(initData: string): Promise<WebAppAuthResult> {
@@ -65,12 +75,28 @@ export class AuthService {
     return { status, roles, token, startParam };
   }
 
-  /** Dashboard: only OWNER / TEACHER get in. */
-  async telegramLogin(payload: TelegramLoginPayload): Promise<{ token: string; roles: ApiRole[] }> {
+  /** Dashboard, "Log in with Telegram" popup: the signed id_token; only OWNER / TEACHER get in. */
+  async telegramOidcLogin(idToken: string): Promise<StaffLoginResult> {
+    const claims = await this.oidc.verify(idToken, this.config.telegramLoginClientId);
+    const name =
+      claims.name ??
+      [claims.given_name, claims.family_name].filter(Boolean).join(' ') ??
+      claims.preferred_username ??
+      null;
+    return this.staffLogin(claims.id, name || null);
+  }
+
+  /** Dashboard, legacy Login Widget payload (bots not switched to OpenID Connect). */
+  async telegramLogin(payload: TelegramLoginPayload): Promise<StaffLoginResult> {
     const verified = verifyTelegramLogin(payload, this.config.botToken, INIT_DATA_MAX_AGE_SEC);
-    const staff = await this.access.staffRole(Number(verified.id));
+    const name = [verified.first_name, verified.last_name].filter(Boolean).join(' ');
+    return this.staffLogin(Number(verified.id), name || null);
+  }
+
+  private async staffLogin(telegramUserId: number, name: string | null): Promise<StaffLoginResult> {
+    const staff = await this.access.staffRole(telegramUserId);
     if (!staff) {
-      this.logger.log(`dashboard login refused for ${verified.id}: not staff`);
+      this.logger.log(`dashboard login refused for ${telegramUserId}: not staff`);
       throw new AppError({
         level: ErrorLevel.LOW_BUSINESS,
         service: ServiceCode.AUTH,
@@ -78,12 +104,12 @@ export class AuthService {
       });
     }
     const token = await this.sign({
-      telegramUserId: Number(verified.id),
+      telegramUserId,
       studentId: null,
       status: null,
       roles: [staff],
     });
-    return { token, roles: [staff] };
+    return { token, roles: [staff], name };
   }
 
   async verify(token: string): Promise<Principal> {
