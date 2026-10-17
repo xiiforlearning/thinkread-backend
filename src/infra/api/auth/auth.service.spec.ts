@@ -24,23 +24,19 @@ function make(
   status: string,
   student: Student | null,
   staff: string | null = null,
-): {
-  auth: AuthService;
-  registration: { resolve: jest.Mock };
-  oidc: { verify: jest.Mock; exchange: jest.Mock };
-} {
+): { auth: AuthService; registration: { resolve: jest.Mock }; loginCodes: { redeem: jest.Mock } } {
   const registration = { resolve: jest.fn().mockResolvedValue({ status, student }) };
-  const oidc = { verify: jest.fn(), exchange: jest.fn() };
+  const loginCodes = { redeem: jest.fn() };
   const access = { staffRole: jest.fn().mockResolvedValue(staff) };
   const jwt = new JwtService({ secret: 'test-secret' });
   const auth = new AuthService(
     jwt,
-    { botToken: TOKEN, telegramLoginClientId: '123456' } as never,
+    { botToken: TOKEN } as never,
     registration as never,
     access as never,
-    oidc as never,
+    loginCodes as never,
   );
-  return { auth, registration, oidc };
+  return { auth, registration, loginCodes };
 }
 
 describe('AuthService.webApp', () => {
@@ -110,14 +106,13 @@ describe('AuthService.webApp', () => {
   });
 });
 
-describe('AuthService.telegramOidcLogin', () => {
-  it('signs a staff token for the Telegram user of a verified id_token', async () => {
-    const { auth, oidc } = make('STAFF', null, 'OWNER');
-    oidc.verify.mockResolvedValue({ id: 500, name: 'Рустам' });
-    const res = await auth.telegramOidcLogin('h.p.s');
-    expect(oidc.verify).toHaveBeenCalledWith('h.p.s', '123456');
+describe('AuthService.codeLogin', () => {
+  it('signs a staff token for the owner of a redeemed code', async () => {
+    const { auth, loginCodes } = make('STAFF', null, 'OWNER');
+    loginCodes.redeem.mockReturnValue({ telegramUserId: 500, role: 'OWNER' });
+    const res = await auth.codeLogin('123 456');
+    expect(loginCodes.redeem).toHaveBeenCalledWith('123 456');
     expect(res.roles).toEqual(['OWNER']);
-    expect(res.name).toBe('Рустам');
     const principal = await auth.verify(res.token);
     expect(principal).toEqual({
       telegramUserId: 500,
@@ -127,26 +122,9 @@ describe('AuthService.telegramOidcLogin', () => {
     });
   });
 
-  it('refuses a verified token of someone who is not staff', async () => {
-    const { auth, oidc } = make('ACTIVE', null, null);
-    oidc.verify.mockResolvedValue({ id: 501 });
-    await expect(auth.telegramOidcLogin('h.p.s')).rejects.toMatchObject({ code: '301004' });
-  });
-});
-
-describe('AuthService.telegramCodeLogin', () => {
-  it('exchanges the code with the configured client and signs the staff token', async () => {
-    const { auth, oidc } = make('STAFF', null, 'TEACHER');
-    oidc.exchange.mockResolvedValue({ id: 600, given_name: 'Дилшод', family_name: 'Усманов' });
-    const res = await auth.telegramCodeLogin('c0de', 'v'.repeat(43), 'https://app/admin.html');
-    expect(oidc.exchange).toHaveBeenCalledWith({
-      code: 'c0de',
-      codeVerifier: 'v'.repeat(43),
-      redirectUri: 'https://app/admin.html',
-      clientId: '123456',
-      clientSecret: undefined,
-    });
-    expect(res.roles).toEqual(['TEACHER']);
-    expect(res.name).toBe('Дилшод Усманов');
+  it('refuses a code whose owner is no longer staff', async () => {
+    const { auth, loginCodes } = make('ACTIVE', null, null);
+    loginCodes.redeem.mockReturnValue({ telegramUserId: 501, role: 'TEACHER' });
+    await expect(auth.codeLogin('000000')).rejects.toMatchObject({ code: '301004' });
   });
 });

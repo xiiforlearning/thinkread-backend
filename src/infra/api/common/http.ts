@@ -32,6 +32,7 @@ const STATUS_BY_ERROR: Partial<Record<string, HttpStatus>> = {
   [ErrorCode.ALREADY_EXISTS]: HttpStatus.CONFLICT,
   [ErrorCode.IMPORT_EXPIRED]: HttpStatus.GONE,
   [ErrorCode.TOO_MANY_REQUESTS]: HttpStatus.TOO_MANY_REQUESTS,
+  [ErrorCode.BOT_BLOCKED_BY_USER]: HttpStatus.CONFLICT,
   [ErrorCode.AI_UNAVAILABLE]: HttpStatus.SERVICE_UNAVAILABLE,
   [ErrorCode.AI_RATE_LIMITED]: HttpStatus.SERVICE_UNAVAILABLE,
 };

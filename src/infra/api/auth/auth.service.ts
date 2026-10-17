@@ -4,17 +4,13 @@ import { ErrorCode, ErrorLevel, ServiceCode } from '../../../common/codes';
 import { AppError } from '../../../common/errors';
 import { AppConfigService } from '../../../config/config.service';
 import { AccessService } from '../../../domain/admins/access.service';
+import { LoginCodesService } from '../../../domain/admins/login-codes.service';
 import { AccessStatus, RegistrationService } from '../../../domain/students/registration.service';
 import { ApiRole, Principal } from './principal';
-import { TelegramIdClaims, TelegramOidcVerifier } from './telegram-oidc';
 import { TelegramLoginPayload, verifyInitData, verifyTelegramLogin } from './telegram-signature';
 
 const INIT_DATA_MAX_AGE_SEC = 24 * 3600;
 
-function displayName(claims: TelegramIdClaims): string | null {
-  const full = [claims.given_name, claims.family_name].filter(Boolean).join(' ');
-  return claims.name ?? (full || claims.preferred_username || null);
-}
 const TOKEN_TTL = '12h';
 
 export interface StaffLoginResult {
@@ -42,8 +38,8 @@ interface JwtClaims {
 /**
  * Who is calling the API. The Mini App signs in with Telegram's initData;
  * registration happens right here (a group member becomes PENDING_NAME and
- * gets a token that only opens /me/register). The dashboard signs in with
- * "Log in with Telegram" (an OpenID Connect id_token, or the legacy Login
+ * gets a token that only opens /me/register). The dashboard signs in with a
+ * one-time code the bot sends to the staff member (or the legacy Login
  * Widget payload) and needs a staff role.
  */
 @Injectable()
@@ -55,7 +51,7 @@ export class AuthService {
     private readonly config: AppConfigService,
     private readonly registration: RegistrationService,
     private readonly access: AccessService,
-    private readonly oidc: TelegramOidcVerifier,
+    private readonly loginCodes: LoginCodesService,
   ) {}
 
   async webApp(initData: string): Promise<WebAppAuthResult> {
@@ -80,26 +76,10 @@ export class AuthService {
     return { status, roles, token, startParam };
   }
 
-  /** Dashboard, authorization-code flow: the `code` Telegram redirected back with, plus PKCE verifier. */
-  async telegramCodeLogin(
-    code: string,
-    codeVerifier: string,
-    redirectUri: string,
-  ): Promise<StaffLoginResult> {
-    const claims = await this.oidc.exchange({
-      code,
-      codeVerifier,
-      redirectUri,
-      clientId: this.config.telegramLoginClientId,
-      clientSecret: this.config.telegramLoginClientSecret,
-    });
-    return this.staffLogin(claims.id, displayName(claims));
-  }
-
-  /** Dashboard, "Log in with Telegram" popup: the signed id_token; only OWNER / TEACHER get in. */
-  async telegramOidcLogin(idToken: string): Promise<StaffLoginResult> {
-    const claims = await this.oidc.verify(idToken, this.config.telegramLoginClientId);
-    return this.staffLogin(claims.id, displayName(claims));
+  /** Dashboard: the 6-digit code the bot sent to the staff member's chat. */
+  async codeLogin(code: string): Promise<StaffLoginResult> {
+    const { telegramUserId } = this.loginCodes.redeem(code);
+    return this.staffLogin(telegramUserId, null);
   }
 
   /** Dashboard, legacy Login Widget payload (bots not switched to OpenID Connect). */

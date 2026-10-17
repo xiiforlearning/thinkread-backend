@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { IsInt, IsOptional, IsString, IsUrl, MinLength, ValidateIf } from 'class-validator';
-import { AppConfigService } from '../../../config/config.service';
+import { IsInt, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { LoginCodesService } from '../../../domain/admins/login-codes.service';
 import { AuthService } from './auth.service';
 
 class WebAppAuthDto {
@@ -11,25 +11,22 @@ class WebAppAuthDto {
   initData!: string;
 }
 
-/**
- * One of: the authorization `code` Telegram redirected the dashboard back with (plus the PKCE
- * `code_verifier` and the exact `redirect_uri`), the OpenID Connect `id_token` of the popup
- * library, or the legacy Login Widget payload (`id … auth_date hash`).
- */
+class CodeLoginDto {
+  /** Six digits; spaces allowed. */
+  @IsString()
+  @Matches(/^\s*\d{3}\s?\d{3}\s*$/)
+  code!: string;
+}
+
+/** The legacy Login Widget payload (`id … auth_date hash`), kept for bots not switched to OpenID Connect. */
 class TelegramLoginDto {
-  @IsOptional() @IsString() @MinLength(4) code?: string;
-  @ValidateIf((o: TelegramLoginDto) => !!o.code) @IsString() @MinLength(43) code_verifier?: string;
-  @ValidateIf((o: TelegramLoginDto) => !!o.code)
-  @IsUrl({ require_tld: false })
-  redirect_uri?: string;
-  @IsOptional() @IsString() @MinLength(20) id_token?: string;
-  @ValidateIf((o: TelegramLoginDto) => !o.id_token && !o.code) @IsInt() id?: number;
+  @IsInt() id!: number;
   @IsOptional() @IsString() first_name?: string;
   @IsOptional() @IsString() last_name?: string;
   @IsOptional() @IsString() username?: string;
   @IsOptional() @IsString() photo_url?: string;
-  @ValidateIf((o: TelegramLoginDto) => !o.id_token && !o.code) @IsInt() auth_date?: number;
-  @ValidateIf((o: TelegramLoginDto) => !o.id_token && !o.code) @IsString() hash?: string;
+  @IsInt() auth_date!: number;
+  @IsString() hash!: string;
 }
 
 @ApiTags('auth')
@@ -37,13 +34,22 @@ class TelegramLoginDto {
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
-    private readonly config: AppConfigService,
+    private readonly loginCodes: LoginCodesService,
   ) {}
 
-  @Get('login-config')
-  @ApiOperation({ summary: 'Public: the OAuth client id for the "Log in with Telegram" popup' })
-  loginConfig(): { clientId: string } {
-    return { clientId: this.config.telegramLoginClientId };
+  @Post('code/request')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Dashboard: the bot sends the owner a one-time 6-digit sign-in code' })
+  async requestCode(): Promise<{ expiresAt: string }> {
+    const { expiresAt } = await this.loginCodes.sendToOwner();
+    return { expiresAt: expiresAt.toISOString() };
+  }
+
+  @Post('code/verify')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Dashboard sign-in with the code from the bot (OWNER / TEACHER)' })
+  codeLogin(@Body() dto: CodeLoginDto): ReturnType<AuthService['codeLogin']> {
+    return this.auth.codeLogin(dto.code);
   }
 
   @Post('webapp')
@@ -57,23 +63,10 @@ export class AuthController {
 
   @Post('telegram-login')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Dashboard sign-in with "Log in with Telegram" (OWNER / TEACHER)' })
+  @ApiOperation({
+    summary: 'Dashboard sign-in with the legacy Telegram Login Widget (OWNER / TEACHER)',
+  })
   telegramLogin(@Body() dto: TelegramLoginDto): ReturnType<AuthService['telegramLogin']> {
-    if (dto.code)
-      return this.auth.telegramCodeLogin(
-        dto.code,
-        dto.code_verifier as string,
-        dto.redirect_uri as string,
-      );
-    if (dto.id_token) return this.auth.telegramOidcLogin(dto.id_token);
-    return this.auth.telegramLogin({
-      id: dto.id as number,
-      first_name: dto.first_name,
-      last_name: dto.last_name,
-      username: dto.username,
-      photo_url: dto.photo_url,
-      auth_date: dto.auth_date as number,
-      hash: dto.hash as string,
-    });
+    return this.auth.telegramLogin(dto);
   }
 }

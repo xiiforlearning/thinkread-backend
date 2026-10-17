@@ -1,8 +1,12 @@
 import { Logger } from '@nestjs/common';
 import { Action, Ctx, Next, On, Start, Update, Use } from 'nestjs-telegraf';
 import { Context, Markup } from 'telegraf';
+import { ErrorCode } from '../../common/codes';
+import { AppError } from '../../common/errors';
 import { AppConfigService } from '../../config/config.service';
 import { AccessService } from '../../domain/admins/access.service';
+import { LoginCodesService } from '../../domain/admins/login-codes.service';
+import { loginCodeMessages } from '../../domain/admins/messages';
 import { GroupsService } from '../../domain/groups/groups.service';
 import { GROUP_LEVELS, GroupLevel } from '../../domain/groups/level';
 import { LEVEL_LABELS, groupMessages } from '../../domain/groups/messages';
@@ -30,6 +34,7 @@ export class BotUpdate {
     private readonly students: StudentsService,
     private readonly teacher: TeacherResolverService,
     private readonly access: AccessService,
+    private readonly loginCodes: LoginCodesService,
     private readonly registration: RegistrationService,
     private readonly config: AppConfigService,
   ) {}
@@ -140,9 +145,25 @@ export class BotUpdate {
       telegramUserId: ctx.from.id,
       username: ctx.from.username ?? null,
     });
+    if (gate.kind === 'reply' && gate.text === studentMessages.staffInApp) {
+      // Staff: any message is a request for the dashboard sign-in code.
+      await ctx.reply(await this.staffLoginCode(ctx.from.id));
+      return;
+    }
     const text = gate.kind === 'reply' ? gate.text : studentMessages.openApp;
     const showButton = gate.kind === 'student' || text === studentMessages.finishInApp;
     await ctx.reply(text, showButton ? this.openAppKeyboard() : undefined);
+  }
+
+  private async staffLoginCode(telegramUserId: number): Promise<string> {
+    try {
+      const { code } = await this.loginCodes.issue(telegramUserId);
+      return loginCodeMessages.code(code, this.loginCodes.dashboardUrl());
+    } catch (err) {
+      if (err instanceof AppError && err.error === ErrorCode.TOO_MANY_REQUESTS)
+        return loginCodeMessages.tooSoon;
+      throw err;
+    }
   }
 
   /** A web_app button when the Mini App URL is configured; nothing otherwise. */
