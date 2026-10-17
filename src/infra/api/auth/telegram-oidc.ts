@@ -1,5 +1,5 @@
 import { createPublicKey, JsonWebKey, KeyObject, verify as verifySignature } from 'crypto';
-import { Injectable, Logger } from '@nestjs/common';
+import { Logger, Provider } from '@nestjs/common';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../../common/codes';
 import { AppError } from '../../../common/errors';
 
@@ -92,12 +92,12 @@ async function fetchTelegramJwks(): Promise<{ keys: Jwk[] }> {
   return (await res.json()) as { keys: Jwk[] };
 }
 
-@Injectable()
 export class TelegramOidcVerifier {
   private readonly logger = new Logger(TelegramOidcVerifier.name);
   private cache: { keys: KeyEntry[]; fetchedAt: number } | null = null;
   private inflight: Promise<KeyEntry[]> | null = null;
 
+  /** Not `@Injectable()`: the fetcher is a plain function (tests swap it), so Nest must not try to inject it. */
   constructor(private readonly fetchJwks: JwksFetcher = fetchTelegramJwks) {}
 
   /** The verified claims of `idToken`, or an AppError (INIT_DATA_INVALID / _EXPIRED). */
@@ -199,3 +199,9 @@ export class TelegramOidcVerifier {
     return this.inflight;
   }
 }
+
+/** How ApiModule provides the verifier (a factory: the class has no injectable constructor). */
+export const TELEGRAM_OIDC_VERIFIER: Provider = {
+  provide: TelegramOidcVerifier,
+  useFactory: (): TelegramOidcVerifier => new TelegramOidcVerifier(),
+};
