@@ -12,6 +12,7 @@ import { AppError } from '../../../common/errors';
  */
 export const TELEGRAM_OIDC_ISSUER = 'https://oauth.telegram.org';
 export const TELEGRAM_OIDC_JWKS_URL = 'https://oauth.telegram.org/.well-known/jwks.json';
+export const TELEGRAM_OIDC_TOKEN_URL = 'https://oauth.telegram.org/token';
 
 const CLOCK_SKEW_SEC = 60;
 const JWKS_TTL_MS = 60 * 60 * 1000;
@@ -38,6 +39,24 @@ export interface Jwk extends JsonWebKey {
   use?: string;
 }
 export type JwksFetcher = () => Promise<{ keys: Jwk[] }>;
+
+/** The authorization-code exchange (web: the page redirects to oauth.telegram.org and comes back with `code`). */
+export interface CodeExchange {
+  code: string;
+  codeVerifier: string;
+  redirectUri: string;
+  clientId: string;
+  /** BotFather's client secret — sent as HTTP Basic when set; the native SDKs go without. */
+  clientSecret?: string;
+}
+export interface TokenResponse {
+  status: number;
+  body: { id_token?: string; error?: string; error_description?: string };
+}
+export type TokenFetcher = (
+  form: URLSearchParams,
+  basicAuth: string | null,
+) => Promise<TokenResponse>;
 
 interface KeyEntry {
   kid: string | undefined;
@@ -82,6 +101,31 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+async function fetchTelegramToken(
+  form: URLSearchParams,
+  basicAuth: string | null,
+): Promise<TokenResponse> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Content-Type': 'application/x-www-form-urlencoded',
+  };
+  if (basicAuth) headers.Authorization = `Basic ${basicAuth}`;
+  const res = await fetch(TELEGRAM_OIDC_TOKEN_URL, {
+    method: 'POST',
+    headers,
+    body: form.toString(),
+    signal: AbortSignal.timeout(10_000),
+    redirect: 'error',
+  });
+  let body: TokenResponse['body'] = {};
+  try {
+    body = (await res.json()) as TokenResponse['body'];
+  } catch {
+    body = {};
+  }
+  return { status: res.status, body };
+}
+
 async function fetchTelegramJwks(): Promise<{ keys: Jwk[] }> {
   const res = await fetch(TELEGRAM_OIDC_JWKS_URL, {
     headers: { Accept: 'application/json' },
@@ -97,8 +141,47 @@ export class TelegramOidcVerifier {
   private cache: { keys: KeyEntry[]; fetchedAt: number } | null = null;
   private inflight: Promise<KeyEntry[]> | null = null;
 
-  /** Not `@Injectable()`: the fetcher is a plain function (tests swap it), so Nest must not try to inject it. */
-  constructor(private readonly fetchJwks: JwksFetcher = fetchTelegramJwks) {}
+  /** Not `@Injectable()`: the fetchers are plain functions (tests swap them), so Nest must not inject them. */
+  constructor(
+    private readonly fetchJwks: JwksFetcher = fetchTelegramJwks,
+    private readonly fetchToken: TokenFetcher = fetchTelegramToken,
+  ) {}
+
+  /**
+   * Authorization-code flow: swap the `code` the page came back with for an id_token (PKCE
+   * verifier proves it is the same browser that started the login), then verify it like any
+   * other id_token. A refused code is INIT_DATA_INVALID; Telegram being down is 601202.
+   */
+  async exchange(x: CodeExchange, now = new Date()): Promise<TelegramIdClaims> {
+    const form = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: x.clientId,
+      code: x.code,
+      redirect_uri: x.redirectUri,
+      code_verifier: x.codeVerifier,
+    });
+    const basic = x.clientSecret
+      ? Buffer.from(`${x.clientId}:${x.clientSecret}`).toString('base64')
+      : null;
+    let res: TokenResponse;
+    try {
+      res = await this.fetchToken(form, basic);
+    } catch (err) {
+      this.logger.error(`Telegram token endpoint unavailable: ${(err as Error).message}`);
+      throw new AppError({
+        level: ErrorLevel.HIGH_INTEGRATION,
+        service: ServiceCode.AUTH,
+        error: ErrorCode.TELEGRAM_API_UNAVAILABLE,
+      });
+    }
+    if (res.status !== 200 || !res.body.id_token) {
+      this.logger.warn(
+        `Telegram refused the authorization code: HTTP ${res.status} ${res.body.error ?? ''} ${res.body.error_description ?? ''}`.trim(),
+      );
+      throw invalid(ErrorCode.INIT_DATA_INVALID);
+    }
+    return this.verify(res.body.id_token, x.clientId, now);
+  }
 
   /** The verified claims of `idToken`, or an AppError (INIT_DATA_INVALID / _EXPIRED). */
   async verify(idToken: string, clientId: string, now = new Date()): Promise<TelegramIdClaims> {

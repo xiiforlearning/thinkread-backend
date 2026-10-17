@@ -6,10 +6,15 @@ import { AppConfigService } from '../../../config/config.service';
 import { AccessService } from '../../../domain/admins/access.service';
 import { AccessStatus, RegistrationService } from '../../../domain/students/registration.service';
 import { ApiRole, Principal } from './principal';
-import { TelegramOidcVerifier } from './telegram-oidc';
+import { TelegramIdClaims, TelegramOidcVerifier } from './telegram-oidc';
 import { TelegramLoginPayload, verifyInitData, verifyTelegramLogin } from './telegram-signature';
 
 const INIT_DATA_MAX_AGE_SEC = 24 * 3600;
+
+function displayName(claims: TelegramIdClaims): string | null {
+  const full = [claims.given_name, claims.family_name].filter(Boolean).join(' ');
+  return claims.name ?? (full || claims.preferred_username || null);
+}
 const TOKEN_TTL = '12h';
 
 export interface StaffLoginResult {
@@ -75,15 +80,26 @@ export class AuthService {
     return { status, roles, token, startParam };
   }
 
+  /** Dashboard, authorization-code flow: the `code` Telegram redirected back with, plus PKCE verifier. */
+  async telegramCodeLogin(
+    code: string,
+    codeVerifier: string,
+    redirectUri: string,
+  ): Promise<StaffLoginResult> {
+    const claims = await this.oidc.exchange({
+      code,
+      codeVerifier,
+      redirectUri,
+      clientId: this.config.telegramLoginClientId,
+      clientSecret: this.config.telegramLoginClientSecret,
+    });
+    return this.staffLogin(claims.id, displayName(claims));
+  }
+
   /** Dashboard, "Log in with Telegram" popup: the signed id_token; only OWNER / TEACHER get in. */
   async telegramOidcLogin(idToken: string): Promise<StaffLoginResult> {
     const claims = await this.oidc.verify(idToken, this.config.telegramLoginClientId);
-    const name =
-      claims.name ??
-      [claims.given_name, claims.family_name].filter(Boolean).join(' ') ??
-      claims.preferred_username ??
-      null;
-    return this.staffLogin(claims.id, name || null);
+    return this.staffLogin(claims.id, displayName(claims));
   }
 
   /** Dashboard, legacy Login Widget payload (bots not switched to OpenID Connect). */

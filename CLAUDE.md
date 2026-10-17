@@ -46,8 +46,8 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   GitHub Pages; the production build goes to `WEBAPP_URL`.
 - **Dashboard** = the second Vite page `admin.html` → `src/admin/`: `api.ts` (`AdminApi` types
   mirror `admin/serializers.ts`; `HttpAdminApi`), `mock.ts` (`MockAdminApi`, the demo school),
-  `session.tsx` ("Log in with Telegram" popup → `id_token` → `POST /auth/telegram-login`, dev
-  token, demo; JWT in localStorage), `Shell.tsx` (sidebar + optional list pane), `screens/` transcribed from the
+  `session.tsx` ("Log in with Telegram": redirect to `oauth.telegram.org/auth` with PKCE, back
+  with `?code` → `POST /auth/telegram-login`; dev token; demo; JWT in localStorage), `Shell.tsx` (sidebar + optional list pane), `screens/` transcribed from the
   AdminOverview / AdminStudents / AdminFlags / AdminGroups / AdminSettings artboards. Desktop
   variants of the components (`desktop` prop, `NavItem`, `HealthDot`, `ChatMessage`, `Composer`)
   live in `components.tsx`, layout classes `ad-*` in `admin.css`. `AdminApi.features` marks the
@@ -56,8 +56,9 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 ### REST API (`infra/api`)
 
 - Auth: `telegram-signature.ts` verifies initData (`HMAC("WebAppData", token)`) and the legacy
-  Login Widget (`SHA256(token)`); `telegram-oidc.ts` verifies the OpenID Connect `id_token` of
-  "Log in with Telegram" against Telegram's JWKS (`aud` = bot id, `config.telegramLoginClientId`,
+  Login Widget (`SHA256(token)`); `telegram-oidc.ts` swaps the dashboard's authorization code for
+  an `id_token` (`exchange()`, PKCE, optional `TELEGRAM_LOGIN_CLIENT_SECRET` as Basic auth) and
+  verifies it against Telegram's JWKS (`aud` = bot id, `config.telegramLoginClientId`,
   `GET /auth/login-config` publishes it; BotFather: Login Widget → OpenID Connect, trusted origin
   + redirect URL `<frontend>/admin.html`). `AuthService.webApp()` calls `RegistrationService.resolve()` and
   signs a JWT whose claims carry `studentId`, status and roles. The owner and teachers are group

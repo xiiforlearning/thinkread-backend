@@ -121,8 +121,9 @@ with the same URL. Details and the curl smoke table: `.claude/skills/local-run/S
 ## Dashboard API (`/admin/*`)
 
 Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT from
-`POST /auth/telegram-login` — the `id_token` of the "Log in with Telegram" popup (OpenID Connect,
-verified against Telegram's JWKS) or the legacy Login Widget payload:
+`POST /auth/telegram-login` — the authorization `code` Telegram redirected the dashboard back with
+(plus PKCE `code_verifier` and `redirect_uri`; swapped for an id_token at `oauth.telegram.org/token`
+and verified against Telegram's JWKS), an `id_token` directly, or the legacy Login Widget payload:
 
 | Endpoint | What |
 |---|---|

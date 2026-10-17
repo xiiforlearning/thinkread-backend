@@ -27,6 +27,11 @@ export class AppConfigService {
     return this.botToken.split(':')[0];
   }
 
+  /** BotFather's client secret for the code exchange; optional (the public PKCE client works without). */
+  get telegramLoginClientSecret(): string | undefined {
+    return this.config.get<string>('TELEGRAM_LOGIN_CLIENT_SECRET') || undefined;
+  }
+
   get adminTelegramId(): number {
     const raw = this.require('ADMIN_TELEGRAM_ID');
     const parsed = Number(raw);

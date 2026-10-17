@@ -47,9 +47,11 @@ function token(
 function make(keys: Jwk[] = [jwk(rsa.publicKey, 'rsa-1'), jwk(ec.publicKey, 'ec-1')]): {
   verifier: TelegramOidcVerifier;
   fetchJwks: jest.Mock;
+  fetchToken: jest.Mock;
 } {
   const fetchJwks = jest.fn().mockResolvedValue({ keys });
-  return { verifier: new TelegramOidcVerifier(fetchJwks), fetchJwks };
+  const fetchToken = jest.fn();
+  return { verifier: new TelegramOidcVerifier(fetchJwks, fetchToken), fetchJwks, fetchToken };
 }
 
 describe('TelegramOidcVerifier', () => {
@@ -121,5 +123,45 @@ describe('TelegramOidcVerifier', () => {
     const fetchJwks = jest.fn().mockRejectedValue(new Error('boom'));
     const verifier = new TelegramOidcVerifier(fetchJwks);
     await expect(verifier.verify(token({}), CLIENT, NOW)).rejects.toMatchObject({ code: '601202' });
+  });
+});
+
+describe('TelegramOidcVerifier.exchange', () => {
+  const x = {
+    code: 'c0de',
+    codeVerifier: 'v'.repeat(43),
+    redirectUri: 'https://app.example/admin.html',
+    clientId: CLIENT,
+  };
+
+  it('posts the code with PKCE verifier as a form and verifies the returned id_token', async () => {
+    const { verifier, fetchToken } = make();
+    fetchToken.mockResolvedValue({ status: 200, body: { id_token: token({ name: 'Рустам' }) } });
+    const claims = await verifier.exchange(x, NOW);
+    expect(claims).toEqual({ id: 777, name: 'Рустам' });
+    const [form, basic] = fetchToken.mock.calls[0] as [URLSearchParams, string | null];
+    expect(Object.fromEntries(form)).toEqual({
+      grant_type: 'authorization_code',
+      client_id: CLIENT,
+      code: 'c0de',
+      redirect_uri: x.redirectUri,
+      code_verifier: x.codeVerifier,
+    });
+    expect(basic).toBeNull();
+  });
+
+  it('sends HTTP Basic when a client secret is configured', async () => {
+    const { verifier, fetchToken } = make();
+    fetchToken.mockResolvedValue({ status: 200, body: { id_token: token({}) } });
+    await verifier.exchange({ ...x, clientSecret: 's3cret' }, NOW);
+    expect(fetchToken.mock.calls[0][1]).toBe(Buffer.from(`${CLIENT}:s3cret`).toString('base64'));
+  });
+
+  it('turns a refused code into INIT_DATA_INVALID and an outage into TELEGRAM_API_UNAVAILABLE', async () => {
+    const { verifier, fetchToken } = make();
+    fetchToken.mockResolvedValue({ status: 400, body: { error: 'invalid_grant' } });
+    await expect(verifier.exchange(x, NOW)).rejects.toMatchObject({ code: '201953' });
+    fetchToken.mockRejectedValue(new Error('timeout'));
+    await expect(verifier.exchange(x, NOW)).rejects.toMatchObject({ code: '601202' });
   });
 });
