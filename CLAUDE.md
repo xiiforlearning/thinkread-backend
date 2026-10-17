@@ -39,7 +39,9 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   from the artboards of «ThinkRead — кликабельный дизайн»; keep them in sync when a screen changes.
 - `src/api/types.ts` mirrors `me/serializers.ts`; `Api` (client.ts) has two implementations:
   `HttpApi` (real backend, JWT in sessionStorage) and `MockApi` (in-memory demo with the same
-  rules). Outside Telegram or with `VITE_DEMO=1` the app runs on the mock — that is the demo.
+  rules). The mock runs only on request (`?demo=1` in the URL or `VITE_DEMO=1` at build time) —
+  that is the demo; a plain browser otherwise gets the "open in Telegram" screen
+  (`VITE_BOT_USERNAME`). The dashboard shows its demo buttons under the same condition.
 - Commands: `pnpm dev | build | lint | typecheck | format`. `pages.yml` deploys the demo to
   GitHub Pages; the production build goes to `WEBAPP_URL`.
 - **Dashboard** = the second Vite page `admin.html` → `src/admin/`: `api.ts` (`AdminApi` types

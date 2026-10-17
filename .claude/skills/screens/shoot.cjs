@@ -37,17 +37,17 @@ function chromePath() {
     const page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push(`${scheme}: ${e.message}`));
     for (const [name, hash] of ROUTES) {
-      await page.goto(BASE + hash, { waitUntil: 'networkidle' });
+      await page.goto(`${BASE}?demo=1${hash}`, { waitUntil: 'networkidle' });
       await page.waitForTimeout(600);
       await page.screenshot({ path: path.join(OUT, `${name}-${scheme}.png`) });
     }
     if (scheme === 'light') {
-      for (const [name, q] of [['onboarding', '?demo=pending'], ['noaccess', '?demo=not_member'], ['staff', '?demo=staff']]) {
+      for (const [name, q] of [['onboarding', '?demo=pending'], ['noaccess', '?demo=not_member'], ['staff', '?demo=staff'], ['outside', '']]) {
         await page.goto(`${BASE}${q}#/`, { waitUntil: 'networkidle' });
         await page.waitForTimeout(600);
         await page.screenshot({ path: path.join(OUT, `${name}-light.png`) });
       }
-      await page.goto(BASE + '#/words', { waitUntil: 'networkidle' });
+      await page.goto(`${BASE}?demo=1#/words`, { waitUntil: 'networkidle' });
       await page.waitForTimeout(500);
       await page.locator('a.tr-cell').first().click();
       await page.waitForTimeout(500);
