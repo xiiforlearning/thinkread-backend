@@ -89,8 +89,8 @@ git clone https://github.com/xiiforlearning/thinkread-frontend && cd thinkread-f
 
 Дашборд владельца: `http://localhost:5173/admin.html`. Вход для локальной работы — «Войти по
 токену разработчика» с токеном из `pnpm dev:token owner` (нужен `VITE_API_URL` в
-`.env` фронта); кнопка «Войти через Telegram» (попап OpenID Connect) требует в @BotFather
-Login Widget → OpenID Connect с redirect URL `http://localhost:5173/admin.html`;
+`.env` фронта); «Прислать код в Telegram» шлёт владельцу (`ADMIN_TELEGRAM_ID`) 6-значный код
+через бота (нужен запущенный бот и `/start` у него);
 `?demo=1` — демо на данных макета без сервера.
 
 ## 4. Показ в настоящем Telegram
@@ -108,9 +108,8 @@ Login Widget → OpenID Connect с redirect URL `http://localhost:5173/admin.htm
    `pages.yml`; `BOT_USERNAME` там же включает кнопку входа Telegram в дашборде.
 4. `pnpm start:dev` (polling включён).
 5. Кнопку меню «Открыть ThinkRead» и описание бот ставит себе сам при старте (по `WEBAPP_URL`,
-   `BotCommandsService`). Руками в @BotFather нужен только Login Widget → OpenID Connect
-   (trusted origin = origin фронта, redirect URL = `<фронт>/admin.html`) для кнопки
-   «Войти через Telegram» в дашборде. Открыть бота, нажать «Открыть ThinkRead»:
+   `BotCommandsService`). В @BotFather больше ничего настраивать не нужно: в дашборд
+   входят по коду, который бот присылает в Telegram. Открыть бота, нажать «Открыть ThinkRead»:
    вход по initData, регистрация имени, отчёты через локальный Claude.
 6. Чтобы стать студентом, добавьте бота в тестовую группу Telegram и вступите в неё сами;
    владелец задаёт уровень группы через `PATCH /admin/groups/:chatId` или в дашборде.

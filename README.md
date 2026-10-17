@@ -121,9 +121,9 @@ with the same URL. Details and the curl smoke table: `.claude/skills/local-run/S
 ## Dashboard API (`/admin/*`)
 
 Staff only (`OWNER` sees everything, a `TEACHER` only their groups), Bearer JWT from
-`POST /auth/telegram-login` — the authorization `code` Telegram redirected the dashboard back with
-(plus PKCE `code_verifier` and `redirect_uri`; swapped for an id_token at `oauth.telegram.org/token`
-and verified against Telegram's JWKS), an `id_token` directly, or the legacy Login Widget payload:
+`POST /auth/code/verify` — the 6-digit one-time code the bot sent to the staff member's chat
+(`POST /auth/code/request` sends one to the owner; a teacher gets one by writing anything to the
+bot; 5 minutes, single use) — or the legacy Login Widget payload on `POST /auth/telegram-login`:
 
 | Endpoint | What |
 |---|---|
@@ -155,10 +155,8 @@ migrations and then `start:prod`; `GET /health` is the liveness probe.
 
 The frontend is static and lives on Vercel (see its repository); `WEBAPP_URL` is the Vercel site
 root and `CORS_ORIGINS` its origin. At boot the bot configures itself from `WEBAPP_URL` (menu
-button «Открыть ThinkRead», profile texts, no slash commands); the only manual @BotFather step is
-the dashboard sign-in: Bot Settings → Login Widget → switch to **OpenID Connect**, trusted
-origin = the frontend origin, redirect URL = `<frontend>/admin.html`. The OAuth client id is the
-bot id (`TELEGRAM_LOGIN_CLIENT_ID` overrides it); `GET /auth/login-config` hands it to the page.
+button «Открыть ThinkRead», profile texts, no slash commands); nothing else is needed in
+@BotFather — the dashboard signs in with a one-time code the bot sends in Telegram.
 
 ## Mini App and dashboard (separate repository)
 
@@ -166,5 +164,5 @@ The student's Telegram Mini App and the owner's web dashboard live in
 [https://github.com/xiiforlearning/thinkread-frontend](https://github.com/xiiforlearning/thinkread-frontend) — React + Vite on the ThinkRead Design System, deployed on Vercel.
 `pnpm install && pnpm dev` there: the Mini App at `/`, the dashboard at `/admin.html`.
 Outside Telegram the Mini App runs on demo data, inside Telegram it signs in with `initData`
-against this API (`VITE_API_URL`). The dashboard signs in with "Log in with Telegram" (staff
-only) or a `pnpm dev:token` JWT, and has a demo mode too.
+against this API (`VITE_API_URL`). The dashboard signs in with a one-time code from the bot
+(staff only) or a `pnpm dev:token` JWT, and has a demo mode too.

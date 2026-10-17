@@ -27,7 +27,6 @@ import { AdminStudentsController } from './admin/students.controller';
 import { AdminWordListsController } from './admin/word-lists.controller';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
-import { TELEGRAM_OIDC_VERIFIER } from './auth/telegram-oidc';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard, StudentGuard } from './auth/guards';
 import { MeCardsController } from './me/cards.controller';
@@ -78,7 +77,6 @@ import { MeWordsController } from './me/words.controller';
   ],
   providers: [
     AuthService,
-    TELEGRAM_OIDC_VERIFIER,
     AdminScopeService,
     JwtAuthGuard,
     StudentGuard,
