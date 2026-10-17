@@ -32,6 +32,11 @@ export const studentMessages = {
     'Я здесь только напоминаю. Отчёты, слова и карточки — в приложении ThinkRead, открой его кнопкой ниже.',
 
   openAppButton: 'Открыть ThinkRead',
+  /** @BotFather "What can this bot do?" — shown above the Start button. */
+  botDescription:
+    'ThinkRead — помощник школы английского: отчёты о чтении и аудировании, личный словарь и карточки для повторения. Всё в приложении, нажми «Открыть ThinkRead».',
+  /** @BotFather short description — in the profile and when the bot is shared. */
+  botShortDescription: 'Отчёты, словарь и карточки для студентов школы английского.',
   staffInApp: 'Вы учитель: ваш инструмент — дашборд. Откройте приложение, оно переведёт вас туда.',
 
   archived:
