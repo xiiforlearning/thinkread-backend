@@ -153,6 +153,10 @@ migrations and then `start:prod`; `GET /health` is the liveness probe.
   (`${{Postgres.DATABASE_URL}}`), `DATABASE_SSL=true`, `NODE_ENV=production`, `AI_MODE=anthropic`,
   `JWT_SECRET`, `TZ=Asia/Tashkent`.
 
+In the service shell on Railway the ops scripts work as locally: `pnpm dev:token owner` (a JWT for
+curl against the live API), `pnpm ai:skill parse_reading_report "…"` (one real call of a product
+skill through the configured `AI_MODE` / key), `pnpm ai:eval`.
+
 The frontend is static and lives on Vercel (see its repository); `WEBAPP_URL` is the Vercel site
 root and `CORS_ORIGINS` its origin. At boot the bot configures itself from `WEBAPP_URL` (menu
 button «Открыть ThinkRead», profile texts, no slash commands); nothing else is needed in

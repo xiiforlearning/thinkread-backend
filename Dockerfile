@@ -11,6 +11,8 @@ RUN pnpm install --frozen-lockfile
 # Source + config
 COPY tsconfig.json tsconfig.build.json nest-cli.json ormconfig.ts ./
 COPY src ./src
+# Ops scripts, runnable in the container shell: pnpm dev:token, pnpm ai:skill, pnpm ai:eval.
+COPY scripts ./scripts
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
