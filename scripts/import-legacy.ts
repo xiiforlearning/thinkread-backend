@@ -6,7 +6,9 @@
  *
  *   pnpm ops:import-legacy legacy.json          # { "groups": [...], "students": [...] }
  *   pnpm ops:import-legacy < legacy.json        # or on stdin (paste a heredoc in the shell)
- *   pnpm ops:import-legacy --dry-run legacy.json
+ *   pnpm ops:import-legacy --dry-run            # or from the LEGACY_IMPORT_JSON variable: the
+ *                                               # Railway console takes no paste, its variables
+ *                                               # form does — set it there, run, then remove it
  *
  * Needs the database (same env as the app) and ADMIN_TELEGRAM_ID.
  */
@@ -50,7 +52,8 @@ function splitName(full: string | null): { first: string | null; last: string | 
 
 function readDump(): LegacyDump {
   const file = process.argv.slice(2).find((a) => !a.startsWith('--'));
-  const raw = file ? readFileSync(file, 'utf8') : readFileSync(0, 'utf8');
+  const fromEnv = process.env.LEGACY_IMPORT_JSON?.trim();
+  const raw = file ? readFileSync(file, 'utf8') : fromEnv ? fromEnv : readFileSync(0, 'utf8');
   const parsed = JSON.parse(raw) as Partial<LegacyDump>;
   if (!Array.isArray(parsed.groups) || !Array.isArray(parsed.students))
     throw new Error('expected { "groups": [...], "students": [...] }');
