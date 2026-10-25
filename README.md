@@ -141,7 +141,7 @@ bot; 5 minutes, single use) — or the legacy Login Widget payload on `POST /aut
 | `GET /admin/students`, `GET /admin/students/:id`, `/:id/reports`, `/:id/words` | list with health / silence / norms / flags, one student's card |
 | `PATCH /admin/students/:id`, `POST …/archive`, `…/restore`, `…/recheck` | rename (owner), archive / restore (owner), membership re-check |
 | `GET /admin/flags`, `GET /admin/flags/:id`, `POST /admin/flags/:id/review` | quiet flags inbox with the flagged report and previous ones; «проверено» / «ложная тревога» |
-| `GET /admin/groups`, `PATCH /admin/groups/:chatId` | groups with level, teachers, members, this-week rates; set level (owner) |
+| `GET /admin/groups`, `PATCH /admin/groups/:chatId` `{ level?, isActive? }` | groups with level, teachers, members, this-week rates; owner sets the level or removes a chat the bot is no longer in with `isActive: false` (it comes back by itself when the bot is re-added) |
 | `GET /admin/membership-checks`, `POST …/run` | history of the monthly check; run now (owner, background) |
 | `GET/POST /admin/word-lists`, `GET/PATCH /admin/word-lists/:id` | teacher word lists with coverage (addressed / added / learned / hidden) |
 | `GET/PATCH /admin/settings`, `DELETE /admin/settings/:key` | owner overrides of norms, reminders, health thresholds, AI limits |
