@@ -9,7 +9,7 @@ export const NOTIFIER_PORT = Symbol('NOTIFIER_PORT');
 export interface NotifyOptions {
   /** Attach the "open the Mini App" button (when WEBAPP_URL is configured). */
   openApp?: boolean;
-  /** Language of the button caption; Russian by default. */
+  /** Language of the button caption; the product default when omitted. */
   lang?: Lang;
 }
 

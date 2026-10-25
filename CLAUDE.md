@@ -213,21 +213,23 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 
 ### Student language (`domain/students/language.ts`)
 
-- `students.language` (`StudentLanguage` ru | en, CHECK, null = Russian) is the one switch for
-  everything the student reads from the backend: `langOf(student)` picks the texts. A new student
-  gets it from Telegram's `language_code` at registration (`langFromTelegram`: only an English
-  Telegram means English); `PATCH /me/language` (the Mini App's switch in the profile, allowed
-  while PENDING_NAME) changes it; `profileView.language` returns it.
-- Per-language text objects live next to the Russian ones: `studentMessagesFor(lang)`
+- **Decision 25.10.2026: the product is English for everyone, no switch.** `DEFAULT_LANG = 'en'`;
+  a new student is created with `language: EN`; the Mini App pins `FIXED_LANG = 'en'` and hides
+  both switches. The Russian texts, `students.language`, `PATCH /me/language` and the switches
+  stay wired so the choice can be reopened by setting `DEFAULT_LANG` / `FIXED_LANG` back.
+- `students.language` (`StudentLanguage` ru | en, CHECK) is the one switch for everything the
+  student reads from the backend: `langOf(student)` = the stored value, else `DEFAULT_LANG`.
+  `PATCH /me/language` (allowed while PENDING_NAME) changes it; `profileView.language` returns it.
+- Per-language text objects live next to each other: `studentMessagesFor(lang)`
   (`students/messages.ts`), `cardMessagesFor(lang)` (`cards/messages.ts`: questions, placeholders,
-  stage labels, feedback), `reminderMessagesFor(lang)` (`notify/messages.ts`). The bot's gate
-  answers a registered student in their language and a stranger in their Telegram's; the Mini App
-  button caption follows `NotifyOptions.lang`; the intake clarification question
-  (`ReportIntakeService.question`) and the stage-3 grammar hint (`feedback_language` in the
-  sentence check's user turn) follow the student too. Staff texts, the weekly summary and the
-  teacher's AI stay Russian. The bot profile texts are set for the default and for `en`.
-- The Mini App keeps its own dictionaries (`src/i18n/`); on login it applies `profile.language`
-  and, when the profile has none, saves the detected language once.
+  stage labels, feedback), `reminderMessagesFor(lang)` (`notify/messages.ts`). The bot's gate,
+  the Mini App button caption (`NotifyOptions.lang`), the intake clarification question
+  (`ReportIntakeService.question`), the stage-3 grammar hint (`feedback_language` in the
+  sentence check's user turn) and the AI spot-check question (`question_language`) all follow
+  `langOf(student)`. Staff texts, the weekly summary and the teacher's AI stay Russian. The bot
+  profile texts are set for the default and for `en`.
+- The Mini App keeps its own dictionaries (`src/i18n/`, ru and en complete); `LanguageSync`
+  applies `profile.language` only when the switch is enabled.
 
 ### Ports (domain ↔ Telegram)
 
@@ -280,7 +282,7 @@ Deploy: `Dockerfile` (migrations, then `start:prod`), `render.yaml` (Render Blue
   reports schema drift.
 - Timestamps in UTC; "today" / "this week" via `domain/norms/week.ts` in `Asia/Tashkent`.
 - No physical deletion of students, words or reports — status changes only.
-- User-facing text is Russian and lives in `messages.ts` per module. Never log message text
+- User-facing text lives in `messages.ts` per module, in Russian and English (see Student language). Never log message text
   (students' reports are personal data).
 - Strict TypeScript, no `any` without a justifying comment. Conventional Commits.
 

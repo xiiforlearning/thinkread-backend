@@ -6,14 +6,14 @@ import { studentTexts } from './messages';
 import { StudentLanguage } from './student.enums';
 
 describe('student language', () => {
-  it('is Russian unless English was chosen', () => {
-    expect(langOf(null)).toBe('ru');
-    expect(langOf({ language: null })).toBe('ru');
+  it('is English unless Russian is stored (English-only product, decision 25.10.2026)', () => {
+    expect(langOf(null)).toBe('en');
+    expect(langOf({ language: null })).toBe('en');
     expect(langOf({ language: StudentLanguage.RU })).toBe('ru');
     expect(langOf({ language: StudentLanguage.EN })).toBe('en');
   });
 
-  it('takes English only from an English Telegram', () => {
+  it('the Telegram mapping (kept for later) takes English only from an English Telegram', () => {
     expect(langFromTelegram('en')).toBe(StudentLanguage.EN);
     expect(langFromTelegram('en-US')).toBe(StudentLanguage.EN);
     expect(langFromTelegram('ru')).toBe(StudentLanguage.RU);

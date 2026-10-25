@@ -10,7 +10,7 @@ import { loginCodeMessages } from '../../domain/admins/messages';
 import { GroupsService } from '../../domain/groups/groups.service';
 import { GROUP_LEVELS, GroupLevel } from '../../domain/groups/level';
 import { LEVEL_LABELS, groupMessages } from '../../domain/groups/messages';
-import { Lang, langFromTelegram, langOf } from '../../domain/students/language';
+import { DEFAULT_LANG, Lang, langOf } from '../../domain/students/language';
 import { studentMessagesFor } from '../../domain/students/messages';
 import { RegistrationService } from '../../domain/students/registration.service';
 import { StudentsService } from '../../domain/students/students.service';
@@ -152,10 +152,7 @@ export class BotUpdate {
       await ctx.reply(await this.staffLoginCode(ctx.from.id));
       return;
     }
-    const lang: Lang =
-      gate.kind === 'student'
-        ? langOf(gate.student)
-        : langOf({ language: langFromTelegram(ctx.from.language_code) });
+    const lang: Lang = gate.kind === 'student' ? langOf(gate.student) : DEFAULT_LANG;
     const text = gate.kind === 'reply' ? gate.text : studentMessagesFor(lang).openApp;
     const showButton = gate.kind === 'student' || gate.status === 'PENDING_NAME';
     await ctx.reply(text, showButton ? this.openAppKeyboard(lang) : undefined);

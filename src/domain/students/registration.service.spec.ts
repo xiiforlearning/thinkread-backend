@@ -80,13 +80,13 @@ describe('RegistrationService.resolve (Mini App auth)', () => {
       username: 'nine_nine',
       groupChatIds: [-1],
       level: GroupLevel.PRE_INTERMEDIATE,
-      language: StudentLanguage.RU,
+      language: StudentLanguage.EN,
     });
   });
 
-  it('a new student with an English Telegram starts in English', async () => {
+  it('a new student is English whatever their Telegram language (English-only product)', async () => {
     const { service, students } = make(null, [PRE]);
-    await service.resolve({ ...user, languageCode: 'en-GB' });
+    await service.resolve({ ...user, languageCode: 'ru' });
     expect(students.create).toHaveBeenCalledWith(
       expect.objectContaining({ language: StudentLanguage.EN }),
     );
@@ -171,34 +171,31 @@ describe('RegistrationService.setName', () => {
 });
 
 describe('RegistrationService.gate (bot)', () => {
-  it('points a PENDING_NAME student to the app', async () => {
+  it('points a PENDING_NAME student to the app, in English by default', async () => {
     const pending = student({ status: StudentStatus.PENDING_NAME, firstName: null });
     const { service } = make(pending);
     expect(await service.gate(user)).toEqual({
       kind: 'reply',
       status: 'PENDING_NAME',
-      text: studentMessages.finishInApp,
+      text: studentMessagesFor('en').finishInApp,
     });
   });
 
-  it("answers in the student's language, and a stranger in their Telegram's", async () => {
+  it('answers in the stored language when there is one; a stranger gets the default', async () => {
     const pending = student({
       status: StudentStatus.PENDING_NAME,
       firstName: null,
-      language: StudentLanguage.EN,
+      language: StudentLanguage.RU,
     });
     expect(await make(pending).service.gate(user)).toEqual({
       kind: 'reply',
       status: 'PENDING_NAME',
-      text: studentMessagesFor('en').finishInApp,
+      text: studentMessages.finishInApp,
     });
-    expect(await make(null, []).service.gate({ ...user, languageCode: 'en' })).toEqual({
+    expect(await make(null, []).service.gate({ ...user, languageCode: 'ru' })).toEqual({
       kind: 'reply',
       status: 'NOT_MEMBER',
       text: studentMessagesFor('en').notAMember,
-    });
-    expect(await make(null, []).service.gate({ ...user, languageCode: 'uz' })).toMatchObject({
-      text: studentMessages.notAMember,
     });
   });
 

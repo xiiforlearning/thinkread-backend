@@ -110,10 +110,10 @@ with the same URL. Details and the curl smoke table: `.claude/skills/local-run/S
 
 ## Student language
 
-`PATCH /me/language` `{ language: "ru" | "en" }` switches the interface language; the profile
-(`GET /me`) returns it as `language` (null until chosen — a new student inherits Telegram's). The
-bot's replies, reminders, the Mini App button, card questions and feedback follow it; the Mini App
-has its own dictionaries and applies the profile's language on login.
+The product is English for every student (decision 25.10.2026): bot replies, reminders, the Mini
+App button, card questions and feedback. The Russian texts are kept: `PATCH /me/language`
+`{ language: "ru" | "en" }` still stores a choice and `GET /me` returns it as `language`, but the
+Mini App shows no switch while `FIXED_LANG` is set (see `domain/students/language.ts`).
 
 ## Cards API (`/me/cards`)
 

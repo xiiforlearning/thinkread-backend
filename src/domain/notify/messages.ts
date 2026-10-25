@@ -48,7 +48,7 @@ export function reminderMessagesFor(lang: Lang): ReminderTexts {
   return reminderTexts[lang];
 }
 
-/** The Russian texts — kept for callers without a student. */
+/** The Russian texts — kept for callers that name the language explicitly. */
 export const reminderMessages: ReminderTexts = ru;
 
 export const summaryMessages = {
