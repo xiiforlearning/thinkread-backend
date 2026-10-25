@@ -9,6 +9,7 @@ import { LEVEL_LABELS } from '../groups/messages';
 import { requiresRetelling } from '../groups/level';
 import { Report, ReportType } from '../reports/report.entity';
 import { ReportsService } from '../reports/reports.service';
+import { langOf } from '../students/language';
 import { Student } from '../students/student.entity';
 import { StudentsService } from '../students/students.service';
 import {
@@ -111,6 +112,7 @@ export class AuthenticityService {
           content: JSON.stringify(
             {
               level: student.level ? LEVEL_LABELS[student.level] : 'не задан',
+              question_language: langOf(student),
               type: report.type,
               method: report.method,
               retellingRequired:
