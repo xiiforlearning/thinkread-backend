@@ -171,7 +171,7 @@ describe('CardsService', () => {
     const card = await svc.next(student, now, TZ);
     const r = await svc.answer(student, card?.attemptId as string, null, now, TZ);
     expect(r.correct).toBe(false);
-    expect(r.message).toContain('Правильный ответ: postpone');
+    expect(r.message).toContain('The right answer: postpone');
     expect(w.stage).toBe(CardStage.GAP);
     expect(w.correctTotal).toBe(2);
     expect(w.nextDueAt.getTime() - now.getTime()).toBe(1 * DAY);
@@ -185,7 +185,7 @@ describe('CardsService', () => {
     const short = await svc.answer(student, card?.attemptId as string, 'postpone it', now, TZ);
     expect(short.correct).toBe(false);
     expect(short.feedback).toBe(
-      'Нужно целое предложение — хотя бы три слова с этим словом внутри.',
+      'A whole sentence is needed — at least three words with this word inside.',
     );
     expect(sentences.check).not.toHaveBeenCalled();
 

@@ -17,6 +17,7 @@ export function profileView(student: Student, groups: Group[]): Record<string, u
     displayName: displayNameOf(student),
     username: student.username,
     status: student.status,
+    language: student.language,
     level: student.level,
     listeningMethod: method,
     retellingRequired: requiresRetelling(method),

@@ -6,7 +6,13 @@ import { AppError } from '../../common/errors';
 import { GroupLevel } from '../groups/level';
 import { StudentGroup } from './student-group.entity';
 import { Student } from './student.entity';
-import { ArchiveReason, DialogState, StudentKind, StudentStatus } from './student.enums';
+import {
+  ArchiveReason,
+  DialogState,
+  StudentKind,
+  StudentLanguage,
+  StudentStatus,
+} from './student.enums';
 
 export interface CreateStudentInput {
   telegramUserId: number;
@@ -16,6 +22,8 @@ export interface CreateStudentInput {
   level: GroupLevel | null;
   /** Added by hand by the owner (no membership required). */
   manualAccess?: boolean;
+  /** Interface language, from Telegram at registration; null when unknown. */
+  language?: StudentLanguage | null;
 }
 
 @Injectable()
@@ -122,6 +130,7 @@ export class StudentsService {
         status: StudentStatus.PENDING_NAME,
         level: input.level,
         manualAccess: input.manualAccess ?? false,
+        language: input.language ?? null,
         dialogState: {},
         lastActivityAt: new Date(),
       }),
@@ -134,6 +143,12 @@ export class StudentsService {
     student.firstName = firstName;
     student.lastName = lastName;
     if (student.status === StudentStatus.PENDING_NAME) student.status = StudentStatus.ACTIVE;
+    return this.repo.save(student);
+  }
+
+  /** The Mini App's language switch; the bot and the API answer in it from now on. */
+  async setLanguage(student: Student, language: StudentLanguage): Promise<Student> {
+    student.language = language;
     return this.repo.save(student);
   }
 

@@ -19,6 +19,7 @@ import { WordsModule } from '../../domain/words/words.module';
 import { SchedulerModule } from '../scheduler/scheduler.module';
 import { AdminFlagsController } from './admin/flags.controller';
 import { AdminGroupsController } from './admin/groups.controller';
+import { AdminChatController } from './admin/chat.controller';
 import { AdminOpsController } from './admin/ops.controller';
 import { AdminOverviewController } from './admin/overview.controller';
 import { AdminScopeService } from './admin/scope';
@@ -74,6 +75,7 @@ import { MeWordsController } from './me/words.controller';
     AdminWordListsController,
     AdminSettingsController,
     AdminOpsController,
+    AdminChatController,
   ],
   providers: [
     AuthService,

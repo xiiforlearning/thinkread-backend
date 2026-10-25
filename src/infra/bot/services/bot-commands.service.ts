@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
 import { AppConfigService } from '../../../config/config.service';
-import { studentMessages } from '../../../domain/students/messages';
+import { studentMessages, studentMessagesFor } from '../../../domain/students/messages';
 
 /**
  * The bot configures itself at boot so nothing has to be typed into @BotFather
@@ -41,6 +41,9 @@ export class BotCommandsService implements OnApplicationBootstrap {
     await this.step('profile texts', async () => {
       await this.bot.telegram.setMyDescription(studentMessages.botDescription);
       await this.bot.telegram.setMyShortDescription(studentMessages.botShortDescription);
+      const en = studentMessagesFor('en');
+      await this.bot.telegram.setMyDescription(en.botDescription, 'en');
+      await this.bot.telegram.setMyShortDescription(en.botShortDescription, 'en');
     });
   }
 

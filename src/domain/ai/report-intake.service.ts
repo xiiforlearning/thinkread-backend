@@ -14,6 +14,7 @@ import {
 } from '../reports/listening-fields';
 import { Report, ReportType } from '../reports/report.entity';
 import { ReportsService, WeekProgress } from '../reports/reports.service';
+import { Lang, langOf } from '../students/language';
 import { Student } from '../students/student.entity';
 import { ReportDraft } from '../students/student.enums';
 import { StudentsService } from '../students/students.service';
@@ -127,7 +128,7 @@ export class ReportIntakeService {
         status: 'CLARIFY',
         draftId: draft.id,
         missingFields: missing,
-        question: this.question(missing, parsed.kind),
+        question: this.question(missing, parsed.kind, langOf(student)),
       };
     }
 
@@ -246,8 +247,26 @@ export class ReportIntakeService {
     });
   }
 
-  /** One friendly question covering every missing field. */
-  private question(missing: string[], kind: 'READING' | 'LISTENING'): string {
+  /** One friendly question covering every missing field, in the student's language. */
+  private question(missing: string[], kind: 'READING' | 'LISTENING', lang: Lang): string {
+    if (lang === 'en') {
+      const labelsEn: Record<string, string> = {
+        book_title: 'which book you read',
+        summary: 'what it was about — 2–3 sentences in your own words',
+        source_title: 'what exactly you listened to (the podcast or series)',
+        episode: 'which episode',
+        first_pass_pct: 'what percent you understood the first time',
+        second_pass_pct: 'what percent you understood after listening again',
+        listen_count: 'how many times you listened',
+        retelling: `a short retelling in your own words — 2–3 sentences in English (at least ${MIN_RETELLING_CHARS} characters)`,
+      };
+      const partsEn = missing.map((f) => labelsEn[f] ?? f);
+      const leadEn =
+        kind === 'READING'
+          ? 'Thanks! To count the reading, please add'
+          : 'Thanks! For your level we also need';
+      return `${leadEn}: ${partsEn.join('; ')}.`;
+    }
     const labels: Record<string, string> = {
       book_title: 'какую книгу ты читал',
       summary: 'о чём было прочитанное — 2–3 предложения своими словами',

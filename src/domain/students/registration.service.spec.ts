@@ -1,10 +1,10 @@
 import { Group } from '../groups/group.entity';
 import { GroupLevel } from '../groups/level';
 import { MembershipService } from '../membership/membership.service';
-import { studentMessages } from './messages';
+import { studentMessages, studentMessagesFor } from './messages';
 import { RegistrationService } from './registration.service';
 import { Student } from './student.entity';
-import { ArchiveReason, StudentStatus } from './student.enums';
+import { ArchiveReason, StudentLanguage, StudentStatus } from './student.enums';
 import { CreateStudentInput, StudentsService } from './students.service';
 
 const user = { telegramUserId: 100, username: 'nine_nine' };
@@ -80,7 +80,16 @@ describe('RegistrationService.resolve (Mini App auth)', () => {
       username: 'nine_nine',
       groupChatIds: [-1],
       level: GroupLevel.PRE_INTERMEDIATE,
+      language: StudentLanguage.EN,
     });
+  });
+
+  it('a new student is English whatever their Telegram language (English-only product)', async () => {
+    const { service, students } = make(null, [PRE]);
+    await service.resolve({ ...user, languageCode: 'ru' });
+    expect(students.create).toHaveBeenCalledWith(
+      expect.objectContaining({ language: StudentLanguage.EN }),
+    );
   });
 
   it('a teacher (group admin) is STAFF, not a new student — nothing is created', async () => {
@@ -162,10 +171,32 @@ describe('RegistrationService.setName', () => {
 });
 
 describe('RegistrationService.gate (bot)', () => {
-  it('points a PENDING_NAME student to the app', async () => {
+  it('points a PENDING_NAME student to the app, in English by default', async () => {
     const pending = student({ status: StudentStatus.PENDING_NAME, firstName: null });
     const { service } = make(pending);
-    expect(await service.gate(user)).toEqual({ kind: 'reply', text: studentMessages.finishInApp });
+    expect(await service.gate(user)).toEqual({
+      kind: 'reply',
+      status: 'PENDING_NAME',
+      text: studentMessagesFor('en').finishInApp,
+    });
+  });
+
+  it('answers in the stored language when there is one; a stranger gets the default', async () => {
+    const pending = student({
+      status: StudentStatus.PENDING_NAME,
+      firstName: null,
+      language: StudentLanguage.RU,
+    });
+    expect(await make(pending).service.gate(user)).toEqual({
+      kind: 'reply',
+      status: 'PENDING_NAME',
+      text: studentMessages.finishInApp,
+    });
+    expect(await make(null, []).service.gate({ ...user, languageCode: 'ru' })).toEqual({
+      kind: 'reply',
+      status: 'NOT_MEMBER',
+      text: studentMessagesFor('en').notAMember,
+    });
   });
 
   it('passes an active student through', async () => {

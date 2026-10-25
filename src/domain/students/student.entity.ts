@@ -10,13 +10,20 @@ import {
 import { bigintToNumber } from '../../common/transformers';
 import { GroupLevel } from '../groups/level';
 import { enumCheck } from '../../common/db-checks';
-import { ArchiveReason, DialogState, StudentKind, StudentStatus } from './student.enums';
+import {
+  ArchiveReason,
+  DialogState,
+  StudentKind,
+  StudentLanguage,
+  StudentStatus,
+} from './student.enums';
 
 @Entity({ name: 'students' })
 @Check('chk_students_kind', enumCheck('kind', StudentKind))
 @Check('chk_students_status', enumCheck('status', StudentStatus))
 @Check('chk_students_archive_reason', enumCheck('archive_reason', ArchiveReason))
 @Check('chk_students_level', enumCheck('level', GroupLevel))
+@Check('chk_students_language', enumCheck('language', StudentLanguage))
 export class Student {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -61,6 +68,10 @@ export class Student {
   /** Cached highest level among the student's groups; recomputed on membership checks. */
   @Column({ type: 'varchar', length: 20, nullable: true })
   level!: GroupLevel | null;
+
+  /** Interface language chosen in the Mini App (or Telegram's at registration); null = Russian. */
+  @Column({ type: 'varchar', length: 5, nullable: true })
+  language!: StudentLanguage | null;
 
   /** Added by hand without group membership — the monthly check does not archive them. */
   @Column({ type: 'boolean', name: 'manual_access', default: false })

@@ -14,7 +14,8 @@ import { WordLexicon } from '../words/word-lexicon.entity';
 import { Word } from '../words/word.entity';
 import { CardStage, WordPriority, WordStatus } from '../words/word.enums';
 import { CardAttempt, CardChannel, CardPrompt } from './card-attempt.entity';
-import { cardMessages } from './messages';
+import { Lang, langOf } from '../students/language';
+import { cardMessagesFor } from './messages';
 
 const DAY_MS = 86_400_000;
 
@@ -168,7 +169,7 @@ export class CardsService {
       await this.attempts.save(open);
       return null;
     }
-    return this.view(open, word, await this.today(student.id, now, timeZone));
+    return this.view(open, word, await this.today(student.id, now, timeZone), langOf(student));
   }
 
   /**
@@ -207,7 +208,7 @@ export class CardsService {
       ? ((await this.lexicon.findMany([word.lemma])).get(word.lemma) ?? null)
       : null;
     const shownBefore = recent.filter((a) => a.wordId === word.id && a.stage === word.stage).length;
-    const prompt = this.buildPrompt(word, lex, shownBefore);
+    const prompt = this.buildPrompt(word, lex, shownBefore, langOf(student));
     const attempt = await this.attempts.save(
       this.attempts.create({
         studentId: student.id,
@@ -221,7 +222,7 @@ export class CardsService {
         channel: CardChannel.MINI_APP,
       }),
     );
-    return this.view(attempt, word, await this.today(student.id, now, timeZone));
+    return this.view(attempt, word, await this.today(student.id, now, timeZone), langOf(student));
   }
 
   private forms(word: Word, lex: WordLexicon | null): string[] {
@@ -231,7 +232,13 @@ export class CardsService {
     return [...set];
   }
 
-  private buildPrompt(word: Word, lex: WordLexicon | null, shownBefore: number): CardPrompt {
+  private buildPrompt(
+    word: Word,
+    lex: WordLexicon | null,
+    shownBefore: number,
+    lang: Lang,
+  ): CardPrompt {
+    const m = cardMessagesFor(lang);
     const forms = this.forms(word, lex);
     const translation = word.translation ?? lex?.translation ?? null;
     if (word.stage === CardStage.GAP) {
@@ -249,19 +256,18 @@ export class CardsService {
       // No material for a gap yet (enrichment pending) — ask for the word by its translation.
     }
     if (word.stage === CardStage.OWN_SENTENCE) {
-      return { question: cardMessages.question[CardStage.OWN_SENTENCE], acceptedAnswers: forms };
+      return { question: m.question[CardStage.OWN_SENTENCE], acceptedAnswers: forms };
     }
     return {
-      question: translation
-        ? cardMessages.question[CardStage.TRANSLATION]
-        : 'Напиши это слово по-английски',
+      question: translation ? m.question[CardStage.TRANSLATION] : m.questionNoTranslation,
       hint:
         translation ?? (word.example ? (maskWord(word.example, forms) ?? undefined) : undefined),
       acceptedAnswers: forms,
     };
   }
 
-  private view(attempt: CardAttempt, word: Word, today: TodayCards): CardView {
+  private view(attempt: CardAttempt, word: Word, today: TodayCards, lang: Lang): CardView {
+    const m = cardMessagesFor(lang);
     const stage = attempt.stage;
     const gapLike = stage === CardStage.GAP && attempt.prompt.question.includes('___');
     return {
@@ -269,7 +275,7 @@ export class CardsService {
       wordId: word.id,
       word: word.word,
       stage,
-      stageLabel: cardMessages.stageLabel[stage],
+      stageLabel: m.stageLabel[stage],
       question: attempt.prompt.question,
       shown:
         stage === CardStage.OWN_SENTENCE
@@ -278,7 +284,7 @@ export class CardsService {
             ? null
             : (attempt.prompt.hint ?? null),
       hint: gapLike ? (attempt.prompt.hint ?? null) : null,
-      placeholder: cardMessages.placeholder[stage],
+      placeholder: m.placeholder[stage],
       canGiveUp: stage !== CardStage.OWN_SENTENCE,
       today,
     };
@@ -329,6 +335,7 @@ export class CardsService {
     timeZone: string,
   ): Promise<AnswerResult> {
     const { attempt, word } = await this.openAttempt(student, attemptId);
+    const m = cardMessagesFor(langOf(student));
     const accepted = (attempt.prompt.acceptedAnswers ?? [word.word]).map(normalizeAnswer);
     const given = answer === null ? '' : normalizeAnswer(answer);
     let correct = false;
@@ -340,10 +347,10 @@ export class CardsService {
           new RegExp(`(^|\\s)${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`).test(given),
         );
         const longEnough = given.split(' ').length >= 3;
-        if (!hasWord) feedback = cardMessages.missingWord(word.word);
-        else if (!longEnough) feedback = cardMessages.tooShort;
+        if (!hasWord) feedback = m.missingWord(word.word);
+        else if (!longEnough) feedback = m.tooShort;
         else {
-          const verdict = await this.sentences.check(student.id, word, answer);
+          const verdict = await this.sentences.check(student.id, word, answer, langOf(student));
           correct = verdict.ok;
           feedback = verdict.feedback;
         }
@@ -365,8 +372,8 @@ export class CardsService {
       correct,
       expected: word.word,
       message: correct
-        ? cardMessages.right(attempt.stage, word.word, learned)
-        : cardMessages.wrong(attempt.stage, word.word, word.translation, word.example),
+        ? m.right(attempt.stage, word.word, learned)
+        : m.wrong(attempt.stage, word.word, word.translation, word.example),
       feedback,
       advanced,
       learned,

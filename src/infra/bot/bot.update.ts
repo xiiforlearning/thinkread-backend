@@ -10,7 +10,8 @@ import { loginCodeMessages } from '../../domain/admins/messages';
 import { GroupsService } from '../../domain/groups/groups.service';
 import { GROUP_LEVELS, GroupLevel } from '../../domain/groups/level';
 import { LEVEL_LABELS, groupMessages } from '../../domain/groups/messages';
-import { studentMessages } from '../../domain/students/messages';
+import { DEFAULT_LANG, Lang, langOf } from '../../domain/students/language';
+import { studentMessagesFor } from '../../domain/students/messages';
 import { RegistrationService } from '../../domain/students/registration.service';
 import { StudentsService } from '../../domain/students/students.service';
 import { TeacherResolverService } from '../teacher/teacher-resolver.service';
@@ -144,15 +145,17 @@ export class BotUpdate {
     const gate = await this.registration.gate({
       telegramUserId: ctx.from.id,
       username: ctx.from.username ?? null,
+      languageCode: ctx.from.language_code ?? null,
     });
-    if (gate.kind === 'reply' && gate.text === studentMessages.staffInApp) {
+    if (gate.kind === 'reply' && gate.status === 'STAFF') {
       // Staff: any message is a request for the dashboard sign-in code.
       await ctx.reply(await this.staffLoginCode(ctx.from.id));
       return;
     }
-    const text = gate.kind === 'reply' ? gate.text : studentMessages.openApp;
-    const showButton = gate.kind === 'student' || text === studentMessages.finishInApp;
-    await ctx.reply(text, showButton ? this.openAppKeyboard() : undefined);
+    const lang: Lang = gate.kind === 'student' ? langOf(gate.student) : DEFAULT_LANG;
+    const text = gate.kind === 'reply' ? gate.text : studentMessagesFor(lang).openApp;
+    const showButton = gate.kind === 'student' || gate.status === 'PENDING_NAME';
+    await ctx.reply(text, showButton ? this.openAppKeyboard(lang) : undefined);
   }
 
   private async staffLoginCode(telegramUserId: number): Promise<string> {
@@ -167,9 +170,11 @@ export class BotUpdate {
   }
 
   /** A web_app button when the Mini App URL is configured; nothing otherwise. */
-  private openAppKeyboard(): ReturnType<typeof Markup.inlineKeyboard> | undefined {
+  private openAppKeyboard(lang: Lang): ReturnType<typeof Markup.inlineKeyboard> | undefined {
     const url = this.config.webAppUrl;
     if (!url) return undefined;
-    return Markup.inlineKeyboard([Markup.button.webApp(studentMessages.openAppButton, url)]);
+    return Markup.inlineKeyboard([
+      Markup.button.webApp(studentMessagesFor(lang).openAppButton, url),
+    ]);
   }
 }

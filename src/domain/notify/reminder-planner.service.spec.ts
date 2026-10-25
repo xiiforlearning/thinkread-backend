@@ -1,6 +1,7 @@
 import { globalConfig } from '../../config/global.config';
 import { ReminderKind } from '../norms/reminder-log.entity';
 import { Student } from '../students/student.entity';
+import { StudentLanguage } from '../students/student.enums';
 import { NotifyOptions } from './notifier.port';
 import { ReminderPlannerService } from './reminder-planner.service';
 
@@ -92,8 +93,18 @@ describe('ReminderPlannerService', () => {
     expect(run.skipped.done).toBe(2);
     expect(f.sent).toHaveLength(1);
     expect(f.sent[0].to).toBe(1);
-    expect(f.sent[0].text).toContain('3 слова'); // min(due 7, norm 5 − done 2)
-    expect(f.sent[0].options).toEqual({ openApp: true });
+    expect(f.sent[0].text).toContain('3 words'); // min(due 7, norm 5 − done 2)
+    expect(f.sent[0].options).toEqual({ openApp: true, lang: 'en' });
+  });
+
+  it('cards: a student with Russian stored is reminded in Russian', async () => {
+    const f = fakes({
+      students: [student({ telegramUserId: 1, language: StudentLanguage.RU })],
+      cards: { 's-1': { done: 2, due: 7 } },
+    });
+    await planner(f).runCards(NOW);
+    expect(f.sent[0].text).toContain('3 слова');
+    expect(f.sent[0].options).toEqual({ openApp: true, lang: 'ru' });
   });
 
   it('cards: skips calm mode, already-reminded (woven counts) and blocked students', async () => {
@@ -121,9 +132,9 @@ describe('ReminderPlannerService', () => {
     const run = await planner(f).runReports(NOW);
     expect(run.sent).toBe(1);
     expect(run.skipped.done).toBe(1);
-    expect(f.sent[0].text).toContain('чтение — ещё 2 из 3');
-    expect(f.sent[0].text).not.toContain('аудирование');
-    expect(f.sent[0].text).toContain('До конца недели 4 дня'); // Thursday
+    expect(f.sent[0].text).toContain('reading — 2 more of 3');
+    expect(f.sent[0].text).not.toContain('listening');
+    expect(f.sent[0].text).toContain('4 days left in the week'); // Thursday
   });
 
   it('reports: silent outside report days unless forced', async () => {
@@ -138,6 +149,6 @@ describe('ReminderPlannerService', () => {
     expect(quiet.skipped.notReportDay).toBe(1);
     const forced = await planner(f).runReports(monday, true);
     expect(forced.sent).toBe(1);
-    expect(f.sent[0].text).toContain('7 дней');
+    expect(f.sent[0].text).toContain('7 days left');
   });
 });

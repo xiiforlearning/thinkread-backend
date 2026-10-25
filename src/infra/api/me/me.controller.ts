@@ -17,6 +17,7 @@ import { AllowPendingName, CurrentStudent } from '../auth/principal';
 import {
   CalendarQueryDto,
   CalmModeDto,
+  LanguageDto,
   RecommendationIdsDto,
   RegisterDto,
   SpotCheckAnswerDto,
@@ -73,6 +74,17 @@ export class MeController {
     @Body() dto: RegisterDto,
   ): Promise<Record<string, unknown>> {
     const saved = await this.registration.setName(student, dto.firstName, dto.lastName);
+    return this.profile(saved);
+  }
+
+  @Patch('language')
+  @AllowPendingName()
+  @ApiOperation({ summary: 'Interface language (ru | en): the bot and card texts follow it' })
+  async language(
+    @CurrentStudent() student: Student,
+    @Body() dto: LanguageDto,
+  ): Promise<Record<string, unknown>> {
+    const saved = await this.students.setLanguage(student, dto.language);
     return this.profile(saved);
   }
 

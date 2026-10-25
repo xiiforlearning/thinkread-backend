@@ -99,6 +99,16 @@ export class TeacherChatDto {
   history?: ChatTurnDto[];
 }
 
+export class SchoolChatDto {
+  @IsString() @MinLength(1) @MaxLength(1000) question!: string;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => ChatTurnDto)
+  history?: ChatTurnDto[];
+}
+
 export class ParentReportDto {
   /** `YYYY-MM`; default — the current month. */
   @IsOptional() @Matches(/^\d{4}-(0[1-9]|1[0-2])$/) month?: string;

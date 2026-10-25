@@ -133,7 +133,7 @@ describe('ReportIntakeService', () => {
     expect(res.status).toBe('CLARIFY');
     if (res.status !== 'CLARIFY') return;
     expect(res.missingFields).toEqual(['retelling']);
-    expect(res.question).toContain('пересказ');
+    expect(res.question).toContain('retelling');
     expect(s.dialogState.reportDraft).toMatchObject({
       id: res.draftId,
       type: 'LISTENING',

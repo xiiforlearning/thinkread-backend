@@ -1,3 +1,5 @@
+import { Lang } from '../students/language';
+
 /**
  * Port for sending Telegram messages from domain services (owner summaries,
  * reminders). Implemented in infra/bot with dm_blocked handling.
@@ -7,6 +9,8 @@ export const NOTIFIER_PORT = Symbol('NOTIFIER_PORT');
 export interface NotifyOptions {
   /** Attach the "open the Mini App" button (when WEBAPP_URL is configured). */
   openApp?: boolean;
+  /** Language of the button caption; the product default when omitted. */
+  lang?: Lang;
 }
 
 export interface NotifierPort {

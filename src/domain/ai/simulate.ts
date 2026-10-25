@@ -348,3 +348,86 @@ export function parentReport(text: string): Record<string, unknown> {
     text: `За ${facts.period?.label ?? 'период'} ${name} сдал(а) ${t.reading ?? 0} отчётов о чтении и ${t.listening ?? 0} об аудировании: норма по чтению выполнена ${met.reading ?? 0} недели из ${met.of ?? 4}, по аудированию — ${met.listening ?? 0} из ${met.of ?? 4}. Прочитано около ${t.pages ?? 0} страниц${sources ? ` (${sources})` : ''}. В словарь добавлено ${v.addedInPeriod ?? 0} слов, выучено ${v.learnedInPeriod ?? 0}.`,
   };
 }
+
+interface SchoolFactsLike {
+  scope?: string;
+  norms?: { readingPerWeek?: number; listeningPerWeek?: number };
+  totals?: {
+    students?: number;
+    health?: { good?: number; warn?: number; bad?: number };
+    flagsNew?: number;
+    weeks?: Array<{ label?: string; reading?: number; listening?: number }>;
+  };
+  groups?: Array<{
+    title?: string;
+    students?: number;
+    weeks?: Array<{ label?: string; reading?: number; listening?: number }>;
+  }>;
+  students?: Array<{
+    name?: string;
+    groups?: string;
+    health?: string;
+    silentDays?: number;
+    weeks?: Array<[number, number]>;
+    metReading?: number;
+    metListening?: number;
+    flagsNew?: number;
+  }>;
+  missedThisWeek?: string[];
+  topReadersThisWeek?: Array<{ name?: string; pages?: number }>;
+  period?: { weeksOf?: number; labels?: string[] };
+}
+
+const pct = (x: number | undefined): string => `${Math.round((x ?? 0) * 100)}%`;
+
+/** Answers the owner / teacher from the school facts with templates: laggards, group comparison, totals. */
+export function schoolReply(text: string): Record<string, unknown> {
+  let facts: SchoolFactsLike = {};
+  let question = text;
+  try {
+    const parsed = JSON.parse(text) as { facts?: SchoolFactsLike; question?: string };
+    facts = parsed.facts ?? {};
+    question = String(parsed.question ?? '');
+  } catch {
+    /* plain text */
+  }
+  const q = question.toLowerCase();
+  const students = facts.students ?? [];
+  const of = Math.max(1, (facts.period?.weeksOf ?? 4) - 1); // full weeks, the current one excluded
+  const lastFull = (facts.totals?.weeks ?? []).slice(-2)[0];
+  if (/отста|слаб|проблем|кто не/.test(q)) {
+    const listening = /аудир|слуша/.test(q);
+    const behind = students
+      .filter(
+        (s) =>
+          (listening ? (s.metListening ?? 0) : (s.metReading ?? 0)) * 2 < of || s.health !== 'good',
+      )
+      .slice(0, 10);
+    if (behind.length === 0)
+      return {
+        text: 'По фактам отстающих нет: за полные недели периода норму держат все, здоровье у всех в норме.',
+      };
+    return {
+      text: `Отстают по ${listening ? 'аудированию' : 'чтению'} (${behind.length}): ${behind
+        .map(
+          (s) =>
+            `${s.name ?? '—'} (${s.groups || 'без группы'}) — норма ${listening ? (s.metListening ?? 0) : (s.metReading ?? 0)} из ${of} нед.${(s.silentDays ?? 0) >= 3 ? `, тишина ${s.silentDays} дн.` : ''}${(s.flagsNew ?? 0) > 0 ? `, пометок: ${s.flagsNew}` : ''}`,
+        )
+        .join('; ')}. Начать стоит с тех, у кого тишина дольше всего.`,
+    };
+  }
+  if (/сравн|групп/.test(q)) {
+    const groups = facts.groups ?? [];
+    if (groups.length === 0) return { text: 'В данных нет групп для сравнения.' };
+    const lines = groups.map((g) => {
+      const w = (g.weeks ?? []).slice(-2)[0];
+      return `${g.title ?? 'группа'} (${g.students ?? 0} студ.): чтение ${pct(w?.reading)}, аудирование ${pct(w?.listening)} за ${w?.label ?? 'прошлую неделю'}`;
+    });
+    return { text: `${lines.join('; ')}.` };
+  }
+  const h = facts.totals?.health ?? {};
+  const top = (facts.topReadersThisWeek ?? []).slice(0, 3);
+  return {
+    text: `Студентов: ${facts.totals?.students ?? students.length}. За ${lastFull?.label ?? 'прошлую неделю'} норму по чтению выполнили ${pct(lastFull?.reading)}, по аудированию ${pct(lastFull?.listening)}. Здоровье: активны ${h.good ?? 0}, отстают ${h.warn ?? 0}, проблема ${h.bad ?? 0}. Без отчётов на этой неделе: ${(facts.missedThisWeek ?? []).length}${top.length ? `. Больше всех читают: ${top.map((t) => `${t.name} (${t.pages} стр.)`).join(', ')}` : ''}. Новых пометок: ${facts.totals?.flagsNew ?? 0}.`,
+  };
+}

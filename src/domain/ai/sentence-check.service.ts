@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../../config/config.service';
+import { DEFAULT_LANG, Lang } from '../students/language';
 import { AiPurpose } from '../ai-log/ai-usage.entity';
 import { LLM_PORT, LlmPort } from './llm.port';
 import {
@@ -30,6 +31,7 @@ export class SentenceCheckService {
     studentId: string,
     word: { word: string; translation: string | null },
     sentence: string,
+    lang: Lang = DEFAULT_LANG,
   ): Promise<SentenceVerdict> {
     const model = this.config.aiModelDialog;
     try {
@@ -44,7 +46,12 @@ export class SentenceCheckService {
         messages: [
           {
             role: 'user',
-            content: JSON.stringify({ word: word.word, translation: word.translation, sentence }),
+            content: JSON.stringify({
+              word: word.word,
+              translation: word.translation,
+              sentence,
+              feedback_language: lang,
+            }),
           },
         ],
       });

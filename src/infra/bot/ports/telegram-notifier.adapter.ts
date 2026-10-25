@@ -4,7 +4,8 @@ import { Markup, Telegraf, TelegramError } from 'telegraf';
 import { AppConfigService } from '../../../config/config.service';
 import { globalConfig } from '../../../config/global.config';
 import { NotifierPort, NotifyOptions } from '../../../domain/notify/notifier.port';
-import { studentMessages } from '../../../domain/students/messages';
+import { DEFAULT_LANG } from '../../../domain/students/language';
+import { studentMessagesFor } from '../../../domain/students/messages';
 import { StudentsService } from '../../../domain/students/students.service';
 import { splitByNewlines } from '../utils/split-message';
 
@@ -32,7 +33,12 @@ export class TelegramNotifierAdapter implements NotifierPort {
           telegramUserId,
           chunk,
           last && url
-            ? Markup.inlineKeyboard([Markup.button.webApp(studentMessages.openAppButton, url)])
+            ? Markup.inlineKeyboard([
+                Markup.button.webApp(
+                  studentMessagesFor(options.lang ?? DEFAULT_LANG).openAppButton,
+                  url,
+                ),
+              ])
             : undefined,
         );
       }

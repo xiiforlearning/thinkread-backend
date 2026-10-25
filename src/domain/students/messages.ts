@@ -1,4 +1,25 @@
-export const studentMessages = {
+import { Lang } from './language';
+
+export interface StudentTexts {
+  notAMember: string;
+  askName: string;
+  askNameAgain: string;
+  welcome: (firstName: string) => string;
+  /** PENDING_NAME: the name is entered in the Mini App now. */
+  finishInApp: string;
+  /** Any text from an active student: the bot is only a door to the app. */
+  openApp: string;
+  openAppButton: string;
+  /** @BotFather "What can this bot do?" — shown above the Start button. */
+  botDescription: string;
+  /** @BotFather short description — in the profile and when the bot is shared. */
+  botShortDescription: string;
+  staffInApp: string;
+  archived: string;
+  restored: string;
+}
+
+const ru: StudentTexts = {
   notAMember: [
     'Привет! Я ThinkRead — бот для студентов Рустама.',
     'Я работаю только с участниками его учебных групп в Telegram, а тебя в них пока не вижу.',
@@ -23,19 +44,15 @@ export const studentMessages = {
       'Полноценный диалог я ещё дописываю, скоро заработает 🙂',
     ].join('\n'),
 
-  /** PENDING_NAME: the name is entered in the Mini App now. */
   finishInApp:
     'Почти готово! Открой приложение ThinkRead и напиши своё имя и фамилию — дальше всё там: отчёты, словарь и карточки.',
 
-  /** Any text from an active student: the bot is only a door to the app. */
   openApp:
     'Я здесь только напоминаю. Отчёты, слова и карточки — в приложении ThinkRead, открой его кнопкой ниже.',
 
   openAppButton: 'Открыть ThinkRead',
-  /** @BotFather "What can this bot do?" — shown above the Start button. */
   botDescription:
     'ThinkRead — помощник школы английского: отчёты о чтении и аудировании, личный словарь и карточки для повторения. Всё в приложении, нажми «Открыть ThinkRead».',
-  /** @BotFather short description — in the profile and when the bot is shared. */
   botShortDescription: 'Отчёты, словарь и карточки для студентов школы английского.',
   staffInApp: 'Вы учитель: ваш инструмент — дашборд. Откройте приложение, оно переведёт вас туда.',
 
@@ -44,3 +61,57 @@ export const studentMessages = {
 
   restored: 'С возвращением! Доступ восстановлен, словарь и история на месте.',
 };
+
+const en: StudentTexts = {
+  notAMember: [
+    "Hi! I'm ThinkRead, the bot for Rustam's students.",
+    "I only work with members of his Telegram study groups, and I can't see you in any of them yet.",
+    'If you study with Rustam, ask him to add you to the group and message me again.',
+  ].join('\n'),
+
+  askName: [
+    "Hi! I'm ThinkRead — I'll help with reading, listening and new words.",
+    '',
+    'First, write your real first and last name — not a nickname or an abbreviation — so your teacher can find you in the list. For example: Akmal Khadiev',
+  ].join('\n'),
+
+  askNameAgain:
+    "That doesn't look like a first and last name. Please write your real first and last name separated by a space, for example: Dilara Mikhaeva",
+
+  welcome: (firstName: string): string =>
+    [
+      `Great, ${firstName}! You're registered.`,
+      '',
+      "Just write to me as you go: what you read, what you listened to, which words you met — I'll understand and note it down. The weekly norm: 3 reading reports and 3 listening reports, plus a few cards a day.",
+      '',
+      "I'm still working on the full conversation, it will be ready soon 🙂",
+    ].join('\n'),
+
+  finishInApp:
+    'Almost there! Open the ThinkRead app and enter your first and last name — everything else is in there: reports, vocabulary and cards.',
+
+  openApp:
+    "I'm only here for reminders. Reports, words and cards live in the ThinkRead app — open it with the button below.",
+
+  openAppButton: 'Open ThinkRead',
+  botDescription:
+    'ThinkRead is the English school assistant: reading and listening reports, a personal vocabulary and review cards. Everything is in the app — tap "Open ThinkRead".',
+  botShortDescription: 'Reports, vocabulary and cards for the English school students.',
+  staffInApp:
+    "You're a teacher: your tool is the dashboard. Open the app and it will take you there.",
+
+  archived:
+    "Your access is paused: I can't see you in any of the study groups. As soon as you're back in a group everything is restored — your vocabulary and history are kept.",
+
+  restored: 'Welcome back! Access restored, your vocabulary and history are in place.',
+};
+
+export const studentTexts: Record<Lang, StudentTexts> = { ru, en };
+
+/** Texts in the student's language (Russian when nothing is chosen). */
+export function studentMessagesFor(lang: Lang): StudentTexts {
+  return studentTexts[lang];
+}
+
+/** The Russian texts — the school's default, used where no student is known (bot profile, staff). */
+export const studentMessages: StudentTexts = ru;

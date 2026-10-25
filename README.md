@@ -108,6 +108,13 @@ http://localhost:5173`), put that URL into `WEBAPP_URL`, `CORS_ORIGINS` and the 
 with the same URL. Details and the curl smoke table: `.claude/skills/local-run/SKILL.md`,
 `.claude/skills/api-smoke/SKILL.md`.
 
+## Student language
+
+The product is English for every student (decision 25.10.2026): bot replies, reminders, the Mini
+App button, card questions and feedback. The Russian texts are kept: `PATCH /me/language`
+`{ language: "ru" | "en" }` still stores a choice and `GET /me` returns it as `language`, but the
+Mini App shows no switch while `FIXED_LANG` is set (see `domain/students/language.ts`).
+
 ## Cards API (`/me/cards`)
 
 | Endpoint | What |
@@ -135,6 +142,7 @@ bot; 5 minutes, single use) — or the legacy Login Widget payload on `POST /aut
 | `GET /admin/membership-checks`, `POST …/run` | history of the monthly check; run now (owner, background) |
 | `GET/POST /admin/word-lists`, `GET/PATCH /admin/word-lists/:id` | teacher word lists with coverage (addressed / added / learned / hidden) |
 | `GET/PATCH /admin/settings`, `DELETE /admin/settings/:key` | owner overrides of norms, reminders, health thresholds, AI limits |
+| `POST /admin/chat` | the school-wide AI: a question about the whole school (owner) or the caller's groups (teacher), answered from computed facts |
 | `GET/POST /admin/staff`, `DELETE /admin/staff/:telegramUserId` | teachers: explicit grants plus group-title detection |
 | `GET /admin/ai-usage?month=YYYY-MM` | AI spend: totals, by purpose, top students |
 | `POST /admin/students/:id/chat`, `POST …/parent-report` | the teacher's AI about one student (facts computed by the system); the parents' report for a month |
