@@ -79,6 +79,10 @@ function fakes(over: Partial<Fakes> = {}): Fakes {
 }
 
 describe('ReminderPlannerService', () => {
+  const startsOn = globalConfig.norms.startsOn;
+  beforeAll(() => (globalConfig.norms.startsOn = ''));
+  afterAll(() => (globalConfig.norms.startsOn = startsOn));
+
   it('cards: reminds only students with due cards below the daily norm, with the app button', async () => {
     const f = fakes({
       students: [
@@ -95,6 +99,21 @@ describe('ReminderPlannerService', () => {
     expect(f.sent[0].to).toBe(1);
     expect(f.sent[0].text).toContain('3 words'); // min(due 7, norm 5 − done 2)
     expect(f.sent[0].options).toEqual({ openApp: true, lang: 'en' });
+  });
+
+  it('nothing goes out before norms.startsOn', async () => {
+    globalConfig.norms.startsOn = '2026-10-13';
+    try {
+      const f = fakes({
+        students: [student({ telegramUserId: 1 })],
+        cards: { 's-1': { done: 0, due: 7 } },
+      });
+      expect((await planner(f).runCards(NOW)).sent).toBe(0);
+      expect((await planner(f).runReports(NOW, true)).sent).toBe(0);
+      expect(f.sent).toHaveLength(0);
+    } finally {
+      globalConfig.norms.startsOn = '';
+    }
   });
 
   it('cards: a student with Russian stored is reminded in Russian', async () => {

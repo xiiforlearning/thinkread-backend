@@ -1,3 +1,4 @@
+import { globalConfig } from '../../config/global.config';
 import { Student } from '../students/student.entity';
 import { StudentStatus } from '../students/student.enums';
 import { GroupLevel } from '../groups/level';
@@ -56,6 +57,10 @@ function make(): SchoolFactsService {
 }
 
 describe('SchoolFactsService', () => {
+  const startsOn = globalConfig.norms.startsOn;
+  beforeAll(() => (globalConfig.norms.startsOn = ''));
+  afterAll(() => (globalConfig.norms.startsOn = startsOn));
+
   it('collects the whole school: weeks oldest first, per-student norms, groups and the no-shows', async () => {
     const facts = await make().collect({ studentIds: null, groupIds: null }, NOW);
     expect(facts.scope).toBe('school');

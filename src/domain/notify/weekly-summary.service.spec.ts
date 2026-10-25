@@ -1,3 +1,4 @@
+import { globalConfig } from '../../config/global.config';
 import { AdminRole } from '../admins/admin.entity';
 import { Flag } from '../flags/flag.entity';
 import { FlagKind, FlagStatus } from '../flags/flag.enums';
@@ -25,6 +26,10 @@ function student(id: string, name: string, lastActivityAt: Date | null): Student
 }
 
 describe('WeeklySummaryService', () => {
+  const startsOn = globalConfig.norms.startsOn;
+  beforeAll(() => (globalConfig.norms.startsOn = ''));
+  afterAll(() => (globalConfig.norms.startsOn = startsOn));
+
   const students = [
     student('s1', 'Малика Юсупова', new Date('2026-10-11T10:00:00Z')),
     student('s2', 'Фирдавс Каримов', new Date('2026-09-27T10:00:00Z')),
@@ -133,6 +138,21 @@ describe('WeeklySummaryService', () => {
 
     const second = await service.run(NOW);
     expect(second.flagged).toBe(0);
+  });
+
+  it('run(): the week before norms.startsOn is a grace week — no flags, no messages', async () => {
+    globalConfig.norms.startsOn = '2026-10-12'; // the Monday after the summarized week
+    const flagsBefore = raised.length;
+    const sentBefore = sent.length;
+    try {
+      const r = await service.run(NOW);
+      expect(r.flagged).toBe(0);
+      expect(r.sentTo).toEqual([]);
+      expect(raised).toHaveLength(flagsBefore);
+      expect(sent).toHaveLength(sentBefore);
+    } finally {
+      globalConfig.norms.startsOn = '';
+    }
   });
 
   it('weekLabel spans months', () => {

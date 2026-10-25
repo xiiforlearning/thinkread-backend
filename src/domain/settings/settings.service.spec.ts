@@ -32,6 +32,10 @@ describe('validateSetting', () => {
     expect(() => validateSetting('reminders.cardsTime', '25:00')).toThrow();
     expect(() => validateSetting('nope.key', 1)).toThrow();
     expect(() => validateSetting('norms.readingPerWeek', '3')).toThrow();
+    expect(validateSetting('norms.startsOn', '2026-10-26')).toBe('2026-10-26');
+    expect(validateSetting('norms.startsOn', '')).toBe('');
+    expect(() => validateSetting('norms.startsOn', '26.10.2026')).toThrow();
+    expect(() => validateSetting('norms.startsOn', '2026-13-40')).toThrow();
   });
 });
 

@@ -199,7 +199,9 @@ to add anything. Groups and students come over; words, reports and reading progr
    `WEBAPP_URL`. This gives the bot a Main Mini App, so `t.me/<bot>?startapp=…` opens the app
    right from a group chat (web_app buttons are not allowed in groups).
 6. **Dashboard → Groups**: set the level of every group, then «Check membership»: every student
-   gets the level of their group and the links are confirmed against Telegram.
+   gets the level of their group and the links are confirmed against Telegram. Settings →
+   «Count from» (`norms.startsOn`) is the first day that counts: until then nobody is silent,
+   no flags, no reminders, no Monday summary.
 7. **Announce in the groups**: `pnpm ops:announce` (dry run) and `pnpm ops:announce --send`.
    The post carries an «Open ThinkRead» button that opens the Mini App in the group; the app
    asks for the real first and last name (prefilled from the old one) and the student becomes
