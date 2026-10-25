@@ -8,7 +8,7 @@ import { CardsService } from '../cards/cards.service';
 import { FlagKind, FlagStatus } from '../flags/flag.enums';
 import { FlagsService } from '../flags/flags.service';
 import { GroupsService } from '../groups/groups.service';
-import { recentWeekStarts, weekBounds } from '../norms/week';
+import { normsStarted, recentWeekStarts, weekBounds } from '../norms/week';
 import { ReportsService } from '../reports/reports.service';
 import { Health, healthOf, silentDays } from '../students/health';
 import { displayNameOf } from '../students/name-validation';
@@ -169,6 +169,13 @@ export class WeeklySummaryService {
   async run(now = new Date()): Promise<WeeklySummaryRun> {
     const summary = await this.build(now, 1);
     let flagged = 0;
+    // The week before `norms.startsOn` is the grace week of the move: no flags, no messages.
+    const weekEnd = new Date(`${summary.weekStart}T12:00:00Z`);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+    if (!normsStarted(weekEnd, this.config.timezone)) {
+      this.logger.log(`weekly summary ${summary.weekLabel}: before norms.startsOn, skipped`);
+      return { summary, flagged: 0, sentTo: [] };
+    }
     for (const m of summary.missed) {
       const before = await this.flags.list({
         status: FlagStatus.NEW,

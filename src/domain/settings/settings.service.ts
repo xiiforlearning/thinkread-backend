@@ -9,7 +9,8 @@ import { Setting } from './setting.entity';
 type Rule =
   | { kind: 'int'; min: number; max: number }
   | { kind: 'number'; min: number; max: number }
-  | { kind: 'time' };
+  | { kind: 'time' }
+  | { kind: 'date' };
 
 /**
  * What the owner may change from the dashboard: a dotted path into
@@ -19,6 +20,7 @@ export const EDITABLE_SETTINGS: Record<string, Rule> = {
   'norms.readingPerWeek': { kind: 'int', min: 0, max: 14 },
   'norms.listeningPerWeek': { kind: 'int', min: 0, max: 14 },
   'norms.cardsPerDay': { kind: 'int', min: 0, max: 50 },
+  'norms.startsOn': { kind: 'date' },
   'cards.correctToAdvance': { kind: 'int', min: 1, max: 5 },
   'cards.stage3ToLearned': { kind: 'int', min: 0, max: 5 },
   'reminders.cardsTime': { kind: 'time' },
@@ -77,6 +79,14 @@ export function validateSetting(key: string, value: unknown): unknown {
   if (!rule) throw invalid(key, value);
   if (rule.kind === 'time') {
     if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value))
+      throw invalid(key, value);
+    return value;
+  }
+  if (rule.kind === 'date') {
+    // YYYY-MM-DD or empty (= no start date)
+    if (typeof value !== 'string') throw invalid(key, value);
+    if (value === '') return value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`)))
       throw invalid(key, value);
     return value;
   }

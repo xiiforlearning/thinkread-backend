@@ -1,3 +1,4 @@
+import { globalConfig } from '../../config/global.config';
 import { healthOf, silentDays } from './health';
 
 const DAY = 86_400_000;
@@ -5,6 +6,10 @@ const now = new Date('2026-10-05T12:00:00Z');
 const thresholds = { yellowInactiveDays: 4, redInactiveDays: 8 };
 
 describe('health', () => {
+  const startsOn = globalConfig.norms.startsOn;
+  beforeAll(() => (globalConfig.norms.startsOn = ''));
+  afterAll(() => (globalConfig.norms.startsOn = startsOn));
+
   it('counts whole days of silence, falling back to the registration date', () => {
     expect(
       silentDays({ lastActivityAt: new Date(now.getTime() - 3.9 * DAY), registeredAt: now }, now),
@@ -30,6 +35,14 @@ describe('health', () => {
     expect(healthOf(at(4), now, thresholds)).toBe('warn');
     expect(healthOf(at(7), now, thresholds)).toBe('warn');
     expect(healthOf(at(8), now, thresholds)).toBe('bad');
+  });
+
+  it('silence never starts before norms.startsOn (the grace week of the move)', () => {
+    const start = new Date(now.getTime() - 2 * DAY);
+    const old = { lastActivityAt: null, registeredAt: new Date(now.getTime() - 60 * DAY) };
+    expect(silentDays(old, now, start)).toBe(2);
+    expect(healthOf({ ...old, dmBlocked: false }, now, thresholds, start)).toBe('good');
+    expect(healthOf({ ...old, dmBlocked: false }, now, thresholds, null)).toBe('bad');
   });
 
   it('a blocked bot is always a problem', () => {

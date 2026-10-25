@@ -195,6 +195,11 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   /admin/weekly-summary[/run]` do the same on demand (owner; preview for staff).
 - `NotifierPort.sendToUser(id, text, { openApp })` attaches the Mini App button when `WEBAPP_URL`
   is set. Texts live in `domain/notify/messages.ts`.
+- **`norms.startsOn`** (owner setting, YYYY-MM-DD, default the Monday after the move to
+  ThinkRead): the school counts from this local day. Before it `silentDays()` reports 0 (health is
+  green for the migrated students), `WeeklySummaryService.run()` skips a week that ends earlier
+  (no `NORM_MISSED_WEEK`, nothing sent) and both reminder runs stay quiet (`normsStarted()` in
+  `norms/week.ts`). Empty = from the beginning.
 
 ### Teacher's AI (`domain/ai/teacher-chat.service.ts`)
 

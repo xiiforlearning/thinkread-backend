@@ -54,3 +54,24 @@ export function weekBounds(instant: Date, timeZone: string): WeekBounds {
   const to = fromZonedTime(`${nextMonday}T00:00:00`, timeZone);
   return { weekStart: start, from, to };
 }
+
+/**
+ * Has the school started counting by `instant` (local day ≥ `norms.startsOn`)? The week of the
+ * move to ThinkRead is a grace week: before the start date nobody is silent, no flags, no
+ * reminders, no Monday summary. An empty start date means "from the beginning".
+ */
+export function normsStarted(
+  instant: Date,
+  timeZone: string,
+  startsOn: string = globalConfig.norms.startsOn,
+): boolean {
+  return !startsOn || localDay(instant, timeZone) >= startsOn;
+}
+
+/** The start of counting as an instant (local midnight of `norms.startsOn`), or null when unset. */
+export function normsStartInstant(
+  timeZone: string,
+  startsOn: string = globalConfig.norms.startsOn,
+): Date | null {
+  return startsOn ? fromZonedTime(`${startsOn}T00:00:00`, timeZone) : null;
+}

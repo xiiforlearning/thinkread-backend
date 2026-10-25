@@ -12,6 +12,12 @@ export const globalConfig = {
     weekStartsOn: 1 as const,
     /** A second report of the same type on the same local day is refused (norm can't be closed in one evening). */
     maxReportsPerTypePerDay: 1,
+    /**
+     * The first local day the school counts (YYYY-MM-DD, owner setting). Before it nobody is
+     * "silent", the Monday summary raises no flags and sends nothing, reminders stay quiet —
+     * the week of the move to ThinkRead is a grace week. Empty = from the beginning.
+     */
+    startsOn: '2026-10-26',
   },
 
   cards: {
@@ -58,6 +64,9 @@ export const globalConfig = {
     yellowInactiveDays: 4,
     redInactiveDays: 8,
   },
+
+  /** The school's timezone for "today" / "this week" in the pure helpers; `TZ` overrides it at runtime. */
+  timezone: 'Asia/Tashkent',
 
   schedule: {
     membershipCheckCron: '0 10 1 * *',

@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { formatInTimeZone } from 'date-fns-tz';
 import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
+import { normsStarted } from '../norms/week';
 import { CardsService } from '../cards/cards.service';
 import { ReminderChannel, ReminderKind } from '../norms/reminder-log.entity';
 import { RemindersService } from '../norms/reminders.service';
@@ -44,6 +45,7 @@ export class ReminderPlannerService {
   async runCards(now = new Date()): Promise<ReminderRun> {
     const tz = this.config.timezone;
     const run = this.empty('CARDS', now, tz);
+    if (!normsStarted(now, tz)) return this.notStarted(run);
     const active = await this.students.findActive();
     run.candidates = active.length;
     let sentInBatch = 0;
@@ -97,6 +99,7 @@ export class ReminderPlannerService {
       run.skipped.notReportDay = 1;
       return run;
     }
+    if (!normsStarted(now, tz)) return this.notStarted(run);
     const active = await this.students.findActive();
     run.candidates = active.length;
     const daysLeft = 7 - (((weekday + 6) % 7) % 7); // Monday → 7 … Sunday → 1
@@ -152,6 +155,12 @@ export class ReminderPlannerService {
   private calm(s: Student, now: Date): boolean {
     const until = s.dialogState?.tiredUntil;
     return !!until && new Date(until).getTime() > now.getTime();
+  }
+
+  /** Before `norms.startsOn` (the grace week of the move) nothing goes out. */
+  private notStarted(run: ReminderRun): ReminderRun {
+    this.logger.log(`${run.kind} reminders ${run.day}: before norms.startsOn, skipped`);
+    return run;
   }
 
   private empty(kind: ReminderRun['kind'], now: Date, tz: string): ReminderRun {

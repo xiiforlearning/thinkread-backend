@@ -1,4 +1,5 @@
 import { globalConfig } from '../../config/global.config';
+import { normsStartInstant } from '../norms/week';
 
 /**
  * Student "health" — one function for the dashboard, the Mini App and the
@@ -20,12 +21,18 @@ export interface HealthThresholds {
 
 const DAY_MS = 86_400_000;
 
-/** Whole days since the last activity (registration counts as activity). */
+/**
+ * Whole days since the last activity (registration counts as activity). Silence never starts
+ * before `norms.startsOn`: the students moved over from the old bot are not "silent since
+ * August" on the first day of ThinkRead.
+ */
 export function silentDays(
   input: Pick<HealthInput, 'lastActivityAt' | 'registeredAt'>,
   now: Date,
+  startsOn: Date | null = normsStartInstant(globalConfig.timezone),
 ): number {
-  const last = input.lastActivityAt ?? input.registeredAt;
+  let last = input.lastActivityAt ?? input.registeredAt;
+  if (startsOn && startsOn > last) last = startsOn;
   return Math.max(0, Math.floor((now.getTime() - last.getTime()) / DAY_MS));
 }
 
@@ -33,9 +40,10 @@ export function healthOf(
   input: HealthInput,
   now: Date,
   thresholds: HealthThresholds = globalConfig.health,
+  startsOn: Date | null = normsStartInstant(globalConfig.timezone),
 ): Health {
   if (input.dmBlocked) return 'bad';
-  const silent = silentDays(input, now);
+  const silent = silentDays(input, now, startsOn);
   if (silent >= thresholds.redInactiveDays) return 'bad';
   if (silent >= thresholds.yellowInactiveDays) return 'warn';
   return 'good';
