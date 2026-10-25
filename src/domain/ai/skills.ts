@@ -15,9 +15,11 @@ import {
   parseListening,
   parseReading,
   schemaProps,
+  schoolReply,
   teacherReply,
   verdict,
 } from './simulate';
+import { SCHOOL_CHAT_SYSTEM_PROMPT, SCHOOL_REPLY_TOOL } from './school-chat.prompt';
 import { SPOT_CHECK_SYSTEM_PROMPT, SPOT_CHECK_TOOL } from './spot-check.prompt';
 import { TEACHER_CHAT_SYSTEM_PROMPT, TEACHER_REPLY_TOOL } from './teacher-chat.prompt';
 
@@ -124,6 +126,18 @@ export const AI_SKILLS: AiSkill[] = [
     example:
       '{"facts":{"student":{"name":"Акмаль Хадиев","firstName":"Акмаль","silentDays":0,"health":"good"},"norms":{"readingPerWeek":3,"listeningPerWeek":3,"cardsPerDay":5},"period":{"label":"последние 4 нед."},"weeksMet":{"reading":3,"listening":1,"of":4},"totals":{"reports":14,"reading":10,"listening":4,"pages":180,"sources":["Harry Potter"]},"vocabulary":{"total":42,"learned":9,"addedInPeriod":38,"learnedInPeriod":9},"stuckWords":[{"word":"resourceful","stage":2,"daysInLearning":31}],"flags":[]},"history":[],"question":"Что даётся хуже?"}',
     simulate: teacherReply,
+  },
+  {
+    name: 'school_chat',
+    title: 'AI по всей школе',
+    purpose: AiPurpose.SCHOOL_CHAT,
+    description:
+      'SchoolChatService.ask (дашборд, POST /admin/chat): вопрос владельца или учителя + блок facts по школе / их группам (нормы по неделям, здоровье, флаги, слова) → короткий ответ: кто отстаёт, сравнение групп, итоги недели.',
+    system: SCHOOL_CHAT_SYSTEM_PROMPT,
+    tool: SCHOOL_REPLY_TOOL,
+    example:
+      '{"facts":{"scope":"school","period":{"weeks":["2026-09-28","2026-10-05","2026-10-12","2026-10-19"],"labels":["28 сент – 4 окт","5–11 окт","12–18 окт","19–25 окт"],"currentWeek":"2026-10-19","weeksOf":4},"norms":{"readingPerWeek":3,"listeningPerWeek":3,"cardsPerDay":5},"totals":{"students":3,"health":{"good":2,"warn":0,"bad":1},"flagsNew":1,"weeks":[{"week":"2026-10-12","label":"12–18 окт","reading":0.67,"listening":0.33}]},"groups":[{"chatId":-1,"title":"Upper 16:00","level":"Upper-Intermediate","students":2,"health":{"good":2,"warn":0,"bad":0},"weeks":[{"week":"2026-10-12","label":"12–18 окт","reading":1,"listening":0.5}]},{"chatId":-2,"title":"IELTS I","level":"IELTS","students":1,"health":{"good":0,"warn":0,"bad":1},"weeks":[{"week":"2026-10-12","label":"12–18 окт","reading":0,"listening":0}]}],"students":[{"id":"s1","name":"Акмаль Хадиев","groups":"Upper 16:00","level":"Upper-Intermediate","health":"good","silentDays":0,"blockedBot":false,"weeks":[[3,2],[3,3],[3,1],[1,0]],"metReading":3,"metListening":1,"words":{"total":42,"learned":9},"flagsNew":0},{"id":"s2","name":"Фирдавс Каримов","groups":"IELTS I","level":"IELTS","health":"bad","silentDays":15,"blockedBot":false,"weeks":[[0,0],[1,0],[0,0],[0,0]],"metReading":0,"metListening":0,"words":{"total":5,"learned":0},"flagsNew":1}],"missedThisWeek":["Фирдавс Каримов"],"topReadersThisWeek":[{"name":"Акмаль Хадиев","pages":40}]},"history":[],"question":"Кто отстаёт по чтению?"}',
+    simulate: schoolReply,
   },
   {
     name: 'parent_report',

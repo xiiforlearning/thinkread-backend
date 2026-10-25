@@ -19,6 +19,8 @@ export enum AiPurpose {
   PARENT_REPORT = 'PARENT_REPORT',
   /** Teacher's AI chat about one student (dashboard). */
   TEACHER_CHAT = 'TEACHER_CHAT',
+  /** The school-wide AI: the owner about the school, a teacher about their groups (dashboard). */
+  SCHOOL_CHAT = 'SCHOOL_CHAT',
 }
 
 /** One row per Claude API call — for cost reporting and per-student daily limits. */

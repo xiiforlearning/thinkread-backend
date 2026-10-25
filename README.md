@@ -135,6 +135,7 @@ bot; 5 minutes, single use) — or the legacy Login Widget payload on `POST /aut
 | `GET /admin/membership-checks`, `POST …/run` | history of the monthly check; run now (owner, background) |
 | `GET/POST /admin/word-lists`, `GET/PATCH /admin/word-lists/:id` | teacher word lists with coverage (addressed / added / learned / hidden) |
 | `GET/PATCH /admin/settings`, `DELETE /admin/settings/:key` | owner overrides of norms, reminders, health thresholds, AI limits |
+| `POST /admin/chat` | the school-wide AI: a question about the whole school (owner) or the caller's groups (teacher), answered from computed facts |
 | `GET/POST /admin/staff`, `DELETE /admin/staff/:telegramUserId` | teachers: explicit grants plus group-title detection |
 | `GET /admin/ai-usage?month=YYYY-MM` | AI spend: totals, by purpose, top students |
 | `POST /admin/students/:id/chat`, `POST …/parent-report` | the teacher's AI about one student (facts computed by the system); the parents' report for a month |

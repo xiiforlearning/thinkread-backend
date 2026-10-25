@@ -203,6 +203,13 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   `parent_report`) answers `POST /admin/students/:id/parent-report` for a month. Nothing is
   stored; the dashboard keeps the chat history in memory. Both are AI skills (`teacher_chat`,
   `parent_report`) with simulators for `AI_MODE=fake`.
+- **School-wide AI** (`school-facts.service.ts`, `school-chat.service.ts`): `SchoolFactsService.collect()`
+  builds the facts of the whole school (owner) or the caller's groups (teacher): per-week norm
+  rates, health, new flags, per-student rows (reports per week, norms met, words), the no-shows
+  and top readers of the current week — batch queries only, no report texts.
+  `SchoolChatService.ask()` (`AiPurpose.SCHOOL_CHAT`, forced tool `school_reply {text}`) answers
+  `POST /admin/chat` («кто отстаёт», «сравни группы», итоги недели); skill `school_chat` with a
+  simulator. Usage is logged without a student.
 
 ### Ports (domain ↔ Telegram)
 
