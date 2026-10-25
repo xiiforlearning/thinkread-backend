@@ -32,10 +32,20 @@ interface LegacyDump {
   students: LegacyStudent[];
 }
 
+/** A word that can be a real name part: letters only (any alphabet), 2+ characters. Nicknames, emoji, "K." stay out. */
+const NAME_PART = /^\p{L}[\p{L}'’-]+$/u;
+
+/**
+ * The old bot stored the Telegram display name, often a nickname or emoji. Only parts that look
+ * like a name are prefilled; the Mini App asks for the rest.
+ */
 function splitName(full: string | null): { first: string | null; last: string | null } {
   const parts = (full ?? '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { first: null, last: null };
-  return { first: parts[0], last: parts.length > 1 ? parts.slice(1).join(' ') : null };
+  const first = parts[0] && NAME_PART.test(parts[0]) ? parts[0] : null;
+  const rest = parts.slice(1);
+  const last =
+    first && rest.length > 0 && rest.every((w) => NAME_PART.test(w)) ? rest.join(' ') : null;
+  return { first, last };
 }
 
 function readDump(): LegacyDump {
