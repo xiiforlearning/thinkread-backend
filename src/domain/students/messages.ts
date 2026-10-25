@@ -18,7 +18,7 @@ export interface StudentTexts {
   archived: string;
   restored: string;
   /** Posted in every study group once, when the school moves to ThinkRead (scripts/announce-groups.ts). */
-  groupAnnouncement: (botUsername: string) => string;
+  groupAnnouncement: (link: string) => string;
   groupAnnouncementButton: string;
 }
 
@@ -64,16 +64,16 @@ const ru: StudentTexts = {
 
   restored: 'С возвращением! Доступ восстановлен, словарь и история на месте.',
 
-  groupAnnouncement: (botUsername: string): string =>
+  groupAnnouncement: (link: string): string =>
     [
       'Бот обновился: теперь это ThinkRead 📚',
       '',
-      'Отчёты о чтении и аудировании, словарь и карточки — в приложении. Чтобы начать, открой бота и нажми «Открыть ThinkRead»:',
-      `https://t.me/${botUsername}?start=app`,
+      'Отчёты о чтении и аудировании, словарь и карточки — в приложении. Открой его по кнопке ниже или по ссылке:',
+      link,
       '',
       'В первый раз приложение попросит настоящие имя и фамилию — так учитель увидит тебя в списке.',
     ].join('\n'),
-  groupAnnouncementButton: 'Открыть бота',
+  groupAnnouncementButton: 'Открыть ThinkRead',
 };
 
 const en: StudentTexts = {
@@ -119,16 +119,16 @@ const en: StudentTexts = {
 
   restored: 'Welcome back! Access restored, your vocabulary and history are in place.',
 
-  groupAnnouncement: (botUsername: string): string =>
+  groupAnnouncement: (link: string): string =>
     [
       'The bot has been updated: meet ThinkRead 📚',
       '',
-      'Reading and listening reports, your vocabulary and review cards now live in the app. To start, open the bot and tap “Open ThinkRead”:',
-      `https://t.me/${botUsername}?start=app`,
+      'Reading and listening reports, your vocabulary and review cards now live in the app. Open it with the button below or by the link:',
+      link,
       '',
       'On the first visit the app asks for your real first and last name, so your teacher can find you in the list.',
     ].join('\n'),
-  groupAnnouncementButton: 'Open the bot',
+  groupAnnouncementButton: 'Open ThinkRead',
 };
 
 export const studentTexts: Record<Lang, StudentTexts> = { ru, en };

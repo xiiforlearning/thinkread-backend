@@ -34,7 +34,8 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `pnpm lint` / `pnpm lint:check` | ESLint + Prettier |
 | `pnpm test` | Jest |
 | `pnpm migration:run` / `migration:revert` / `migration:show` | Migrations |
-| `pnpm ops:announce [--send] [--only=<chatId,…>]` | Post the «we moved to ThinkRead» message in every active group (dry run without `--send`) |
+| `pnpm ops:import-legacy [--dry-run] [file.json]` | Load the old bot's groups and students (`scripts/legacy-export.sql` results) |
+| `pnpm ops:announce [--send] [--only=<chatId,…>] [--via-chat]` | Post the «we moved to ThinkRead» message in every active group (dry run without `--send`) |
 
 ## Environment
 
@@ -175,27 +176,33 @@ button «Открыть ThinkRead», profile texts, no slash commands); nothing 
 ## Migration from the old bot (english-bot)
 
 The school keeps the old bot's token: the bot is already in every study group, so no group has
-to add anything. Groups and students come over by SQL; words, reports and reading progress do
-not (customer decision 25.10.2026). Order matters:
+to add anything. Groups and students come over; words, reports and reading progress do not
+(customer decision 25.10.2026). Order matters:
 
 1. **Stop the old bot** (its deployment), otherwise two processes poll one token.
-2. **Export from the old database** — `scripts/legacy-export.sql` prints ready SQL for the new one:
+2. **Export from the old database**: the two queries in `scripts/legacy-export.sql` return two
+   JSON documents (active groups with their teachers; the students of those groups).
+3. **Import into the new one** from the service shell, with the two results in one file
+   `{ "groups": [...], "students": [...] }`:
    ```bash
-   psql "$OLD_DATABASE_URL" -At -v owner_telegram_id=<ADMIN_TELEGRAM_ID> \
-     -f scripts/legacy-export.sql > legacy.sql
+   pnpm ops:import-legacy --dry-run legacy.json   # what would happen
+   pnpm ops:import-legacy legacy.json             # or: pnpm ops:import-legacy < legacy.json
    ```
-   Active groups (chat id, title, teachers) and their students as `PENDING_NAME` with the old
-   name split into first / last as a prefill; the owner and the teachers are skipped.
-3. **Import into the new database**: `psql "$DATABASE_URL" -f legacy.sql` (re-runnable).
+   Groups keep chat id, title and teachers (level unset); students become `PENDING_NAME` with
+   the old name split into first / last as a prefill; the owner (`ADMIN_TELEGRAM_ID`) and the
+   teachers are skipped. Re-runnable.
 4. **Point ThinkRead at the old token**: `BOT_TOKEN` of the old bot, deploy. At boot the bot
    rewrites its menu button, profile texts and commands for ThinkRead.
-5. **Dashboard → Groups**: set the level of every group, then «Check membership»: every student
+5. **@BotFather → /mybots → Bot Settings → Configure Mini App → Enable Mini App**, URL =
+   `WEBAPP_URL`. This gives the bot a Main Mini App, so `t.me/<bot>?startapp=…` opens the app
+   right from a group chat (web_app buttons are not allowed in groups).
+6. **Dashboard → Groups**: set the level of every group, then «Check membership»: every student
    gets the level of their group and the links are confirmed against Telegram.
-6. **Announce in the groups**: `pnpm ops:announce` (dry run) and `pnpm ops:announce --send`
-   from the service shell. The post links to `t.me/<bot>?start=app`; the bot answers with the
-   «Open ThinkRead» button, the Mini App asks for the real first and last name (prefilled from
-   the old name) and the student becomes ACTIVE. Until then the dashboard lists them as
-   pending; reminders go only to ACTIVE students.
+7. **Announce in the groups**: `pnpm ops:announce` (dry run) and `pnpm ops:announce --send`.
+   The post carries an «Open ThinkRead» button that opens the Mini App in the group; the app
+   asks for the real first and last name (prefilled from the old one) and the student becomes
+   ACTIVE. `--via-chat` makes the button open the private chat instead, if step 5 is skipped.
+   Until then the dashboard lists them as pending; reminders go only to ACTIVE students.
 
 ## Mini App and dashboard (separate repository)
 

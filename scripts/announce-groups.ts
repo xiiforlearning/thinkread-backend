@@ -1,7 +1,9 @@
 /**
  * One-off: post the "we moved to ThinkRead" message in every active study group, with a button
- * that opens the bot in private chat (`?start=app` → the bot answers with the Mini App button;
- * web_app buttons are not allowed in groups, so the deep link does the job).
+ * that opens the Mini App right there (`https://t.me/<bot>?startapp=welcome`). web_app buttons
+ * are not allowed in groups; this link works once the bot has a Main Mini App in @BotFather
+ * (/mybots → Bot Settings → Configure Mini App → Enable, URL = WEBAPP_URL). With
+ * `--via-chat` the button opens the private chat instead (`?start=app`), no BotFather step.
  *
  *   pnpm ops:announce            # dry run: lists the groups and prints the text
  *   pnpm ops:announce --send     # really posts, one group per second
@@ -31,10 +33,11 @@ async function main(): Promise<void> {
   const bot = new Telegraf(token);
   const me = await bot.telegram.getMe();
   const texts = studentMessagesFor(DEFAULT_LANG);
-  const text = texts.groupAnnouncement(me.username);
-  const keyboard = Markup.inlineKeyboard([
-    Markup.button.url(texts.groupAnnouncementButton, `https://t.me/${me.username}?start=app`),
-  ]);
+  const link = process.argv.includes('--via-chat')
+    ? `https://t.me/${me.username}?start=app`
+    : `https://t.me/${me.username}?startapp=welcome`;
+  const text = texts.groupAnnouncement(link);
+  const keyboard = Markup.inlineKeyboard([Markup.button.url(texts.groupAnnouncementButton, link)]);
 
   const ds = await dataSource.initialize();
   const groups = (await ds.getRepository(Group).find({ where: { isActive: true } })).filter(

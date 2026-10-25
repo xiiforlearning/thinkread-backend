@@ -32,7 +32,8 @@
     "dev:seed": "ts-node --transpile-only scripts/seed-dev.ts",
     "verify": "pnpm lint:check && pnpm build && pnpm test",
     "ai:skill": "ts-node --transpile-only scripts/ai-skill.ts",
-    "ops:announce": "ts-node --transpile-only scripts/announce-groups.ts"
+    "ops:announce": "ts-node --transpile-only scripts/announce-groups.ts",
+    "ops:import-legacy": "ts-node --transpile-only scripts/import-legacy.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
