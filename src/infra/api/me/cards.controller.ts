@@ -16,7 +16,6 @@ function queueView(q: QueueItem): Record<string, unknown> {
   return {
     id: q.word.id,
     word: q.word.word,
-    translation: q.word.translation,
     stage: q.word.stage,
     priority: q.word.priority,
     source: q.word.source,

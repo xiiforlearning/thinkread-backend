@@ -24,6 +24,13 @@ export interface ParsedListening {
 
 export type ParsedReport = ParsedReading | ParsedListening;
 
+/**
+ * How the model must write the words that go into the dictionary (customer, 25.10.2026): the
+ * dictionary form, not the form met in the text, and no context prepositions glued on.
+ */
+export const NEW_WORDS_DESCRIPTION =
+  'Новые английские слова и фразы, каждое в словарной форме: глагол — инфинитив без to (frowned → frown, was staggering → stagger), существительное — единственное число (owls → owl), прилагательное — положительная степень. Фразовый глагол или устойчивое выражение сохраняй целиком только если без частицы меняется смысл (give up, look after, run out of); обычный глагол с контекстным предлогом записывай одним словом (stagger away from the scene → stagger, looked at → look). Без переводов, без дубликатов.';
+
 const READING_SCHEMA: Anthropic.Tool.InputSchema = {
   type: 'object',
   properties: {
@@ -33,7 +40,7 @@ const READING_SCHEMA: Anthropic.Tool.InputSchema = {
     new_words: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Новые английские слова и фразы',
+      description: NEW_WORDS_DESCRIPTION,
     },
   },
   required: ['book_title', 'pages', 'summary', 'new_words'],
@@ -56,7 +63,7 @@ const LISTENING_SCHEMA: Anthropic.Tool.InputSchema = {
       description: 'Пересказ содержания словами студента, дословно',
     },
     unclear_parts: { type: 'array', items: { type: 'string' } },
-    new_words: { type: 'array', items: { type: 'string' } },
+    new_words: { type: 'array', items: { type: 'string' }, description: NEW_WORDS_DESCRIPTION },
   },
   required: [
     'source_title',
@@ -82,6 +89,6 @@ export function parseTool(kind: 'READING' | 'LISTENING'): Anthropic.Tool {
 
 /** Stable per kind — cached. */
 export const PARSE_SYSTEM_PROMPT: Record<'READING' | 'LISTENING', string> = {
-  READING: `Ты извлекаешь поля из отчёта студента о прочитанном (школа английского, отчёты по-русски с английскими словами). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты и числа — только если названы явно («половину» = 50). summary — его описание содержания, без твоих добавлений. new_words — английские слова и фразы, по одному, без переводов. Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
-  LISTENING: `Ты извлекаешь поля из отчёта студента об аудировании (подкаст или сериал; школа английского, отчёты по-русски с английскими словами). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты — только если названы явно («половину» = 50, «почти всё» — null). retelling — его пересказ содержания дословно (на любом языке), а не название. new_words — английские слова и фразы, по одному, без переводов. Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
+  READING: `Ты извлекаешь поля из отчёта студента о прочитанном (школа английского, отчёты по-русски с английскими словами). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты и числа — только если названы явно («половину» = 50). summary — его описание содержания, без твоих добавлений. new_words — английские слова и фразы, по одному, без переводов, в словарной форме (frowned → frown, owls → owl); фразовые глаголы целиком только когда частица меняет смысл, иначе одно слово (stagger away from → stagger). Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
+  LISTENING: `Ты извлекаешь поля из отчёта студента об аудировании (подкаст или сериал; школа английского, отчёты по-русски с английскими словами). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты — только если названы явно («половину» = 50, «почти всё» — null). retelling — его пересказ содержания дословно (на любом языке), а не название. new_words — английские слова и фразы, по одному, без переводов, в словарной форме (frowned → frown, owls → owl); фразовые глаголы целиком только когда частица меняет смысл, иначе одно слово (stagger away from → stagger). Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
 };
