@@ -5,17 +5,41 @@ import { IsString, MaxLength, MinLength } from 'class-validator';
 import { AppConfigService } from '../../../config/config.service';
 import { CardsService, QueueItem } from '../../../domain/cards/cards.service';
 import { Student } from '../../../domain/students/student.entity';
+import { CardStage, WordPriority } from '../../../domain/words/word.enums';
 import { JwtAuthGuard, StudentGuard } from '../auth/guards';
 import { CurrentStudent } from '../auth/principal';
+
+/** Enough for any realistic backlog; the queue screen lists all of it. */
+const QUEUE_LIMIT = 300;
 
 class CardAnswerDto {
   @IsString() @MinLength(1) @MaxLength(500) answer!: string;
 }
 
-function queueView(q: QueueItem): Record<string, unknown> {
+/** Only numbers reach the cards screen: the words themselves would be the answers of the next cards. */
+export function queueCounts(queue: QueueItem[]): {
+  due: number;
+  overdue: number;
+  priority: number;
+} {
+  return {
+    due: queue.length,
+    overdue: queue.filter((q) => q.overdue).length,
+    priority: queue.filter((q) => q.word.priority === WordPriority.HIGH).length,
+  };
+}
+
+/**
+ * The queue screen: the order the cards will come in, with what the student may see without
+ * a spoiler — the translation on stages 1–2 (the card's question side) and the word on stage 3
+ * (the card shows it anyway).
+ */
+export function queueEntryView(q: QueueItem): Record<string, unknown> {
+  const askedForWord = q.word.stage !== CardStage.OWN_SENTENCE;
   return {
     id: q.word.id,
-    word: q.word.word,
+    label: askedForWord ? (q.word.translation ?? '…') : q.word.word,
+    word: askedForWord ? null : q.word.word,
     stage: q.word.stage,
     priority: q.word.priority,
     source: q.word.source,
@@ -38,17 +62,27 @@ export class MeCardsController {
 
   @Get()
   @ApiOperation({
-    summary: "Today's norm, the queue preview and the card currently shown (if any)",
+    summary: "Today's norm, the queue counts and the card currently shown (if any)",
   })
   async state(@CurrentStudent() student: Student): Promise<Record<string, unknown>> {
     const now = new Date();
     const tz = this.config.timezone;
     const [today, queue, current] = await Promise.all([
       this.cards.today(student.id, now, tz),
-      this.cards.queue(student.id, now, tz, 10),
+      this.cards.queue(student.id, now, tz, QUEUE_LIMIT),
       this.cards.current(student, now, tz),
     ]);
-    return { today, queue: queue.map(queueView), current };
+    return { today, queue: queueCounts(queue), current };
+  }
+
+  @Get('queue')
+  @ApiOperation({
+    summary:
+      'The queue in card order, without answers: translation on stages 1–2, the word on stage 3',
+  })
+  async queue(@CurrentStudent() student: Student): Promise<Record<string, unknown>[]> {
+    const queue = await this.cards.queue(student.id, new Date(), this.config.timezone, QUEUE_LIMIT);
+    return queue.map(queueEntryView);
   }
 
   @Post('next')
