@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsIn,
   IsInt,
@@ -48,8 +49,10 @@ export class ReviewFlagDto {
     | FlagStatus.DISMISSED;
 }
 
-export class GroupLevelDto {
-  @IsEnum(GroupLevel) level!: GroupLevel;
+export class GroupPatchDto {
+  @IsOptional() @IsEnum(GroupLevel) level?: GroupLevel;
+  /** false = the bot is no longer in this chat (or the chat is retired): hide it and stop checking it. */
+  @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
 export class CreateWordListDto {

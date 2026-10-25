@@ -25,7 +25,7 @@ import { StudentsService } from '../../../domain/students/students.service';
 import { MembershipCron } from '../../scheduler/membership.cron';
 import { JwtAuthGuard } from '../auth/guards';
 import { CurrentPrincipal, Principal, Roles } from '../auth/principal';
-import { GroupLevelDto } from './dto';
+import { GroupPatchDto } from './dto';
 import { AdminScopeService } from './scope';
 import { groupView, membershipCheckView } from './serializers';
 
@@ -92,18 +92,21 @@ export class AdminGroupsController {
 
   @Patch('groups/:chatId')
   @ApiOperation({
-    summary: 'Owner: set the level of a group (bound to the chat id, not the title)',
+    summary:
+      'Owner: set the level of a group (bound to the chat id, not the title) or deactivate it',
   })
-  async setLevel(
+  async patch(
     @CurrentPrincipal() principal: Principal,
     @Param('chatId', ParseIntPipe) chatId: number,
-    @Body() dto: GroupLevelDto,
+    @Body() dto: GroupPatchDto,
   ): Promise<Record<string, unknown>> {
     const scope = await this.scope.resolve(principal);
     this.scope.assertOwner(scope);
     const group = await this.groups.findById(chatId);
     if (!group) throw notFound(chatId);
-    await this.groups.setLevel(chatId, dto.level);
+    if (dto.level !== undefined) await this.groups.setLevel(chatId, dto.level);
+    if (dto.isActive === false) await this.groups.deactivate(chatId);
+    if (dto.isActive === true) await this.groups.upsert(chatId, group.title);
     const fresh = await this.groups.findById(chatId);
     return groupView(fresh ?? group, { members: 0, teachers: [], week: null });
   }
