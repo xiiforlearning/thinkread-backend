@@ -34,6 +34,7 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `pnpm lint` / `pnpm lint:check` | ESLint + Prettier |
 | `pnpm test` | Jest |
 | `pnpm migration:run` / `migration:revert` / `migration:show` | Migrations |
+| `pnpm ops:announce [--send] [--only=<chatId,…>]` | Post the «we moved to ThinkRead» message in every active group (dry run without `--send`) |
 
 ## Environment
 
@@ -170,6 +171,31 @@ The frontend is static and lives on Vercel (see its repository); `WEBAPP_URL` is
 root and `CORS_ORIGINS` its origin. At boot the bot configures itself from `WEBAPP_URL` (menu
 button «Открыть ThinkRead», profile texts, no slash commands); nothing else is needed in
 @BotFather — the dashboard signs in with a one-time code the bot sends in Telegram.
+
+## Migration from the old bot (english-bot)
+
+The school keeps the old bot's token: the bot is already in every study group, so no group has
+to add anything. Groups and students come over by SQL; words, reports and reading progress do
+not (customer decision 25.10.2026). Order matters:
+
+1. **Stop the old bot** (its deployment), otherwise two processes poll one token.
+2. **Export from the old database** — `scripts/legacy-export.sql` prints ready SQL for the new one:
+   ```bash
+   psql "$OLD_DATABASE_URL" -At -v owner_telegram_id=<ADMIN_TELEGRAM_ID> \
+     -f scripts/legacy-export.sql > legacy.sql
+   ```
+   Active groups (chat id, title, teachers) and their students as `PENDING_NAME` with the old
+   name split into first / last as a prefill; the owner and the teachers are skipped.
+3. **Import into the new database**: `psql "$DATABASE_URL" -f legacy.sql` (re-runnable).
+4. **Point ThinkRead at the old token**: `BOT_TOKEN` of the old bot, deploy. At boot the bot
+   rewrites its menu button, profile texts and commands for ThinkRead.
+5. **Dashboard → Groups**: set the level of every group, then «Check membership»: every student
+   gets the level of their group and the links are confirmed against Telegram.
+6. **Announce in the groups**: `pnpm ops:announce` (dry run) and `pnpm ops:announce --send`
+   from the service shell. The post links to `t.me/<bot>?start=app`; the bot answers with the
+   «Open ThinkRead» button, the Mini App asks for the real first and last name (prefilled from
+   the old name) and the student becomes ACTIVE. Until then the dashboard lists them as
+   pending; reminders go only to ACTIVE students.
 
 ## Mini App and dashboard (separate repository)
 

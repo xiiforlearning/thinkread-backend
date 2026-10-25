@@ -233,6 +233,13 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 - The Mini App keeps its own dictionaries (`src/i18n/`, ru and en complete); `LanguageSync`
   applies `profile.language` only when the switch is enabled.
 
+### Migration from the old bot
+
+`scripts/legacy-export.sql` (run on the old database) prints the inserts for groups, students
+(`PENDING_NAME`, name prefilled) and `student_groups`; `pnpm ops:announce --send` posts the
+move-over message with a `?start=app` deep link in every active group (web_app buttons are not
+allowed in groups). Steps and order: README «Migration from the old bot».
+
 ### Ports (domain ↔ Telegram)
 
 Domain services never import telegraf. They depend on small interfaces —

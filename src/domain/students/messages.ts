@@ -17,6 +17,9 @@ export interface StudentTexts {
   staffInApp: string;
   archived: string;
   restored: string;
+  /** Posted in every study group once, when the school moves to ThinkRead (scripts/announce-groups.ts). */
+  groupAnnouncement: (botUsername: string) => string;
+  groupAnnouncementButton: string;
 }
 
 const ru: StudentTexts = {
@@ -60,6 +63,17 @@ const ru: StudentTexts = {
     'Твой доступ приостановлен: я не вижу тебя ни в одной из учебных групп. Как только ты вернёшься в группу, всё восстановится — словарь и история на месте.',
 
   restored: 'С возвращением! Доступ восстановлен, словарь и история на месте.',
+
+  groupAnnouncement: (botUsername: string): string =>
+    [
+      'Бот обновился: теперь это ThinkRead 📚',
+      '',
+      'Отчёты о чтении и аудировании, словарь и карточки — в приложении. Чтобы начать, открой бота и нажми «Открыть ThinkRead»:',
+      `https://t.me/${botUsername}?start=app`,
+      '',
+      'В первый раз приложение попросит настоящие имя и фамилию — так учитель увидит тебя в списке.',
+    ].join('\n'),
+  groupAnnouncementButton: 'Открыть бота',
 };
 
 const en: StudentTexts = {
@@ -104,6 +118,17 @@ const en: StudentTexts = {
     "Your access is paused: I can't see you in any of the study groups. As soon as you're back in a group everything is restored — your vocabulary and history are kept.",
 
   restored: 'Welcome back! Access restored, your vocabulary and history are in place.',
+
+  groupAnnouncement: (botUsername: string): string =>
+    [
+      'The bot has been updated: meet ThinkRead 📚',
+      '',
+      'Reading and listening reports, your vocabulary and review cards now live in the app. To start, open the bot and tap “Open ThinkRead”:',
+      `https://t.me/${botUsername}?start=app`,
+      '',
+      'On the first visit the app asks for your real first and last name, so your teacher can find you in the list.',
+    ].join('\n'),
+  groupAnnouncementButton: 'Open the bot',
 };
 
 export const studentTexts: Record<Lang, StudentTexts> = { ru, en };
