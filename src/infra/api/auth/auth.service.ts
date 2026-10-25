@@ -62,7 +62,11 @@ export class AuthService {
     );
     const staff = await this.access.staffRole(user.id);
     const { status, student } = await this.registration.resolve(
-      { telegramUserId: user.id, username: user.username ?? null },
+      {
+        telegramUserId: user.id,
+        username: user.username ?? null,
+        languageCode: user.language_code ?? null,
+      },
       { staff: staff !== null },
     );
     const roles: ApiRole[] = [];

@@ -108,6 +108,13 @@ http://localhost:5173`), put that URL into `WEBAPP_URL`, `CORS_ORIGINS` and the 
 with the same URL. Details and the curl smoke table: `.claude/skills/local-run/SKILL.md`,
 `.claude/skills/api-smoke/SKILL.md`.
 
+## Student language
+
+`PATCH /me/language` `{ language: "ru" | "en" }` switches the interface language; the profile
+(`GET /me`) returns it as `language` (null until chosen — a new student inherits Telegram's). The
+bot's replies, reminders, the Mini App button, card questions and feedback follow it; the Mini App
+has its own dictionaries and applies the profile's language on login.
+
 ## Cards API (`/me/cards`)
 
 | Endpoint | What |

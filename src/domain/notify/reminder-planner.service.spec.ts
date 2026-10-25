@@ -1,6 +1,7 @@
 import { globalConfig } from '../../config/global.config';
 import { ReminderKind } from '../norms/reminder-log.entity';
 import { Student } from '../students/student.entity';
+import { StudentLanguage } from '../students/student.enums';
 import { NotifyOptions } from './notifier.port';
 import { ReminderPlannerService } from './reminder-planner.service';
 
@@ -93,7 +94,17 @@ describe('ReminderPlannerService', () => {
     expect(f.sent).toHaveLength(1);
     expect(f.sent[0].to).toBe(1);
     expect(f.sent[0].text).toContain('3 слова'); // min(due 7, norm 5 − done 2)
-    expect(f.sent[0].options).toEqual({ openApp: true });
+    expect(f.sent[0].options).toEqual({ openApp: true, lang: 'ru' });
+  });
+
+  it('cards: an English-speaking student is reminded in English', async () => {
+    const f = fakes({
+      students: [student({ telegramUserId: 1, language: StudentLanguage.EN })],
+      cards: { 's-1': { done: 2, due: 7 } },
+    });
+    await planner(f).runCards(NOW);
+    expect(f.sent[0].text).toContain('3 words');
+    expect(f.sent[0].options).toEqual({ openApp: true, lang: 'en' });
   });
 
   it('cards: skips calm mode, already-reminded (woven counts) and blocked students', async () => {

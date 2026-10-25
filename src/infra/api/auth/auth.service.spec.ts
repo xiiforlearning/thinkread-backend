@@ -8,7 +8,7 @@ const TOKEN = '123456:ABC-DEF';
 function initDataFor(id: number): string {
   const fields: Record<string, string> = {
     auth_date: String(Math.floor(Date.now() / 1000)),
-    user: JSON.stringify({ id, username: 'u' + id }),
+    user: JSON.stringify({ id, username: 'u' + id, language_code: 'en' }),
   };
   const check = Object.entries(fields)
     .sort(([a], [b]) => (a < b ? -1 : 1))
@@ -47,7 +47,7 @@ describe('AuthService.webApp', () => {
     expect(res.status).toBe('ACTIVE');
     expect(res.roles).toEqual(['STUDENT']);
     expect(registration.resolve).toHaveBeenCalledWith(
-      { telegramUserId: 100, username: 'u100' },
+      { telegramUserId: 100, username: 'u100', languageCode: 'en' },
       { staff: false },
     );
     const principal = await auth.verify(res.token as string);
@@ -89,7 +89,7 @@ describe('AuthService.webApp', () => {
     const { auth, registration } = make('STAFF', null, 'TEACHER');
     const res = await auth.webApp(initDataFor(105));
     expect(registration.resolve).toHaveBeenCalledWith(
-      { telegramUserId: 105, username: 'u105' },
+      { telegramUserId: 105, username: 'u105', languageCode: 'en' },
       { staff: true },
     );
     expect(res.status).toBe('STAFF');

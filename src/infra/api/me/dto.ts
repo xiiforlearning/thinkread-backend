@@ -17,6 +17,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ReportType } from '../../../domain/reports/report.entity';
+import { StudentLanguage } from '../../../domain/students/student.enums';
 import { CefrLevel, WordPriority, WordSource, WordStatus } from '../../../domain/words/word.enums';
 
 export class RegisterDto {
@@ -26,6 +27,10 @@ export class RegisterDto {
 
 export class CalmModeDto {
   @IsBoolean() on!: boolean;
+}
+
+export class LanguageDto {
+  @IsEnum(StudentLanguage) language!: StudentLanguage;
 }
 
 export class ListQueryDto {

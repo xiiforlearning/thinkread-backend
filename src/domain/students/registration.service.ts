@@ -2,7 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { MembershipService } from '../membership/membership.service';
-import { studentMessages } from './messages';
+import { langFromTelegram, langOf } from './language';
+import { studentMessagesFor } from './messages';
 import { parseFullName } from './name-validation';
 import { Student } from './student.entity';
 import { StudentStatus } from './student.enums';
@@ -11,6 +12,8 @@ import { StudentsService } from './students.service';
 export interface IncomingUser {
   telegramUserId: number;
   username: string | null;
+  /** Telegram's `language_code`: picks the interface language of a new student and of refusals. */
+  languageCode?: string | null;
 }
 
 /**
@@ -30,7 +33,9 @@ export interface Resolution {
  * - `reply`: send this text and stop (not a member, archive note, open the app)
  * - `student`: an active student
  */
-export type Gate = { kind: 'reply'; text: string } | { kind: 'student'; student: Student };
+export type Gate =
+  | { kind: 'reply'; status: Exclude<AccessStatus, 'ACTIVE'>; text: string }
+  | { kind: 'student'; student: Student };
 
 /**
  * Registration and access. Since 01.10.2026 the student registers in the
@@ -73,6 +78,7 @@ export class RegistrationService {
         username: user.username,
         groupChatIds: memberOf.map((g) => g.chatId),
         level,
+        language: langFromTelegram(user.languageCode),
       });
       this.logger.log(
         `Student ${student.id} registered in ${memberOf.length} group(s), level=${level ?? 'unset'}`,
@@ -114,17 +120,21 @@ export class RegistrationService {
   /** Bot: one line per situation, pointing to the Mini App. */
   async gate(user: IncomingUser): Promise<Gate> {
     const { status, student } = await this.resolve(user);
+    // A registered student reads in their chosen language; a stranger in their Telegram's.
+    const m = studentMessagesFor(
+      student ? langOf(student) : langOf({ language: langFromTelegram(user.languageCode) }),
+    );
     switch (status) {
       case 'NOT_MEMBER':
-        return { kind: 'reply', text: studentMessages.notAMember };
+        return { kind: 'reply', status, text: m.notAMember };
       case 'ARCHIVED':
-        return { kind: 'reply', text: studentMessages.archived };
+        return { kind: 'reply', status, text: m.archived };
       case 'PENDING_NAME':
-        return { kind: 'reply', text: studentMessages.finishInApp };
+        return { kind: 'reply', status, text: m.finishInApp };
       case 'ACTIVE':
         return { kind: 'student', student: student as Student };
       case 'STAFF':
-        return { kind: 'reply', text: studentMessages.staffInApp };
+        return { kind: 'reply', status, text: m.staffInApp };
     }
   }
 

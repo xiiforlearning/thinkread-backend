@@ -8,7 +8,8 @@ import { RemindersService } from '../norms/reminders.service';
 import { ReportsService } from '../reports/reports.service';
 import { Student } from '../students/student.entity';
 import { StudentsService } from '../students/students.service';
-import { reminderMessages } from './messages';
+import { langOf } from '../students/language';
+import { reminderMessagesFor } from './messages';
 import { NOTIFIER_PORT, NotifierPort } from './notifier.port';
 
 export interface ReminderRun {
@@ -68,12 +69,12 @@ export class ReminderPlannerService {
       }
       const ok = await this.notifier.sendToUser(
         s.telegramUserId,
-        reminderMessages.cards(
+        reminderMessagesFor(langOf(s)).cards(
           Math.min(due.length, today.norm - today.done),
           today.done,
           today.norm,
         ),
-        { openApp: true },
+        { openApp: true, lang: langOf(s) },
       );
       if (!ok) {
         run.skipped.failed += 1;
@@ -125,7 +126,7 @@ export class ReminderPlannerService {
       }
       const ok = await this.notifier.sendToUser(
         s.telegramUserId,
-        reminderMessages.reports(
+        reminderMessagesFor(langOf(s)).reports(
           {
             reading: kinds.includes(ReminderKind.READING) ? missing.reading : 0,
             listening: kinds.includes(ReminderKind.LISTENING) ? missing.listening : 0,
@@ -133,7 +134,7 @@ export class ReminderPlannerService {
           { reading: progress.readingNorm, listening: progress.listeningNorm },
           daysLeft,
         ),
-        { openApp: true },
+        { openApp: true, lang: langOf(s) },
       );
       if (!ok) {
         run.skipped.failed += 1;

@@ -211,6 +211,24 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   `POST /admin/chat` («кто отстаёт», «сравни группы», итоги недели); skill `school_chat` with a
   simulator. Usage is logged without a student.
 
+### Student language (`domain/students/language.ts`)
+
+- `students.language` (`StudentLanguage` ru | en, CHECK, null = Russian) is the one switch for
+  everything the student reads from the backend: `langOf(student)` picks the texts. A new student
+  gets it from Telegram's `language_code` at registration (`langFromTelegram`: only an English
+  Telegram means English); `PATCH /me/language` (the Mini App's switch in the profile, allowed
+  while PENDING_NAME) changes it; `profileView.language` returns it.
+- Per-language text objects live next to the Russian ones: `studentMessagesFor(lang)`
+  (`students/messages.ts`), `cardMessagesFor(lang)` (`cards/messages.ts`: questions, placeholders,
+  stage labels, feedback), `reminderMessagesFor(lang)` (`notify/messages.ts`). The bot's gate
+  answers a registered student in their language and a stranger in their Telegram's; the Mini App
+  button caption follows `NotifyOptions.lang`; the intake clarification question
+  (`ReportIntakeService.question`) and the stage-3 grammar hint (`feedback_language` in the
+  sentence check's user turn) follow the student too. Staff texts, the weekly summary and the
+  teacher's AI stay Russian. The bot profile texts are set for the default and for `en`.
+- The Mini App keeps its own dictionaries (`src/i18n/`); on login it applies `profile.language`
+  and, when the profile has none, saves the detected language once.
+
 ### Ports (domain ↔ Telegram)
 
 Domain services never import telegraf. They depend on small interfaces —

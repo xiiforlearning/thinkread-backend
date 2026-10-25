@@ -19,6 +19,12 @@ export enum ArchiveReason {
   MANUAL = 'MANUAL',
 }
 
+/** Interface language of the Mini App and the bot's texts; null = not chosen yet (Russian). */
+export enum StudentLanguage {
+  RU = 'ru',
+  EN = 'en',
+}
+
 /** Per-student conversation state kept between messages (not a command FSM). */
 export interface DialogState {
   /** ISO timestamp: soften and thin out reminders until then (the norm itself is unchanged). */
