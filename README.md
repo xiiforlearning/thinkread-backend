@@ -34,6 +34,8 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `pnpm lint` / `pnpm lint:check` | ESLint + Prettier |
 | `pnpm test` | Jest |
 | `pnpm migration:run` / `migration:revert` / `migration:show` | Migrations |
+| `pnpm ops:import-legacy [--dry-run] [file.json]` | Load the old bot's groups and students (`scripts/legacy-export.sql` results) |
+| `pnpm ops:announce [--send] [--only=<chatId,…>] [--via-chat]` | Post the «we moved to ThinkRead» message in every active group (dry run without `--send`) |
 
 ## Environment
 
@@ -170,6 +172,37 @@ The frontend is static and lives on Vercel (see its repository); `WEBAPP_URL` is
 root and `CORS_ORIGINS` its origin. At boot the bot configures itself from `WEBAPP_URL` (menu
 button «Открыть ThinkRead», profile texts, no slash commands); nothing else is needed in
 @BotFather — the dashboard signs in with a one-time code the bot sends in Telegram.
+
+## Migration from the old bot (english-bot)
+
+The school keeps the old bot's token: the bot is already in every study group, so no group has
+to add anything. Groups and students come over; words, reports and reading progress do not
+(customer decision 25.10.2026). Order matters:
+
+1. **Stop the old bot** (its deployment), otherwise two processes poll one token.
+2. **Export from the old database**: the two queries in `scripts/legacy-export.sql` return two
+   JSON documents (active groups with their teachers; the students of those groups).
+3. **Import into the new one** from the service shell, with the two results in one file
+   `{ "groups": [...], "students": [...] }`:
+   ```bash
+   pnpm ops:import-legacy --dry-run legacy.json   # what would happen
+   pnpm ops:import-legacy legacy.json             # or: pnpm ops:import-legacy < legacy.json
+   ```
+   Groups keep chat id, title and teachers (level unset); students become `PENDING_NAME` with
+   the old name split into first / last as a prefill; the owner (`ADMIN_TELEGRAM_ID`) and the
+   teachers are skipped. Re-runnable.
+4. **Point ThinkRead at the old token**: `BOT_TOKEN` of the old bot, deploy. At boot the bot
+   rewrites its menu button, profile texts and commands for ThinkRead.
+5. **@BotFather → /mybots → Bot Settings → Configure Mini App → Enable Mini App**, URL =
+   `WEBAPP_URL`. This gives the bot a Main Mini App, so `t.me/<bot>?startapp=…` opens the app
+   right from a group chat (web_app buttons are not allowed in groups).
+6. **Dashboard → Groups**: set the level of every group, then «Check membership»: every student
+   gets the level of their group and the links are confirmed against Telegram.
+7. **Announce in the groups**: `pnpm ops:announce` (dry run) and `pnpm ops:announce --send`.
+   The post carries an «Open ThinkRead» button that opens the Mini App in the group; the app
+   asks for the real first and last name (prefilled from the old one) and the student becomes
+   ACTIVE. `--via-chat` makes the button open the private chat instead, if step 5 is skipped.
+   Until then the dashboard lists them as pending; reminders go only to ACTIVE students.
 
 ## Mini App and dashboard (separate repository)
 
