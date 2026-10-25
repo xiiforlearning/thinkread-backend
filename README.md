@@ -34,7 +34,7 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `pnpm lint` / `pnpm lint:check` | ESLint + Prettier |
 | `pnpm test` | Jest |
 | `pnpm migration:run` / `migration:revert` / `migration:show` | Migrations |
-| `pnpm ops:import-legacy [--dry-run] [file.json]` | Load the old bot's groups and students (`scripts/legacy-export.sql` results) |
+| `pnpm ops:import-legacy [--dry-run] [file.json]` | Load the old bot's groups and students (`scripts/legacy-export.sql` results; a file, stdin or `LEGACY_IMPORT_JSON`) |
 | `pnpm ops:announce [--send] [--only=<chatId,…>] [--via-chat]` | Post the «we moved to ThinkRead» message in every active group (dry run without `--send`) |
 
 ## Environment
@@ -182,12 +182,14 @@ to add anything. Groups and students come over; words, reports and reading progr
 1. **Stop the old bot** (its deployment), otherwise two processes poll one token.
 2. **Export from the old database**: the two queries in `scripts/legacy-export.sql` return two
    JSON documents (active groups with their teachers; the students of those groups).
-3. **Import into the new one** from the service shell, with the two results in one file
-   `{ "groups": [...], "students": [...] }`:
+3. **Import into the new one** from the service shell, with the two results in one document
+   `{ "groups": [...], "students": [...] }`. The Railway console takes no paste, so put the
+   document into the service variable `LEGACY_IMPORT_JSON` (the variables form does), then:
    ```bash
-   pnpm ops:import-legacy --dry-run legacy.json   # what would happen
-   pnpm ops:import-legacy legacy.json             # or: pnpm ops:import-legacy < legacy.json
+   pnpm ops:import-legacy --dry-run   # what would happen
+   pnpm ops:import-legacy             # the import; remove the variable afterwards
    ```
+   (locally: `pnpm ops:import-legacy legacy.json` or `< legacy.json`.)
    Groups keep chat id, title and teachers (level unset); students become `PENDING_NAME` with
    the old name split into first / last as a prefill; the owner (`ADMIN_TELEGRAM_ID`) and the
    teachers are skipped. Re-runnable.
