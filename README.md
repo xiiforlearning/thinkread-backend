@@ -110,6 +110,15 @@ http://localhost:5173`), put that URL into `WEBAPP_URL`, `CORS_ORIGINS` and the 
 with the same URL. Details and the curl smoke table: `.claude/skills/local-run/SKILL.md`,
 `.claude/skills/api-smoke/SKILL.md`.
 
+## Groups join only with the owner's approval
+
+Anyone can add a public bot to any chat, so a group the bot is added to is created **inactive**:
+its members get no student access and its "teacher" admins no dashboard access until the owner
+picks the group's level in the DM the bot sends (`level:<chatId>:<LEVEL>` buttons, owner only).
+«Не наша группа» deactivates it and the bot leaves the chat. A group the owner approved before
+(it has a level) comes back active by itself when the bot is re-added; removing the bot from a
+chat deactivates its group.
+
 ## Student language
 
 The product is English for every student (decision 25.10.2026): bot replies, reminders, the Mini

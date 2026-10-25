@@ -106,7 +106,7 @@ export class AdminGroupsController {
     if (!group) throw notFound(chatId);
     if (dto.level !== undefined) await this.groups.setLevel(chatId, dto.level);
     if (dto.isActive === false) await this.groups.deactivate(chatId);
-    if (dto.isActive === true) await this.groups.upsert(chatId, group.title);
+    if (dto.isActive === true) await this.groups.activate(chatId);
     const fresh = await this.groups.findById(chatId);
     return groupView(fresh ?? group, { members: 0, teachers: [], week: null });
   }

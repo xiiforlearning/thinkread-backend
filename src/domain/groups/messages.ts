@@ -9,11 +9,15 @@ export const LEVEL_LABELS: Record<GroupLevel, string> = {
 };
 
 export const groupMessages = {
-  askLevel: (title: string): string =>
+  askLevel: (title: string, addedBy: string): string =>
     [
-      `Меня добавили в группу «${title}».`,
-      'Какой у неё уровень? От этого зависит методика аудирования для студентов группы. Задаётся один раз, потом можно поменять в админке.',
+      `Меня добавили в группу «${title}» (добавил: ${addedBy}).`,
+      'Пока вы не выберете уровень, группа не подключена: её участники и учителя доступа не получают.',
+      'Какой у неё уровень? От этого зависит методика аудирования для студентов группы. Потом можно поменять в дашборде.',
     ].join('\n'),
+
+  rejectButton: 'Не наша группа',
+  rejected: (title: string): string => `«${title}» — не наша группа. Я вышел из неё.`,
 
   levelSet: (title: string, level: GroupLevel): string =>
     `Готово: «${title}» — ${LEVEL_LABELS[level]}.`,
