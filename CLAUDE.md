@@ -115,6 +115,9 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 
 ### Reports and flags (`domain/reports`, `domain/flags`)
 
+- `new_words` from the parse must be dictionary forms (`NEW_WORDS_DESCRIPTION` in
+  `report-intake.prompt.ts`: infinitive without "to", singular; a phrasal verb only when the
+  particle changes the meaning, otherwise one word — customer decision 25.10.2026).
 - `listening-fields.ts` is the source of truth for what a listening report must contain per
   `ListeningMethod`; the tool returns `missing_fields` and the model asks for exactly those.
   A retelling shorter than `MIN_RETELLING_CHARS` counts as missing.
@@ -152,7 +155,8 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 - A `CardAttempt` is created when the card is shown (`channel MINI_APP`, `prompt` stored so the
   answer is checked against what was actually displayed) and completed by answer, give-up or skip.
   Stage-2 material comes from `word_lexicon.gapSentences`, else the example with the word masked,
-  else the card falls back to translation → word. `/me/cards` (state), `POST /me/cards/next`,
+  else the card falls back to translation → word. `/me/cards` (state; the queue preview carries
+  word and stage, never the translation), `POST /me/cards/next`,
   `/:attemptId/answer | give-up | skip`.
 
 ### Vocabulary (`domain/words`)
