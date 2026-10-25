@@ -11,15 +11,30 @@ export class GroupsService {
     private readonly repo: Repository<Group>,
   ) {}
 
-  /** Called when the bot is added to a group; keeps the level if the group is known. */
+  /**
+   * Called when the bot is added to a group. Anyone can add a public bot to any chat, so an
+   * unknown group is created inactive — pending the owner's approval (`approve()`, the level
+   * buttons in the owner's DM). A known group the owner approved before (it has a level) comes
+   * back active by itself; one that was never approved stays pending.
+   */
   async upsert(chatId: number, title: string): Promise<Group> {
     const existing = await this.repo.findOne({ where: { chatId } });
     if (existing) {
       existing.title = title;
-      existing.isActive = true;
+      existing.isActive = existing.level !== null;
       return this.repo.save(existing);
     }
-    return this.repo.save(this.repo.create({ chatId, title, isActive: true, level: null }));
+    return this.repo.save(this.repo.create({ chatId, title, isActive: false, level: null }));
+  }
+
+  /** The owner approved the group (and set its level): it joins the school. */
+  async approve(chatId: number, level: GroupLevel): Promise<void> {
+    await this.repo.update({ chatId }, { level, isActive: true });
+  }
+
+  /** Owner: bring a deactivated group back without changing its level. */
+  async activate(chatId: number): Promise<void> {
+    await this.repo.update({ chatId }, { isActive: true });
   }
 
   findById(chatId: number): Promise<Group | null> {

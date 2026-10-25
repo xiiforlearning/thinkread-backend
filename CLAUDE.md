@@ -246,6 +246,14 @@ load groups, students (`PENDING_NAME`, name prefilled) and `student_groups`;
 `?startapp` link that opens the Mini App in the group (needs a Main Mini App in @BotFather;
 `--via-chat` falls back to `?start=app`). Steps and order: README «Migration from the old bot».
 
+### Groups join with the owner's approval
+
+Anyone can add a public bot to a chat, so `GroupsService.upsert()` creates an unknown group
+**inactive**; only active groups grant student access (`findAllActive` in the membership lookup)
+and teacher access (`findActiveByTeacher`). The owner's DM carries the level buttons
+(`approve()` = level + active) and «Не наша группа» (`deactivate()` + `leaveChat`). A known group
+with a level comes back active when re-added. Decision 25.10.2026.
+
 ### Ports (domain ↔ Telegram)
 
 Domain services never import telegraf. They depend on small interfaces —

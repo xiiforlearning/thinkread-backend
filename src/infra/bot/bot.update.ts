@@ -17,6 +17,7 @@ import { StudentsService } from '../../domain/students/students.service';
 import { TeacherResolverService } from '../teacher/teacher-resolver.service';
 
 const LEVEL_ACTION = /^level:(-?\d+):([A-Z_]+)$/;
+const REJECT_ACTION = /^group:reject:(-?\d+)$/;
 
 type ActionContext = Context & { match: RegExpExecArray };
 
@@ -82,21 +83,33 @@ export class BotUpdate {
     const group = await this.groups.upsert(chat.id, title);
     await this.teacher.refresh(chat.id).catch(() => undefined);
 
-    // The level is bound to the chat id, so a re-added group keeps it.
-    if (group.level === null) await this.askOwnerForLevel(ctx, chat.id, title);
+    // A group the owner approved before (it has a level) is back at once. Anyone can add a
+    // public bot to a chat, so a new group waits, inactive, for the owner's level choice.
+    if (group.level === null) {
+      const who = update.from.username ? `@${update.from.username}` : `id ${update.from.id}`;
+      await this.askOwnerForLevel(ctx, chat.id, title, who);
+    }
   }
 
-  private async askOwnerForLevel(ctx: Context, chatId: number, title: string): Promise<void> {
+  private async askOwnerForLevel(
+    ctx: Context,
+    chatId: number,
+    title: string,
+    addedBy: string,
+  ): Promise<void> {
     const keyboard = Markup.inlineKeyboard(
-      GROUP_LEVELS.map((level) =>
-        Markup.button.callback(LEVEL_LABELS[level], `level:${chatId}:${level}`),
-      ),
+      [
+        ...GROUP_LEVELS.map((level) =>
+          Markup.button.callback(LEVEL_LABELS[level], `level:${chatId}:${level}`),
+        ),
+        Markup.button.callback(groupMessages.rejectButton, `group:reject:${chatId}`),
+      ],
       { columns: 2 },
     );
     try {
       await ctx.telegram.sendMessage(
         this.access.ownerTelegramId,
-        groupMessages.askLevel(title),
+        groupMessages.askLevel(title, addedBy),
         keyboard,
       );
     } catch (err) {
@@ -125,10 +138,35 @@ export class BotUpdate {
       return;
     }
 
-    await this.groups.setLevel(chatId, level);
-    this.logger.log(`Group ${chatId} level set to ${level} by ${ctx.from.id}`);
+    await this.groups.approve(chatId, level);
+    this.logger.log(`Group ${chatId} approved with level ${level} by ${ctx.from.id}`);
     await ctx.answerCbQuery();
     await ctx.editMessageText(groupMessages.levelSet(group.title, level)).catch(() => undefined);
+  }
+
+  @Action(REJECT_ACTION)
+  async onGroupRejected(@Ctx() ctx: ActionContext): Promise<void> {
+    const chatId = Number(ctx.match[1]);
+    if (!ctx.from) {
+      await ctx.answerCbQuery();
+      return;
+    }
+    if (!(await this.access.isOwner(ctx.from.id))) {
+      await ctx.answerCbQuery(groupMessages.notOwner, { show_alert: true });
+      return;
+    }
+    const group = await this.groups.findById(chatId);
+    if (!group) {
+      await ctx.answerCbQuery(groupMessages.levelUnknownGroup, { show_alert: true });
+      return;
+    }
+    await this.groups.deactivate(chatId);
+    await ctx.telegram.leaveChat(chatId).catch((err: Error) => {
+      this.logger.warn(`leaveChat(${chatId}) failed: ${err.message}`);
+    });
+    this.logger.log(`Group ${chatId} rejected by ${ctx.from.id}, bot left`);
+    await ctx.answerCbQuery();
+    await ctx.editMessageText(groupMessages.rejected(group.title)).catch(() => undefined);
   }
 
   // --- private chat: one door to the Mini App -------------------------------
