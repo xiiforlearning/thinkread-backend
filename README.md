@@ -119,7 +119,8 @@ Mini App shows no switch while `FIXED_LANG` is set (see `domain/students/languag
 
 | Endpoint | What |
 |---|---|
-| `GET /me/cards` | today's norm (`done / correct / norm`), queue preview (overdue → priority → due), the card currently shown |
+| `GET /me/cards` | today's norm (`done / correct / norm`), queue counts (`due / overdue / priority` — numbers only, the words would be the answers), the card currently shown |
+| `GET /me/cards/queue` | the queue in card order (overdue → priority → due) for the queue screen: the translation on stages 1–2, the word on stage 3; priority and «learned» are changed through `/me/words/:id` |
 | `POST /me/cards/next` | show the next card (resumes an unanswered one); `card: null` when nothing is due |
 | `POST /me/cards/:attemptId/answer` `{ answer }` | stages 1–2 checked locally, stage 3 by AI; returns `correct`, `message`, `feedback`, the word's new stage / status |
 | `POST /me/cards/:attemptId/give-up` | «не помню» — a mistake, the word returns tomorrow |

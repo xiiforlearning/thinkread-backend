@@ -155,8 +155,10 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 - A `CardAttempt` is created when the card is shown (`channel MINI_APP`, `prompt` stored so the
   answer is checked against what was actually displayed) and completed by answer, give-up or skip.
   Stage-2 material comes from `word_lexicon.gapSentences`, else the example with the word masked,
-  else the card falls back to translation → word. `/me/cards` (state; the queue preview carries
-  word and stage, never the translation), `POST /me/cards/next`,
+  else the card falls back to translation → word. `/me/cards` (state; `queue` is counts only —
+  the words would be the answers of the next cards), `GET /me/cards/queue` (the queue screen:
+  card order, the translation on stages 1–2 and the word on stage 3, so the student manages
+  priority without a cheat sheet; customer decision 25.10.2026), `POST /me/cards/next`,
   `/:attemptId/answer | give-up | skip`.
 
 ### Vocabulary (`domain/words`)
