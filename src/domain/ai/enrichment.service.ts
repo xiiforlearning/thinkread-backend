@@ -47,7 +47,7 @@ export class EnrichmentService {
     for (let i = 0; i < missing.length; i += BATCH) {
       const batch = missing.slice(i, i + BATCH);
       const rows = await this.askModel(batch, studentId);
-      await this.lexicon.upsert(
+      const stored = await this.lexicon.upsert(
         rows.map((r) => ({
           lemma: r.lemma,
           translation: r.translation,
@@ -58,9 +58,32 @@ export class EnrichmentService {
           distractors: r.distractors,
         })),
       );
+      if (stored < batch.length)
+        this.logger.warn(
+          `enrichment stored ${stored} of ${batch.length} lemmas (model returned ${rows.length})`,
+        );
     }
     await this.words.applyLexicon(unique);
     return missing.length;
+  }
+
+  /**
+   * Catch-up for words whose lemma never made it into the lexicon (a failed batch, an outage):
+   * enriches them in batches and applies the lexicon to every student's rows.
+   */
+  enrichMissingLater(): void {
+    void this.enrichMissing().catch((err: Error) => {
+      this.logger.warn(`enrichMissing failed: ${err.message}`);
+    });
+  }
+
+  async enrichMissing(): Promise<{ missing: number; fetched: number }> {
+    const lemmas = await this.lexicon.missingForWords();
+    if (lemmas.length === 0) return { missing: 0, fetched: 0 };
+    const fetched = await this.enrich(lemmas, null);
+    const left = (await this.lexicon.missingForWords()).length;
+    this.logger.log(`enrichMissing: ${lemmas.length} lemmas without lexicon, ${left} left`);
+    return { missing: lemmas.length, fetched };
   }
 
   private async askModel(lemmas: string[], studentId: string | null): Promise<EnrichedWord[]> {
@@ -77,7 +100,12 @@ export class EnrichmentService {
     const call = response.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === ENRICH_TOOL_NAME,
     );
-    if (!call) return [];
+    if (!call) {
+      this.logger.warn(
+        `enrichment: no ${ENRICH_TOOL_NAME} call for ${lemmas.length} lemmas (stop_reason=${response.stop_reason})`,
+      );
+      return [];
+    }
     const asked = new Set(lemmas);
     const cefr = new Set<string>(Object.values(CefrLevel));
     return (call.input as { words: EnrichedWord[] }).words

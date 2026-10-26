@@ -179,7 +179,10 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 - `EnrichmentService` (`domain/ai`) fills `word_lexicon` once per lemma with one forced-tool
   call per batch of 25 (`AiPurpose.ENRICH_WORDS`), then `applyLexicon()` copies translation /
   example / CEFR into word rows that lack them. Small adds enrich synchronously so the reply can
-  show translations; bulk and report words use `enrichLater()`.
+  show translations; bulk and report words use `enrichLater()`. `LexiconService.upsert()` writes
+  one row per statement and drops duplicate lemmas (the model may repeat one; a multi-row upsert
+  then fails whole). `enrichMissing()` (`POST /admin/words/enrich-missing`, count via
+  `GET /admin/words/lexicon-gaps`) catches up on words whose lemma never reached the lexicon.
 - `WordListsService`: teacher lists (`word_lists`, `word_list_items`, `word_list_dismissals`);
   `recommendedFor(student)` = items of active lists for the student's groups / level / everyone,
   minus owned lemmas, minus dismissed. Accepting adds with `source: TEACHER`, `sourceListId`.

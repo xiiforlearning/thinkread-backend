@@ -1,6 +1,8 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminRole } from '../../../domain/admins/admin.entity';
+import { EnrichmentService } from '../../../domain/ai/enrichment.service';
+import { LexiconService } from '../../../domain/words/lexicon.service';
 import {
   ReminderPlannerService,
   ReminderRun,
@@ -26,7 +28,31 @@ export class AdminOpsController {
     private readonly scope: AdminScopeService,
     private readonly reminders: ReminderPlannerService,
     private readonly summary: WeeklySummaryService,
+    private readonly lexicon: LexiconService,
+    private readonly enrichment: EnrichmentService,
   ) {}
+
+  @Get('words/lexicon-gaps')
+  @ApiOperation({
+    summary:
+      'Owner: how many distinct words of the school have no lexicon entry (no AI translation / CEFR)',
+  })
+  async lexiconGaps(@CurrentPrincipal() principal: Principal): Promise<{ lemmas: number }> {
+    this.scope.assertOwner(await this.scope.resolve(principal));
+    return { lemmas: (await this.lexicon.missingForWords()).length };
+  }
+
+  @Post('words/enrich-missing')
+  @ApiOperation({
+    summary:
+      'Owner: enrich every word without a lexicon entry in the background (one model call per 25 words); poll lexicon-gaps for progress',
+  })
+  async enrichMissing(@CurrentPrincipal() principal: Principal): Promise<{ queued: number }> {
+    this.scope.assertOwner(await this.scope.resolve(principal));
+    const queued = (await this.lexicon.missingForWords()).length;
+    if (queued > 0) this.enrichment.enrichMissingLater();
+    return { queued };
+  }
 
   @Post('reminders/run')
   @ApiOperation({

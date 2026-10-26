@@ -160,6 +160,7 @@ bot; 5 minutes, single use) — or the legacy Login Widget payload on `POST /aut
 | `GET /admin/ai-usage?month=YYYY-MM` | AI spend: totals, by purpose, top students |
 | `POST /admin/students/:id/chat`, `POST …/parent-report` | the teacher's AI about one student (facts computed by the system); the parents' report for a month |
 | `POST /admin/reminders/run`, `GET /admin/weekly-summary`, `POST …/run` | send today's reminders now (owner); preview / send the Monday summary |
+| `GET /admin/words/lexicon-gaps`, `POST /admin/words/enrich-missing` | owner: how many words have no AI translation / CEFR yet; enrich them in the background |
 
 ## Deploy
 
