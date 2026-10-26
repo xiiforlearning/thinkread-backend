@@ -48,7 +48,7 @@ describe('EnrichmentService', () => {
     };
     const lexicon = {
       missing: jest.fn().mockResolvedValue(['wand']),
-      upsert: jest.fn().mockResolvedValue(undefined),
+      upsert: jest.fn().mockResolvedValue(1),
     };
     const words = { applyLexicon: jest.fn().mockResolvedValue(1) };
     const usageSvc = { record: jest.fn().mockResolvedValue(undefined) };
