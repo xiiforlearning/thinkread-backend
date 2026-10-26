@@ -37,10 +37,12 @@ function stripNotes(s: string): string {
 
 /**
  * The first "word — translation" separator on a line: a dash with spaces around it, an em/en
- * dash even without spaces (a plain hyphen without spaces stays inside "e-mail"), "=", ":",
- * a tab or "|".
+ * dash even without spaces, a plain hyphen when a non-Latin translation touches it
+ * ("submerged-погруженный", "tor -верёвка", "сова-owl"; the hyphen of "e-mail" stays), "=",
+ * ":", a tab or "|".
  */
-const SEPARATOR = /\s[-—–]\s|[—–]|\s=\s|:|\t|\s\|\s/;
+const SEPARATOR =
+  /\s[-—–]\s|[—–]|(?<=\p{L})(?<!\p{Script=Latin})\s*-\s*|\s*-\s*(?=\p{L})(?!\p{Script=Latin})|\s=\s|:|\t|\s\|\s/u;
 
 export interface ParsedWordLine {
   word: string;

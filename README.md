@@ -56,6 +56,7 @@ Without Docker: a local Postgres, then `pnpm install && pnpm migration:run && pn
 | `BOT_LAUNCH` | no | `false` boots without Telegram polling |
 | `TZ` | no | Default `Asia/Tashkent` |
 | `NODE_ENV` | no | `development` / `production` |
+| `LOG_HTTP` | no | `full` (default: one line per request with request and response bodies; tokens, codes and report texts are hidden), `summary` (no bodies), `off` |
 
 ## AI eval
 
