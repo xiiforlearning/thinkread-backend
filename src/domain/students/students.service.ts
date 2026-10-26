@@ -233,7 +233,10 @@ export class StudentsService {
           checkedAt: now,
         }),
       );
-    await this.groupsRepo.save([...existing, ...added]);
+    // Updates one by one (an array save runs them in parallel on one connection — pg warns),
+    // the new rows in one batched INSERT.
+    for (const row of existing) await this.groupsRepo.save(row);
+    if (added.length > 0) await this.groupsRepo.save(added);
   }
 
   /** Active member links for a set of groups — used by teacher scoping. */

@@ -134,7 +134,7 @@ export class WordsService {
     const known = await this.lexicon.findMany(lemmas);
     if (known.size === 0) return 0;
     const words = await this.repo.find({ where: { lemma: In([...known.keys()]) } });
-    let changed = 0;
+    const touchedWords: Word[] = [];
     for (const w of words) {
       const lex = known.get(w.lemma ?? '');
       if (!lex) continue;
@@ -151,10 +151,12 @@ export class WordsService {
         w.cefr = lex.cefr;
         touched = true;
       }
-      if (touched) changed += 1;
+      if (touched) touchedWords.push(w);
     }
-    if (changed > 0) await this.repo.save(words);
-    return changed;
+    // One UPDATE at a time: TypeORM runs the updates of an array save in parallel on the
+    // transaction's single connection, which pg queues and warns about (removed in pg 9).
+    for (const w of touchedWords) await this.repo.save(w);
+    return touchedWords.length;
   }
 
   findById(id: string): Promise<Word | null> {
