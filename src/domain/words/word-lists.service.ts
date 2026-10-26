@@ -88,7 +88,12 @@ export class WordListsService {
     });
     const gone = existing.filter((i) => !keep.has(i.lemma));
     if (gone.length > 0) await this.items.remove(gone);
-    return this.items.save(rows);
+    // Existing rows are updated one by one (an array save runs the updates in parallel on one
+    // connection — pg warns), the new ones go in one batched INSERT.
+    const fresh = rows.filter((r) => !r.id);
+    for (const row of rows) if (row.id) await this.items.save(row);
+    if (fresh.length > 0) await this.items.save(fresh);
+    return rows;
   }
 
   findById(id: string): Promise<WordList | null> {
