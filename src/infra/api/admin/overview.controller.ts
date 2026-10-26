@@ -11,6 +11,7 @@ import { recentWeekStarts, weekBounds } from '../../../domain/norms/week';
 import { ReportsService } from '../../../domain/reports/reports.service';
 import { Health, healthOf, silentDays } from '../../../domain/students/health';
 import { StudentStatus } from '../../../domain/students/student.enums';
+import { Student } from '../../../domain/students/student.entity';
 import { StudentsService } from '../../../domain/students/students.service';
 import { JwtAuthGuard } from '../auth/guards';
 import { CurrentPrincipal, Principal, Roles } from '../auth/principal';
@@ -57,10 +58,11 @@ export class AdminOverviewController {
     const target = starts[offset];
     const previous = starts[offset + 1];
 
+    const pending = await this.scope.visibleStudents(scope, [StudentStatus.PENDING_NAME]);
     const [counts, groups, groupsByStudent, newFlags, topRaw, archivedCount] = await Promise.all([
       this.reports.countsByWeek(ids, starts),
       this.scope.visibleGroups(scope),
-      this.students.memberGroupIdsFor(ids),
+      this.students.memberGroupIdsFor([...ids, ...pending.map((s) => s.id)]),
       this.flags.list({ status: FlagStatus.NEW, studentIds: scope.isOwner ? null : ids }),
       this.reports.topReaders(ids, target, 3),
       scope.isOwner
@@ -86,7 +88,8 @@ export class AdminOverviewController {
 
     const healthByStudent = new Map<string, Health>(active.map((s) => [s.id, healthOf(s, now)]));
     const healthByGroup = groups.map((g) => {
-      const members = active.filter((s) => (groupsByStudent.get(s.id) ?? []).includes(g.chatId));
+      const inGroup = (s: Student): boolean => (groupsByStudent.get(s.id) ?? []).includes(g.chatId);
+      const members = active.filter(inGroup);
       const tally = { good: 0, warn: 0, bad: 0 };
       for (const m of members) tally[healthByStudent.get(m.id) ?? 'good'] += 1;
       return {
@@ -94,7 +97,9 @@ export class AdminOverviewController {
         title: g.title,
         level: g.level,
         ...tally,
+        // Registered (ACTIVE) members — the ones health is about — and those still to register.
         members: members.length,
+        pending: pending.filter(inGroup).length,
       };
     });
     const totals = { good: 0, warn: 0, bad: 0 };
@@ -143,6 +148,7 @@ export class AdminOverviewController {
       generatedAt: now.toISOString(),
       stats: {
         activeStudents: ids.length,
+        pendingStudents: pending.length,
         archivedStudents: archivedCount,
         groups: groups.length,
         readingRate: rate(target, 'reading'),
