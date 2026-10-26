@@ -30,7 +30,13 @@ export class TelegramMembershipAdapter implements MembershipPort {
 }
 
 /** Telegram answers 400 for a user it has never seen in the chat. */
-function isUnknownUser(description: string): boolean {
+/** Telegram's ways of saying "this user is not in the chat" (the wording changed over the years). */
+export function isUnknownUser(description: string): boolean {
   const d = description.toLowerCase();
-  return d.includes('user not found') || d.includes('participant_id_invalid');
+  return (
+    d.includes('user not found') ||
+    d.includes('member not found') ||
+    d.includes('participant_id_invalid') ||
+    d.includes('user_not_participant')
+  );
 }
