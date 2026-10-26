@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService as NestConfigService } from '@nestjs/config';
+import { HttpLogLevel, parseHttpLogLevel } from '../common/http-log-level';
 
 @Injectable()
 export class AppConfigService {
@@ -95,6 +96,11 @@ export class AppConfigService {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
+  }
+
+  /** `LOG_HTTP`: `full` (default — every request with bodies), `summary` or `off`. */
+  get httpLog(): HttpLogLevel {
+    return parseHttpLogLevel(this.config.get<string>('LOG_HTTP'));
   }
 
   get timezone(): string {

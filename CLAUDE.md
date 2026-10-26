@@ -79,6 +79,11 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   call; the verdict is never returned to the student.
 - Env: `JWT_SECRET` (required), `WEBAPP_URL`, `CORS_ORIGINS`. Throttling: 60 req/min per IP,
   stricter on auth and AI endpoints.
+- HTTP log (`common/http-log.ts`, `LOG_HTTP` = `full` by default / `summary` / `off`): one line
+  per request after the response — method, path, status, duration, caller (`student:<id>`,
+  `tg:<id>:<roles>`, `bearer`, `anon`), request and response bodies. `redact()` hides
+  credentials (`initData`, `hash`, `token`, `code`, `password`) and replaces report texts
+  (`text`, `summary`, `unclearParts`) with their length; `error.code` stays. `/health` is skipped.
 - `/admin/*` (`api/admin`): `@Roles(OWNER, TEACHER)`; `AdminScopeService` turns the principal
   into a scope — the owner sees everything, a teacher only the active groups they teach
   (`AccessService.visibleGroupIds`) and the students in them; owner-only actions call

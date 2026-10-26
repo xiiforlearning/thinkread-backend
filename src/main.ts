@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AppConfigService } from './config/config.service';
 import { ApiExceptionFilter, DataEnvelopeInterceptor } from './infra/api/common/http';
+import { httpLogMiddleware } from './infra/api/common/http-log';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -14,6 +15,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const config = app.get(AppConfigService);
+  app.use(httpLogMiddleware(config.httpLog));
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidUnknownValues: false }),
   );

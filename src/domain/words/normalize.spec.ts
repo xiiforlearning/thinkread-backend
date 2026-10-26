@@ -30,6 +30,35 @@ describe('parseWordList', () => {
     ]);
   });
 
+  it('takes the translation-first order, notes in brackets and dashes without spaces', () => {
+    expect(
+      parseWordList(
+        'стойкий — resilient\nresilient (adj) — стойкий\nowl /aʊl/ - сова\ncupboard—шкаф\ne-mail\n',
+      ),
+    ).toEqual([
+      { word: 'resilient', translation: 'стойкий' },
+      { word: 'owl', translation: 'сова' },
+      { word: 'cupboard', translation: 'шкаф' },
+      { word: 'e-mail', translation: null },
+    ]);
+  });
+
+  it("splits a plain hyphen before a Cyrillic translation (a student's real list)", () => {
+    expect(
+      parseWordList(
+        'submerged-погруженн\nambushed-попали в засаду\ntor -веревка\nstained-окрашенный\nstubble-щетина\nwell-known - известный\nсова-owl',
+      ),
+    ).toEqual([
+      { word: 'submerged', translation: 'погруженн' },
+      { word: 'ambushed', translation: 'попали в засаду' },
+      { word: 'tor', translation: 'веревка' },
+      { word: 'stained', translation: 'окрашенный' },
+      { word: 'stubble', translation: 'щетина' },
+      { word: 'well-known', translation: 'известный' },
+      { word: 'owl', translation: 'сова' },
+    ]);
+  });
+
   it('collapses duplicates by lemma and keeps the first translation', () => {
     expect(parseWordList('Wand — палочка\nwand\nWAND — жезл')).toEqual([
       { word: 'Wand', translation: 'палочка' },

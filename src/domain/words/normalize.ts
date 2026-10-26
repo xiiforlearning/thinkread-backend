@@ -27,12 +27,27 @@ export function isEnglishWord(s: string): boolean {
   return /^[a-z][a-z' -]*$/i.test(s.trim());
 }
 
+/** "resilient (adj)", "resilient /rɪˈzɪliənt/", "resilient [B2]" → "resilient": notes are not the word. */
+function stripNotes(s: string): string {
+  return s
+    .replace(/\([^)]*\)|\[[^\]]*\]|\/[^/]*\//g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * The first "word — translation" separator on a line: a dash with spaces around it, an em/en
+ * dash even without spaces, a plain hyphen when a non-Latin translation touches it
+ * ("submerged-погруженный", "tor -верёвка", "сова-owl"; the hyphen of "e-mail" stays), "=",
+ * ":", a tab or "|".
+ */
+const SEPARATOR =
+  /\s[-—–]\s|[—–]|(?<=\p{L})(?<!\p{Script=Latin})\s*-\s*|\s*-\s*(?=\p{L})(?!\p{Script=Latin})|\s=\s|:|\t|\s\|\s/u;
+
 export interface ParsedWordLine {
   word: string;
   translation: string | null;
 }
-
-const SEPARATORS = [' — ', ' – ', ' - ', ' = ', ':', '\t', ' | '];
 
 /**
  * Parse a free-form list: one word per line, or comma/semicolon separated,
@@ -46,10 +61,17 @@ export function parseWordList(text: string): ParsedWordLine[] {
   for (const rawLine of lines) {
     const line = rawLine.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim();
     if (!line) continue;
-    const sep = SEPARATORS.find((s) => line.includes(s));
+    const sep = SEPARATOR.exec(line);
     if (sep) {
-      const [left, ...rest] = line.split(sep);
-      push(seen, left, rest.join(sep));
+      const left = line.slice(0, sep.index);
+      const right = line.slice(sep.index + sep[0].length);
+      // "стойкий — resilient": the translation came first.
+      if (
+        !isEnglishWord(stripNotes(displayWord(left))) &&
+        isEnglishWord(stripNotes(displayWord(right)))
+      )
+        push(seen, right, left);
+      else push(seen, left, right);
       continue;
     }
     // No translation on the line: several words may share it, separated by commas.
@@ -59,7 +81,7 @@ export function parseWordList(text: string): ParsedWordLine[] {
 }
 
 function push(seen: Map<string, ParsedWordLine>, rawWord: string, rawTranslation: string): void {
-  const word = displayWord(rawWord);
+  const word = displayWord(stripNotes(rawWord));
   if (!word || !isEnglishWord(word)) return;
   const lemma = lemmaOf(word);
   if (!lemma) return;
