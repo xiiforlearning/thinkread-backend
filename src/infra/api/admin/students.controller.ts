@@ -76,7 +76,13 @@ export class AdminStudentsController {
   ): Promise<Record<string, unknown>[]> {
     const scope = await this.scope.resolve(principal);
     const now = new Date();
-    const statuses = q.status ? [q.status] : [StudentStatus.ACTIVE, StudentStatus.PENDING_NAME];
+    // Health is about activity, which a student who has not registered yet cannot have: a health
+    // filter narrows the list to ACTIVE students unless a status is asked for explicitly.
+    const statuses = q.status
+      ? [q.status]
+      : q.health
+        ? [StudentStatus.ACTIVE]
+        : [StudentStatus.ACTIVE, StudentStatus.PENDING_NAME];
     let students = await this.scope.visibleStudents(scope, statuses);
     const ids = students.map((s) => s.id);
     const [refs, counts, wordCounts, newFlags] = await Promise.all([
