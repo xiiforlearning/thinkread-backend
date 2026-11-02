@@ -11,7 +11,7 @@ import {
 import { Report } from '../reports/report.entity';
 import { Student } from '../students/student.entity';
 import { enumCheck } from '../../common/db-checks';
-import { FlagKind, FlagStatus } from './flag.enums';
+import { FlagDetails, FlagKind, FlagStatus } from './flag.enums';
 
 @Entity({ name: 'flags' })
 @Check('chk_flags_kind', enumCheck('kind', FlagKind))
@@ -37,12 +37,21 @@ export class Flag {
   @JoinColumn({ name: 'report_id' })
   report?: Report;
 
+  /** The first signal raised; `kinds` carries all of them (one card per report). */
   @Column({ type: 'varchar', length: 30 })
   kind!: FlagKind;
 
-  /** Human-readable explanation for the teacher. */
+  /** Every signal raised on this report, in the order they were found. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  kinds!: FlagKind[];
+
+  /** Human-readable explanation for the teacher: the per-kind reasons, one per line. */
   @Column({ type: 'text' })
   reason!: string;
+
+  /** Per-kind reasons and claims with quotes, the metrics behind a style flag. */
+  @Column({ type: 'jsonb', default: () => "'{}'" })
+  details!: FlagDetails;
 
   @Column({ type: 'varchar', length: 10, default: FlagStatus.NEW })
   status!: FlagStatus;

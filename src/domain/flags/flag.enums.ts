@@ -27,3 +27,36 @@ export enum SpotCheckVerdict {
   WRONG = 'WRONG',
   NO_ANSWER = 'NO_ANSWER',
 }
+
+/** One cited statement of a flag: what the check claims and the student's words it rests on. */
+export interface FlagClaim {
+  statement: string;
+  /** Exact fragment of the flagged report (verified by code before the flag is stored). */
+  quote: string;
+  /** For REPEATED_RETELLING: the matching fragment of the earlier report. */
+  previousQuote?: string;
+}
+
+/** Measured language signals of a report's prose; stored per report and compared with history. */
+export interface ReportMetrics {
+  words: number;
+  /** Spelling / grammar slips per 100 words of prose, counted from quotes verified in the text. */
+  errorsPer100: number;
+  /** Constructions or vocabulary above the student's level, quotes verified in the text. */
+  advanced: number;
+}
+
+/**
+ * Everything a flag card shows besides the one-line reasons: per-kind reasons and claims, the
+ * numbers behind a style flag and the history they were compared with.
+ */
+export interface FlagDetails {
+  reasons?: Partial<Record<FlagKind, string>>;
+  claims?: Partial<Record<FlagKind, FlagClaim[]>>;
+  metrics?: ReportMetrics;
+  baseline?: { reports: number; errorsPer100: number; advanced: number };
+  /** Verified error quotes of the flagged report (what "errorsPer100" counted). */
+  errors?: string[];
+  /** Verified above-level fragments. */
+  advancedQuotes?: string[];
+}

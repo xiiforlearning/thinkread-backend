@@ -1,5 +1,6 @@
 import { StaffMember } from '../../../domain/admins/access.service';
 import { Flag } from '../../../domain/flags/flag.entity';
+import { kindsOf, reasonsOf } from '../../../domain/flags/flags.service';
 import { Group } from '../../../domain/groups/group.entity';
 import { MembershipCheck } from '../../../domain/membership/membership-check.entity';
 import { Report } from '../../../domain/reports/report.entity';
@@ -83,8 +84,11 @@ export function flagView(
   return {
     id: f.id,
     kind: f.kind,
+    kinds: kindsOf(f),
     status: f.status,
     reason: f.reason,
+    reasons: reasonsOf(f),
+    details: f.details ?? {},
     createdAt: f.createdAt,
     reviewedAt: f.reviewedAt,
     student: student ? studentRef(student, groups) : null,
