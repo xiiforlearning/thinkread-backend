@@ -73,10 +73,18 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   status comes from the error code table in `common/http.ts`.
 - Controllers are thin (DTO validation with class-validator, serializers in `me/serializers.ts`);
   rules live in domain services. `ReportIntakeService` (domain/ai) is the form-side twin of the
-  chat tools: one forced-tool parse, `missingListeningFields`, a draft in
-  `dialog_state.reportDraft` while the student answers one clarification, then save + words +
-  background checks. `SpotCheckGraderService` grades the Mini App answer with one forced-tool
-  call; the verdict is never returned to the student.
+  chat tools: one forced-tool parse of the fields, `missingListeningFields`, a draft in
+  `dialog_state.reportDraft` (`stage: CLARIFY`) while the student answers one clarification,
+  then one forced-tool call for the student's word list (`ReportWordsService`, skill
+  `report_words`) and a `CONFIRM_WORDS` draft — **the report is saved and counted only when the
+  student confirms the list** (`POST /me/reports/:draftId/confirm`; `/discard` = back to the
+  form, `GET /me/reports/draft` resumes). Customer decision 02.11.2026: words come only from the
+  student's explicit list (heading optional), never from the retelling, nothing is suggested; an
+  empty list is accepted and marked `noNewWords`, `norms.minWordsPerReport` (owner setting,
+  default 0) can demand a minimum (409 `WORDS_REQUIRED`), two no-word reports in a row raise the
+  quiet `NO_NEW_WORDS` flag, `words.maxPerReport` caps one report. `SpotCheckGraderService`
+  grades the Mini App answer with one forced-tool call; the verdict is never returned to the
+  student.
 - Env: `JWT_SECRET` (required), `WEBAPP_URL`, `CORS_ORIGINS`. Throttling: 60 req/min per IP,
   stricter on auth and AI endpoints.
 - HTTP log (`common/http-log.ts`, `LOG_HTTP` = `full` by default / `summary` / `off`): one line
@@ -120,9 +128,12 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 
 ### Reports and flags (`domain/reports`, `domain/flags`)
 
-- `new_words` from the parse must be dictionary forms (`NEW_WORDS_DESCRIPTION` in
-  `report-intake.prompt.ts`: infinitive without "to", singular; a phrasal verb only when the
-  particle changes the meaning, otherwise one word — customer decision 25.10.2026).
+- Words of a report are extracted by `report_words` (`report-words.prompt.ts`) from the
+  student's text alone, in dictionary forms (`NEW_WORDS_DESCRIPTION`: infinitive without "to",
+  singular; a phrasal verb only when the particle changes the meaning, otherwise one word —
+  customer decision 25.10.2026), with the student's own translations, proper names skipped. The
+  field parse (`parsed_report`) does not touch words. `extractWordList()` in `words/normalize.ts`
+  is the rule-based twin (fake adapter, model-outage fallback).
 - `listening-fields.ts` is the source of truth for what a listening report must contain per
   `ListeningMethod`; the tool returns `missing_fields` and the model asks for exactly those.
   A retelling shorter than `MIN_RETELLING_CHARS` counts as missing.
@@ -138,9 +149,21 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   teacher's per-student AI chat (stage 7). Enum changes need a hand-written CHECK rewrite in the
   migration — TypeORM does not diff CHECK expressions.
 - `AuthenticityService` (in `domain/ai`) runs after a save via `checkLater()` — fire-and-forget,
-  never awaited by the tool. Deterministic signals (forwarded message, first-pass % jump) are
-  flagged by code; style signals come from one forced-tool model call (`AiPurpose.AUTHENTICITY`).
-  Flags are quiet: never mentioned to the student, no automatic action.
+  never awaited by the tool. The model never judges (teacher's decisions of 02.11.2026, F1–F5):
+  one forced-tool call `report_evidence` returns **observations with exact quotes** — content
+  findings (`GENERIC_RETELLING`, `REPEATED_RETELLING`, the latter with a quote from the earlier
+  report too), every language error of the prose and the fragments above the student's level.
+  Code verifies each quote against the student's text (`findQuote` in `report-text.ts`; the AI
+  summary is never an input), stores `ReportMetrics` (`reports.ai_metrics`: words, errors per
+  100, advanced fragments) and decides the style flags from the numbers: `STYLE_MISMATCH` /
+  `TOO_POLISHED` need a baseline of ≥ `ai.authenticityMinHistory` measured connected reports of
+  the same type and the thresholds in `globalConfig.ai.style`. Deterministic signals stay in
+  code: forwarded message, first-pass % jump, the same episode of a series handed in twice
+  (F10). `dedupeText()` drops a message sent twice before parsing (F9). One card per report:
+  several signals become `flags.kinds` with per-kind `reasons` and `claims` in `details`
+  (`FlagsService.raise` merges). Flags are quiet: never mentioned to the student, no automatic
+  action. Offline replay on real flags: an eval script kept outside the repository (students'
+  texts).
 - Spot checks: for no-transcript listening reports the check may plant a question
   (`spotCheckProbability`); it lives in `dialogState.pendingSpotCheckId`, is shown in the state
   block until answered, and expires to `NO_ANSWER` after `spotCheckExpiryDays`.
@@ -169,7 +192,9 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 ### Vocabulary (`domain/words`)
 
 - `normalize.ts`: `lemmaOf()` is the dedupe key (lower case, no punctuation, no leading "to "),
-  `parseWordList()` reads free text / files ("word — translation", commas, numbering).
+  `parseWordList()` reads free text / files ("word — translation", commas, numbering, several
+  pairs glued on one line are split — W3), `extractWordList()` finds the explicit list inside a
+  report.
 - `WordsService.addWords()` never duplicates (checks lemma and lower(word)), returns
   `{ added, existing, learned }`; manual, import and teacher-list words get `priority: HIGH`.
 - `WordImportsService`: more than `words.bulkImportConfirmThreshold` words → PENDING preview,

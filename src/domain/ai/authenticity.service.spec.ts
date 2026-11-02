@@ -275,6 +275,28 @@ describe('AuthenticityService', () => {
     expect(kindsRaised(flags)).toEqual(['FORWARDED', 'PCT_JUMP']);
   });
 
+  it('the same episode of the same series handed in twice is REPEATED_RETELLING by code (F10)', async () => {
+    const previous = [
+      report({ id: 'p1', sourceTitle: 'Blue Lock', episode: 'Episode 1', firstPassPct: 70 }),
+      report({ id: 'p2', sourceTitle: 'Blue Lock', episode: '2', firstPassPct: 70 }),
+    ];
+    const { svc, flags } = make(evidenceLlm({}), previous);
+
+    await svc.check(
+      report({ sourceTitle: 'blue lock', episode: '1 ep', firstPassPct: 70 }),
+      student(),
+    );
+    expect(kindsRaised(flags)).toEqual(['REPEATED_RETELLING']);
+    expect(flags.raise.mock.calls[0][0].reason).toContain('Blue Lock — Episode 1');
+
+    const again = make(evidenceLlm({}), previous);
+    await again.svc.check(
+      report({ sourceTitle: 'Blue Lock', episode: '3', firstPassPct: 70 }),
+      student(),
+    );
+    expect(kindsRaised(again.flags)).toEqual([]);
+  });
+
   it('plants a spot check for a no-transcript listening report when the dice say so', async () => {
     const { svc, flags, students } = make(
       evidenceLlm({ spot_check_question: 'Чем закончился выпуск?' }),

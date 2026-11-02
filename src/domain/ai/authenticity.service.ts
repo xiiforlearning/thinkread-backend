@@ -1,5 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { format } from 'date-fns';
 import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
 import { AiPurpose } from '../ai-log/ai-usage.entity';
@@ -11,6 +12,7 @@ import { Report, ReportType } from '../reports/report.entity';
 import { ReportsService } from '../reports/reports.service';
 import { langOf } from '../students/language';
 import { Student } from '../students/student.entity';
+import { lemmaOf } from '../words/normalize';
 import { StudentsService } from '../students/students.service';
 import {
   AUTHENTICITY_SYSTEM_PROMPT,
@@ -60,6 +62,12 @@ const EMPTY_EVIDENCE: AuthenticityEvidence = {
  * and never sees the AI summary. For no-transcript listening reports it may also plant a
  * spot-check question. Failures are logged and never reach the student.
  */
+/** "1", "ep. 1", "Episode 1", "первая серия" → the number when there is one, else the lowered text. */
+function episodeKey(episode: string): string {
+  const digits = episode.match(/\d+/g);
+  return digits ? digits.join('.') : lemmaOf(episode);
+}
+
 @Injectable()
 export class AuthenticityService {
   private readonly logger = new Logger(AuthenticityService.name);
@@ -94,6 +102,14 @@ export class AuthenticityService {
 
     if (report.isForwarded) {
       await this.raise(report, FlagKind.FORWARDED, 'Отчёт пришёл пересланным сообщением.');
+    }
+    const same = this.sameEpisode(report, recent);
+    if (same) {
+      await this.raise(
+        report,
+        FlagKind.REPEATED_RETELLING,
+        `Та же серия уже сдавалась ${format(same.createdAt, 'dd.MM')}: «${same.sourceTitle} — ${same.episode}».`,
+      );
     }
     const jump = this.pctJump(report, recent);
     if (jump !== null) {
@@ -250,6 +266,21 @@ export class AuthenticityService {
       ]);
     }
     return out;
+  }
+
+  /**
+   * The same episode of the same series handed in twice (F10): exact, no model needed. Only
+   * listening reports name an episode; a reading report's pages are a count, not a position.
+   */
+  private sameEpisode(report: Report, previous: Report[]): Report | null {
+    if (report.type !== ReportType.LISTENING || !report.episode || !report.sourceTitle) return null;
+    const key = (r: Report): string =>
+      `${lemmaOf(r.sourceTitle ?? '')}|${episodeKey(r.episode ?? '')}`;
+    const mine = key(report);
+    return (
+      previous.find((p) => p.episode && p.sourceTitle && key(p) === mine && p.id !== report.id) ??
+      null
+    );
   }
 
   /** Average first-pass % of previous listening reports, if this one jumps above it. */
