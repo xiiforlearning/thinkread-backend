@@ -84,7 +84,7 @@ export const AI_SKILLS: AiSkill[] = [
     title: 'Подлинность отчёта',
     purpose: AiPurpose.AUTHENTICITY,
     description:
-      'AuthenticityService.checkLater после сохранения: стилевые признаки (STYLE_MISMATCH, TOO_POLISHED, GENERIC_RETELLING, REPEATED_RETELLING) и точечный вопрос для аудирования без транскрипта. Тихий флаг учителю.',
+      'AuthenticityService.checkLater после сохранения: наблюдения с цитатами (GENERIC_RETELLING, REPEATED_RETELLING, ошибки и фрагменты выше уровня) — код проверяет цитаты по тексту и считает STYLE_MISMATCH / TOO_POLISHED по цифрам; точечный вопрос для аудирования без транскрипта. Тихий флаг учителю.',
     system: AUTHENTICITY_SYSTEM_PROMPT,
     tool: VERDICT_TOOL,
     example:

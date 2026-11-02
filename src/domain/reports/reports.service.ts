@@ -10,6 +10,7 @@ import { listeningMethodFor } from '../groups/level';
 import { localDay, weekStart } from '../norms/week';
 import { Student } from '../students/student.entity';
 import { ListeningReportInput } from './listening-fields';
+import { ReportMetrics } from '../flags/flag.enums';
 import { Report, ReportType } from './report.entity';
 
 function weekKeyOf(d: string | Date): string {
@@ -150,6 +151,10 @@ export class ReportsService {
 
   async setWordsAdded(reportId: string, wordsAdded: number): Promise<void> {
     await this.repo.update({ id: reportId }, { wordsAdded });
+  }
+
+  async setAiMetrics(reportId: string, aiMetrics: ReportMetrics): Promise<void> {
+    await this.repo.update({ id: reportId }, { aiMetrics });
   }
 
   /**

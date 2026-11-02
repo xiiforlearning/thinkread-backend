@@ -86,7 +86,7 @@ describe('FakeLlmAdapter', () => {
       messages: [{ role: 'user', content: 'аудирование: The hosts talked about sleep and naps.' }],
     });
     const input = toolUse(v, VERDICT_TOOL_NAME);
-    expect(input.suspicious).toBe(false);
+    expect(input.findings).toEqual([]);
     expect(typeof input.spot_check_question).toBe('string');
   });
 

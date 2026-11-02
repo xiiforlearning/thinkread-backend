@@ -58,9 +58,31 @@ export const globalConfig = {
     authenticityHistory: 5,
     /**
      * Style signals (STYLE_MISMATCH, TOO_POLISHED) need this many previous reports with
-     * connected prose; with fewer the check only looks at the content signals.
+     * connected prose and measured metrics; with fewer the check only looks at the content
+     * signals.
      */
     authenticityMinHistory: 3,
+    /** Measured style signals (see AuthenticityService.judgeStyle). */
+    style: {
+      /** Prose shorter than this is not judged on style at all. */
+      minProseWords: 60,
+      /** Above-level fragments (verified quotes) needed alongside the error-rate signal. */
+      minAdvanced: 2,
+      /** STYLE_MISMATCH: errors per 100 words fell to this fraction of the student's usual rate… */
+      dropFactor: 3,
+      /** …and the usual rate was at least this (a student who always writes clean has no jump). */
+      baselineMinErrors: 3,
+      /** TOO_POLISHED: errors per 100 words at or below this for the level… */
+      cleanErrorsByLevel: {
+        PRE_INTERMEDIATE: 1.5,
+        INTERMEDIATE: 1.0,
+        UPPER_INTERMEDIATE: 0.7,
+        ADVANCED: 0.4,
+        IELTS: 0.4,
+      } as Record<string, number>,
+      /** …while the student's usual rate is at least this many times the clean threshold. */
+      cleanBaselineFactor: 2,
+    },
     /** Self-assessed first-pass % this far above the student's average is a PCT_JUMP flag. */
     pctJumpThreshold: 30,
   },

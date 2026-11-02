@@ -204,10 +204,16 @@ export function verdict(text: string): Record<string, unknown> {
   const retelling = englishSentences(text);
   const title = guessTitle(text);
   const listening = /аудирован|подкаст|слушал|смотрел|podcast|listening/i.test(text);
+  // Evidence, not a verdict: a couple of the plainest slips as exact quotes, nothing else.
+  const errors: Array<{ quote: string; note: string }> = [];
+  for (const m of text.matchAll(/\b(\w+ (?:dont|doesnt|didnt|couldnt|cant) \w+)\b/gi))
+    errors.push({ quote: m[1], note: 'пропущен апостроф' });
+  for (const m of text.matchAll(/\b(\w+ i \w+)\b/g))
+    errors.push({ quote: m[1], note: '«I» с маленькой буквы' });
   return {
-    suspicious: false,
-    kinds: [],
-    reason: 'Фейковый AI: признаков не ищет.',
+    findings: [],
+    errors: errors.slice(0, 5),
+    advanced: [],
     spot_check_question:
       listening && retelling.length > 0
         ? `Кстати, чем закончился${title ? ` «${title}»` : ' этот выпуск'} — что там было в конце?`
