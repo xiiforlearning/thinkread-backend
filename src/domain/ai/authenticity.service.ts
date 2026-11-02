@@ -15,11 +15,13 @@ import { StudentsService } from '../students/students.service';
 import {
   AI_FLAG_KINDS,
   AUTHENTICITY_SYSTEM_PROMPT,
+  STYLE_KINDS,
   AuthenticityVerdict,
   VERDICT_TOOL,
   VERDICT_TOOL_NAME,
 } from './authenticity.prompt';
 import { LLM_PORT, LlmPort } from './llm.port';
+import { dedupeText, isConnectedText } from './report-text';
 import { UsageService } from './usage.service';
 
 /**
@@ -52,17 +54,20 @@ export class AuthenticityService {
   }
 
   async check(report: Report, student: Student): Promise<void> {
-    const previous = await this.reports.recent(
+    const recent = await this.reports.recent(
       student.id,
       report.type,
       globalConfig.ai.authenticityHistory,
       report.id,
     );
+    // Only connected prose is a base for comparison: a word list sent as a report is not.
+    const previous = recent.filter((r) => isConnectedText(r.rawText));
+    const styleChecks = previous.length >= globalConfig.ai.authenticityMinHistory;
 
     if (report.isForwarded) {
       await this.raise(report, FlagKind.FORWARDED, 'Отчёт пришёл пересланным сообщением.');
     }
-    const jump = this.pctJump(report, previous);
+    const jump = this.pctJump(report, recent);
     if (jump !== null) {
       await this.raise(
         report,
@@ -71,13 +76,13 @@ export class AuthenticityService {
       );
     }
 
-    const verdict = await this.askModel(report, previous, student);
+    const verdict = await this.askModel(report, previous, student, styleChecks);
     if (verdict.suspicious) {
-      const kinds = verdict.kinds.filter((k) => (AI_FLAG_KINDS as readonly string[]).includes(k));
+      const kinds = verdict.kinds
+        .filter((k) => (AI_FLAG_KINDS as readonly string[]).includes(k))
+        // Without enough history a "style jump" has nothing to be measured against.
+        .filter((k) => styleChecks || !STYLE_KINDS.includes(k));
       for (const kind of kinds) await this.raise(report, kind, verdict.reason);
-      if (kinds.length === 0) {
-        await this.raise(report, FlagKind.TOO_POLISHED, verdict.reason);
-      }
     }
 
     await this.maybePlantSpotCheck(report, student, verdict.spot_check_question);
@@ -96,6 +101,7 @@ export class AuthenticityService {
     report: Report,
     previous: Report[],
     student: Student,
+    styleChecks: boolean,
   ): Promise<AuthenticityVerdict> {
     const model = this.config.aiModelAuthenticity;
     const response = await this.llm.complete({
@@ -119,8 +125,9 @@ export class AuthenticityService {
                 report.type === ReportType.LISTENING && report.method !== null
                   ? requiresRetelling(report.method)
                   : false,
-              report: this.summarize(report),
-              previous: previous.map((r) => this.summarize(r)),
+              styleChecks,
+              report: this.describe(report),
+              previous: previous.map((r) => this.describe(r)),
             },
             null,
             1,
@@ -140,7 +147,12 @@ export class AuthenticityService {
     return call.input as AuthenticityVerdict;
   }
 
-  private summarize(r: Report): Record<string, unknown> {
+  /**
+   * What the model sees of a report: the student's own text and the numbers. Never the AI
+   * summary — it is written by the bot, in another language, and comparing the student's text
+   * with it produced "a sharp contrast in language quality inside one report".
+   */
+  private describe(r: Report): Record<string, unknown> {
     return {
       date: r.createdAt?.toISOString().slice(0, 10),
       title: r.sourceTitle,
@@ -149,9 +161,7 @@ export class AuthenticityService {
       firstPassPct: r.firstPassPct,
       secondPassPct: r.secondPassPct,
       listenCount: r.listenCount,
-      summary: r.summary,
-      unclear: r.unclearParts,
-      text: r.rawText,
+      text: dedupeText(r.rawText),
     };
   }
 

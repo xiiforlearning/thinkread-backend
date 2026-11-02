@@ -56,6 +56,11 @@ export const globalConfig = {
     spotCheckExpiryDays: 3,
     /** Previous reports of the same type shown to the authenticity check. */
     authenticityHistory: 5,
+    /**
+     * Style signals (STYLE_MISMATCH, TOO_POLISHED) need this many previous reports with
+     * connected prose; with fewer the check only looks at the content signals.
+     */
+    authenticityMinHistory: 3,
     /** Self-assessed first-pass % this far above the student's average is a PCT_JUMP flag. */
     pctJumpThreshold: 30,
   },

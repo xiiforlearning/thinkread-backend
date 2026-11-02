@@ -24,6 +24,7 @@ import { WordsService } from '../words/words.service';
 import { AuthenticityService } from './authenticity.service';
 import { EnrichmentService } from './enrichment.service';
 import { LLM_PORT, LlmPort } from './llm.port';
+import { dedupeText } from './report-text';
 import {
   PARSE_SYSTEM_PROMPT,
   PARSE_TOOL_NAME,
@@ -109,10 +110,13 @@ export class ReportIntakeService {
   private async process(
     student: Student,
     type: ReportType,
-    text: string,
+    rawText: string,
     now: Date,
     timeZone: string,
   ): Promise<IntakeResult> {
+    // A message sent twice or a clarification answered twice must not read as a "repeated
+    // retelling" or inflate the text: the student's duplicates are dropped before anything else.
+    const text = dedupeText(rawText);
     const parsed = await this.parse(student, type, text);
     const missing = this.missing(parsed, listeningMethodFor(student.level));
     if (missing.length > 0) {

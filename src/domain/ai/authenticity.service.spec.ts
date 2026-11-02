@@ -73,6 +73,9 @@ function make(
   return { svc, flags, students, usageSvc, reports };
 }
 
+const PROSE =
+  'The story begins with the Dursley family. They are normal people and dont like anything strange. They have a son named Dudley, who is very spoiled. Mrs Dursley has a sister named Lily Potter, but they dont talk to each other. One day Mr Dursly sees strange things like a cat looking at a map.';
+
 const clean: AuthenticityVerdict = {
   suspicious: false,
   kinds: [],
@@ -94,15 +97,15 @@ describe('AuthenticityService', () => {
     expect(flags.raise).not.toHaveBeenCalled();
   });
 
-  it('turns a suspicious verdict into one quiet flag per kind', async () => {
-    const { svc, flags } = make(
-      verdictLlm({
-        suspicious: true,
-        kinds: ['TOO_POLISHED', 'GENERIC_RETELLING'] as never,
-        reason: 'Слишком гладко.',
-        spot_check_question: null,
-      }),
-    );
+  it('turns a suspicious verdict into one quiet flag per kind once the history allows style signals', async () => {
+    const suspicious: AuthenticityVerdict = {
+      suspicious: true,
+      kinds: ['TOO_POLISHED', 'GENERIC_RETELLING'] as never,
+      reason: 'Слишком гладко.',
+      spot_check_question: null,
+    };
+    const history = [1, 2, 3].map((i) => report({ id: `p${i}`, rawText: PROSE }));
+    const { svc, flags } = make(verdictLlm(suspicious), history);
 
     await svc.check(report(), student());
 
@@ -113,6 +116,38 @@ describe('AuthenticityService', () => {
       kind: 'TOO_POLISHED',
       reason: 'Слишком гладко.',
     });
+  });
+
+  it('with fewer than three connected previous reports only the content signals may be raised', async () => {
+    const llm = verdictLlm({
+      suspicious: true,
+      kinds: ['TOO_POLISHED', 'STYLE_MISMATCH', 'GENERIC_RETELLING'] as never,
+      reason: 'r',
+      spot_check_question: null,
+    });
+    // Two prose reports and a word list sent as a report: the list is not a base for comparison.
+    const history = [
+      report({ id: 'p1', rawText: PROSE }),
+      report({ id: 'p2', rawText: PROSE }),
+      report({
+        id: 'p3',
+        rawText: 'New words:\nreliable - надежный\navoid - избегать\nappear - появляться',
+      }),
+    ];
+    const { svc, flags } = make(llm, history);
+
+    await svc.check(report({ summary: 'AI summary in Russian' } as never), student());
+
+    const kinds = flags.raise.mock.calls.map((c) => (c[0] as { kind: string }).kind);
+    expect(kinds).toEqual(['GENERIC_RETELLING']);
+    const sent = JSON.parse(llm.requests[0].messages[0].content as string) as Record<
+      string,
+      unknown
+    >;
+    expect(sent.styleChecks).toBe(false);
+    expect((sent.previous as unknown[]).length).toBe(2);
+    expect(JSON.stringify(sent)).not.toContain('summary');
+    expect(JSON.stringify(sent)).not.toContain('AI summary');
   });
 
   it('flags forwarded reports and comprehension jumps without asking the model', async () => {
