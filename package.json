@@ -27,7 +27,6 @@
     "migration:create": "ts-node --transpile-only ./node_modules/typeorm/cli.js migration:create src/infra/db/migrations/$npm_config_name",
     "lint:check": "eslint \"src/**/*.ts\"",
     "ai:eval": "ts-node --transpile-only scripts/ai-eval.ts",
-    "ai:authenticity-eval": "ts-node --transpile-only scripts/authenticity-eval.ts",
     "dev:api": "BOT_LAUNCH=false AI_MODE=${AI_MODE:-fake} nest start --watch",
     "dev:token": "ts-node --transpile-only scripts/dev-token.ts",
     "dev:seed": "ts-node --transpile-only scripts/seed-dev.ts",
