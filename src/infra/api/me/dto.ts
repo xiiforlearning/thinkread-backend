@@ -94,6 +94,16 @@ export class ClarifyDto {
   @IsString() @MinLength(1) @MaxLength(5000) text!: string;
 }
 
+/** The word list as the student left it on the confirmation screen; omitted = the extracted list. */
+export class ConfirmReportDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => NewWordDto)
+  words?: NewWordDto[];
+}
+
 export class PatchReportDto {
   @IsOptional() @IsString() @MaxLength(200) sourceTitle?: string;
   @IsOptional() @IsString() @MaxLength(200) episode?: string;

@@ -61,6 +61,7 @@ export function reportView(r: Report): Record<string, unknown> {
     listenCount: r.listenCount,
     unclearParts: r.unclearParts,
     wordsAdded: r.wordsAdded,
+    noNewWords: r.noNewWords,
     weekStart: r.weekStart,
     createdAt: r.createdAt,
   };

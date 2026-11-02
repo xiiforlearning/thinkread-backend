@@ -12,6 +12,8 @@ export enum FlagKind {
   SPOT_CHECK_FAILED = 'SPOT_CHECK_FAILED',
   /** Not one of the 6 weekly reports handed in — "reason for a presentation" (customer's rule). */
   NORM_MISSED_WEEK = 'NORM_MISSED_WEEK',
+  /** Several reports in a row confirmed without a single new word (quiet, for the teacher). */
+  NO_NEW_WORDS = 'NO_NEW_WORDS',
 }
 
 export enum FlagStatus {

@@ -4,6 +4,7 @@ import { AUTHENTICITY_SYSTEM_PROMPT, VERDICT_TOOL } from './authenticity.prompt'
 import { ENRICH_SYSTEM_PROMPT, ENRICH_TOOL } from './enrichment.prompt';
 import { PARENT_REPORT_SYSTEM_PROMPT, PARENT_REPORT_TOOL } from './parent-report.prompt';
 import { PARSE_SYSTEM_PROMPT, parseTool } from './report-intake.prompt';
+import { REPORT_WORDS_SYSTEM_PROMPT, REPORT_WORDS_TOOL } from './report-words.prompt';
 import { SENTENCE_SYSTEM_PROMPT, SENTENCE_TOOL } from './sentence-check.prompt';
 import {
   enrich,
@@ -14,6 +15,7 @@ import {
   parentReport,
   parseListening,
   parseReading,
+  reportWords,
   schemaProps,
   schoolReply,
   teacherReply,
@@ -67,6 +69,18 @@ export const AI_SKILLS: AiSkill[] = [
     example:
       'слушал 6 Minute English про сон, с первого раза 70%, после третьего 88%, слушал 3 раза. The episode was about why we sleep. слова: drowsy, nap',
     simulate: parseListening,
+  },
+  {
+    name: 'report_words',
+    title: 'Список слов из отчёта',
+    purpose: AiPurpose.REPORT_WORDS,
+    description:
+      'ReportIntakeService после разбора полей: только явный список слов студента (заголовок «New words», строки «word — перевод», колонка слов), в словарной форме, с его переводами; из пересказа ничего, имена собственные пропускаются. Студент подтверждает список на отдельном экране — без подтверждения отчёт не засчитан.',
+    system: REPORT_WORDS_SYSTEM_PROMPT,
+    tool: REPORT_WORDS_TOOL,
+    example:
+      'Read 7 pages of The Rules of Parenting. It was about staying calm.\nNew words:\nstaying sane-сохранение душевного равновесия\nedge of insanity-грань безумия\nseemingly-по-видимому',
+    simulate: reportWords,
   },
   {
     name: 'enrich_words',

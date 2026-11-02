@@ -20,7 +20,7 @@ import { ReportsService } from '../../../domain/reports/reports.service';
 import { Student } from '../../../domain/students/student.entity';
 import { JwtAuthGuard, StudentGuard } from '../auth/guards';
 import { CurrentStudent } from '../auth/principal';
-import { ClarifyDto, ListQueryDto, PatchReportDto, SubmitReportDto } from './dto';
+import { ClarifyDto, ConfirmReportDto, ListQueryDto, PatchReportDto, SubmitReportDto } from './dto';
 import { reportView, weekView } from './serializers';
 
 function intakeView(r: IntakeResult): Record<string, unknown> {
@@ -30,6 +30,17 @@ function intakeView(r: IntakeResult): Record<string, unknown> {
       draftId: r.draftId,
       missingFields: r.missingFields,
       question: r.question,
+    };
+  if (r.status === 'CONFIRM_WORDS')
+    return {
+      status: r.status,
+      draftId: r.draftId,
+      type: r.type,
+      hasList: r.hasList,
+      words: r.words,
+      dropped: r.dropped,
+      minWords: r.minWords,
+      maxWords: r.maxWords,
     };
   return {
     status: r.status,
@@ -76,9 +87,21 @@ export class MeReportsController {
     return { READING: reading, LISTENING: listening };
   }
 
+  @Get('draft')
+  @ApiOperation({
+    summary: 'The report in progress (CLARIFY or CONFIRM_WORDS) to resume after a reload, or null',
+  })
+  draft(@CurrentStudent() student: Student): Record<string, unknown> | null {
+    const current = this.intake.current(student, new Date());
+    return current ? intakeView(current) : null;
+  }
+
   @Post()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @ApiOperation({ summary: 'Submit free text → SAVED or CLARIFY (one question); 409 DAILY_LIMIT' })
+  @ApiOperation({
+    summary:
+      'Submit free text → CLARIFY (one question) or CONFIRM_WORDS (the list to confirm); 409 DAILY_LIMIT',
+  })
   async submit(
     @CurrentStudent() student: Student,
     @Body() dto: SubmitReportDto,
@@ -99,6 +122,33 @@ export class MeReportsController {
     return intakeView(
       await this.intake.clarify(student, draftId, dto.text, new Date(), this.config.timezone),
     );
+  }
+
+  @Post(':draftId/confirm')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary:
+      'Confirm the word list → the report is saved and counted (SAVED); 409 WORDS_REQUIRED below the minimum',
+  })
+  async confirm(
+    @CurrentStudent() student: Student,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: ConfirmReportDto,
+  ): Promise<Record<string, unknown>> {
+    const words = dto.words?.map((w) => ({ word: w.word, translation: w.translation ?? null }));
+    return intakeView(
+      await this.intake.confirm(student, draftId, words, new Date(), this.config.timezone),
+    );
+  }
+
+  @Post(':draftId/discard')
+  @ApiOperation({ summary: 'Back to the report: drop the draft, nothing is counted' })
+  async discard(
+    @CurrentStudent() student: Student,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+  ): Promise<{ ok: true }> {
+    await this.intake.discard(student, draftId);
+    return { ok: true };
   }
 
   @Patch(':id')

@@ -7,7 +7,6 @@ export interface ParsedReading {
   book_title: string | null;
   pages: number | null;
   summary: string | null;
-  new_words: string[];
 }
 
 export interface ParsedListening {
@@ -19,7 +18,6 @@ export interface ParsedListening {
   listen_count: number | null;
   retelling: string | null;
   unclear_parts: string[];
-  new_words: string[];
 }
 
 export type ParsedReport = ParsedReading | ParsedListening;
@@ -34,23 +32,25 @@ export const NEW_WORDS_DESCRIPTION =
 const READING_SCHEMA: Anthropic.Tool.InputSchema = {
   type: 'object',
   properties: {
-    book_title: { type: ['string', 'null'], description: 'Название книги (и автор, если назван)' },
+    book_title: {
+      type: ['string', 'null'],
+      description:
+        'Название книги (и автор, если назван) — ровно как у студента, без своих пояснений и скобок',
+    },
     pages: { type: ['integer', 'null'], description: 'Сколько страниц прочитано' },
     summary: { type: ['string', 'null'], description: 'О чём прочитанное — словами студента' },
-    new_words: {
-      type: 'array',
-      items: { type: 'string' },
-      description: NEW_WORDS_DESCRIPTION,
-    },
   },
-  required: ['book_title', 'pages', 'summary', 'new_words'],
+  required: ['book_title', 'pages', 'summary'],
   additionalProperties: false,
 };
 
 const LISTENING_SCHEMA: Anthropic.Tool.InputSchema = {
   type: 'object',
   properties: {
-    source_title: { type: ['string', 'null'], description: 'Подкаст / сериал' },
+    source_title: {
+      type: ['string', 'null'],
+      description: 'Подкаст / сериал / фильм — ровно как у студента, без своих пояснений',
+    },
     episode: { type: ['string', 'null'], description: 'Эпизод, серия или сцена' },
     first_pass_pct: { type: ['integer', 'null'], description: '% понимания с первого раза, 0–100' },
     second_pass_pct: {
@@ -63,7 +63,6 @@ const LISTENING_SCHEMA: Anthropic.Tool.InputSchema = {
       description: 'Пересказ содержания словами студента, дословно',
     },
     unclear_parts: { type: 'array', items: { type: 'string' } },
-    new_words: { type: 'array', items: { type: 'string' }, description: NEW_WORDS_DESCRIPTION },
   },
   required: [
     'source_title',
@@ -73,7 +72,6 @@ const LISTENING_SCHEMA: Anthropic.Tool.InputSchema = {
     'listen_count',
     'retelling',
     'unclear_parts',
-    'new_words',
   ],
   additionalProperties: false,
 };
@@ -89,6 +87,6 @@ export function parseTool(kind: 'READING' | 'LISTENING'): Anthropic.Tool {
 
 /** Stable per kind — cached. */
 export const PARSE_SYSTEM_PROMPT: Record<'READING' | 'LISTENING', string> = {
-  READING: `Ты извлекаешь поля из отчёта студента о прочитанном (школа английского, отчёты по-русски с английскими словами). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты и числа — только если названы явно («половину» = 50). summary — его описание содержания, без твоих добавлений. new_words — английские слова и фразы, по одному, без переводов, в словарной форме (frowned → frown, owls → owl); фразовые глаголы целиком только когда частица меняет смысл, иначе одно слово (stagger away from → stagger). Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
-  LISTENING: `Ты извлекаешь поля из отчёта студента об аудировании (подкаст или сериал; школа английского, отчёты по-русски с английскими словами). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты — только если названы явно («половину» = 50, «почти всё» — null). retelling — его пересказ содержания дословно (на любом языке), а не название. new_words — английские слова и фразы, по одному, без переводов, в словарной форме (frowned → frown, owls → owl); фразовые глаголы целиком только когда частица меняет смысл, иначе одно слово (stagger away from → stagger). Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
+  READING: `Ты извлекаешь поля из отчёта студента о прочитанном (школа английского, отчёты по-русски или по-английски). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты и числа — только если названы явно («половину» = 50). book_title — название как у студента, без твоих пояснений вроде «(not specified)» или «(or ...)». summary — его описание содержания, без твоих добавлений; список новых слов в summary не входит и тобой не обрабатывается. Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
+  LISTENING: `Ты извлекаешь поля из отчёта студента об аудировании (подкаст, сериал или фильм; школа английского, отчёты по-русски или по-английски). Верни ровно то, что студент написал: ничего не додумывай, недостающее — null. Проценты — только если названы явно («половину» = 50, «почти всё» — null). source_title — название как у студента, без твоих пояснений. retelling — его пересказ содержания дословно (на любом языке), а не название; список новых слов в пересказ не входит и тобой не обрабатывается. Вызови инструмент ${PARSE_TOOL_NAME} ровно один раз.`,
 };

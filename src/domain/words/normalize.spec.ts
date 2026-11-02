@@ -1,4 +1,4 @@
-import { lemmaOf, parseWordList } from './normalize';
+import { extractWordList, lemmaOf, parseWordList } from './normalize';
 
 describe('lemmaOf', () => {
   it('lower-cases, trims punctuation and the infinitive marker', () => {
@@ -59,6 +59,21 @@ describe('parseWordList', () => {
     ]);
   });
 
+  it('splits several pairs glued on one line and survives CR line ends (W3)', () => {
+    expect(
+      parseWordList(
+        'purpose — цель support-поддерживать instead-вместо opportunity-возможность\r\nastounding-поразительный,earmuffs-наушники утеплители',
+      ),
+    ).toEqual([
+      { word: 'purpose', translation: 'цель' },
+      { word: 'support', translation: 'поддерживать' },
+      { word: 'instead', translation: 'вместо' },
+      { word: 'opportunity', translation: 'возможность' },
+      { word: 'astounding', translation: 'поразительный' },
+      { word: 'earmuffs', translation: 'наушники утеплители' },
+    ]);
+  });
+
   it('collapses duplicates by lemma and keeps the first translation', () => {
     expect(parseWordList('Wand — палочка\nwand\nWAND — жезл')).toEqual([
       { word: 'Wand', translation: 'палочка' },
@@ -66,5 +81,44 @@ describe('parseWordList', () => {
     expect(parseWordList('wand\nwand — палочка')).toEqual([
       { word: 'wand', translation: 'палочка' },
     ]);
+  });
+});
+
+describe('extractWordList', () => {
+  it('finds the explicit list after a marker, a column of words or "word — translation" lines', () => {
+    expect(
+      extractWordList(
+        'I read 3 pages of “they both die at the end”. New words: tilted, silently, newfangled\n\nA man was thinking that he is sick, but the doctor said that he has a brain tumor.',
+      ),
+    ).toEqual({
+      hasList: true,
+      items: [
+        { word: 'tilted', translation: null },
+        { word: 'silently', translation: null },
+        { word: 'newfangled', translation: null },
+      ],
+    });
+    expect(
+      extractWordList(
+        'Title: The Queen’s Gambit\nBeth was sent to the orphanage in Kentucky.\n\nJanitor\nBeneath\nWithin в пределах',
+      ).items,
+    ).toEqual([
+      { word: 'Janitor', translation: null },
+      { word: 'Beneath', translation: null },
+      { word: 'Within', translation: 'в пределах' },
+    ]);
+  });
+
+  it('takes nothing from prose and nothing from the report headers', () => {
+    expect(
+      extractWordList(
+        "Read 5 pages about Harry Potter, it was about Dursely family - they hates Potter's family, new words:",
+      ),
+    ).toEqual({ hasList: false, items: [] });
+    expect(
+      extractWordList(
+        'Podcast : How to decorate\nEpisode: 489. Sam Cochran\nUnderstand: 75%\nListen to: 1 time',
+      ).items,
+    ).toEqual([]);
   });
 });

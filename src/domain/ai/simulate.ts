@@ -1,4 +1,6 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import { extractWordList } from '../words/normalize';
+import { proseOf } from './report-text';
 
 /**
  * Rule-based simulators for every AI skill — what `AI_MODE=fake` answers.
@@ -106,14 +108,18 @@ function guessTitle(text: string): string | null {
 }
 
 export function parseReading(text: string): Record<string, unknown> {
-  const words = extractWords(text);
-  const body = text.replace(WORD_LIST_RE, '').trim();
+  const body = proseOf(text.replace(WORD_LIST_RE, '')).trim();
   return {
     book_title: guessTitle(text),
     pages: firstInt(text, /(\d{1,4})\s*(?:стр|страниц|pages?|p\b)/i),
     summary: body.length > 0 ? body.slice(0, 400) : null,
-    new_words: words,
   };
+}
+
+/** The student's explicit word list, by the same rules the code uses for pasted lists. */
+export function reportWords(text: string): Record<string, unknown> {
+  const { hasList, items } = extractWordList(text);
+  return { has_list: hasList, items };
 }
 
 export function parseListening(text: string): Record<string, unknown> {
@@ -129,7 +135,6 @@ export function parseListening(text: string): Record<string, unknown> {
     listen_count: firstInt(text, /(\d{1,2})\s*раз/i) ?? firstInt(text, /(\d{1,2})\s*times/i),
     retelling: retelling.length > 0 ? retelling : null,
     unclear_parts: [...text.matchAll(/непонятно[^:]*:\s*([^\n]+)/gi)].map((m) => m[1].trim()),
-    new_words: extractWords(text),
   };
 }
 

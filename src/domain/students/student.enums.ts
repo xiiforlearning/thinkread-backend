@@ -37,10 +37,22 @@ export interface DialogState {
   pendingWordImportId?: string;
   /** Spot check to weave into the next conversation. */
   pendingSpotCheckId?: string;
-  /** Report being clarified in the Mini App (missing fields after the first parse). */
+  /** Report in progress in the Mini App: being clarified, or waiting for the word list to be confirmed. */
   reportDraft?: ReportDraft;
 }
 
+export interface DraftWord {
+  word: string;
+  translation: string | null;
+  /** Already in the vocabulary — shown, not added. */
+  duplicate: boolean;
+}
+
+/**
+ * A report is saved only when the student confirms its word list (customer decision
+ * 02.11.2026): CLARIFY = fields are missing, one question is open; CONFIRM_WORDS = the fields
+ * are complete, the extracted list waits on the confirmation screen. Nothing counts before that.
+ */
 export interface ReportDraft {
   id: string;
   type: 'READING' | 'LISTENING';
@@ -48,4 +60,12 @@ export interface ReportDraft {
   text: string;
   missingFields: string[];
   createdAt: string;
+  stage?: 'CLARIFY' | 'CONFIRM_WORDS';
+  /** CONFIRM_WORDS: the parsed fields, saved as they are on confirmation. */
+  parsed?: Record<string, unknown>;
+  /** CONFIRM_WORDS: the student's explicit list as extracted. */
+  words?: DraftWord[];
+  hasList?: boolean;
+  /** Words beyond the per-report cap that were left out of the list. */
+  droppedWords?: number;
 }

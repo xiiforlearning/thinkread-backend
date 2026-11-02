@@ -12,6 +12,7 @@ import { AgentService } from './agent.service';
 import { AuthenticityService } from './authenticity.service';
 import { EnrichmentService } from './enrichment.service';
 import { ReportIntakeService } from './report-intake.service';
+import { ReportWordsService } from './report-words.service';
 import { SentenceCheckService } from './sentence-check.service';
 import { SpotCheckGraderService } from './spot-check-grader.service';
 import { SchoolChatService } from './school-chat.service';
@@ -82,6 +83,7 @@ export const TOOL_CLASSES = [
     UsageService,
     AuthenticityService,
     EnrichmentService,
+    ReportWordsService,
     ReportIntakeService,
     SpotCheckGraderService,
     SentenceCheckService,
@@ -96,6 +98,7 @@ export const TOOL_CLASSES = [
     UsageService,
     AuthenticityService,
     EnrichmentService,
+    ReportWordsService,
     ReportIntakeService,
     SpotCheckGraderService,
     SentenceCheckService,

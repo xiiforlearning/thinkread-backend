@@ -13,6 +13,13 @@ export const globalConfig = {
     /** A second report of the same type on the same local day is refused (norm can't be closed in one evening). */
     maxReportsPerTypePerDay: 1,
     /**
+     * A report counts only with at least this many confirmed new words (owner setting). 0 = a
+     * report without new words is accepted and marked "без новых слов".
+     */
+    minWordsPerReport: 0,
+    /** Reports in a row without new words that raise the quiet NO_NEW_WORDS flag. */
+    noNewWordsFlagAfter: 2,
+    /**
      * The first local day the school counts (YYYY-MM-DD, owner setting). Before it nobody is
      * "silent", the Monday summary raises no flags and sends nothing, reminders stay quiet —
      * the week of the move to ThinkRead is a grace week. Empty = from the beginning.
@@ -35,6 +42,8 @@ export const globalConfig = {
     /** Adding more than this many words at once requires confirmation. */
     bulkImportConfirmThreshold: 5,
     importPreviewTtlHours: 24,
+    /** The most words one report can add (owner setting); the rest are left out of the preview. */
+    maxPerReport: 30,
   },
 
   reminders: {

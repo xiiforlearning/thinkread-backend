@@ -30,6 +30,8 @@ export interface ReportOrigin {
   timeZone: string;
   rawText: string;
   forwarded: boolean;
+  /** Confirmed by the student with an empty word list. */
+  noNewWords?: boolean;
 }
 
 export interface WeekProgress {
@@ -79,6 +81,7 @@ export class ReportsService {
         unclearParts: [],
         parsed: { newWords: input.newWords },
         wordsAdded: 0,
+        noNewWords: origin.noNewWords ?? false,
         weekStart: weekStart(origin.now, origin.timeZone),
         isForwarded: origin.forwarded,
       }),
@@ -121,6 +124,7 @@ export class ReportsService {
         unclearParts: input.unclearParts,
         parsed: { newWords: input.newWords },
         wordsAdded: 0,
+        noNewWords: origin.noNewWords ?? false,
         weekStart: weekStart(origin.now, origin.timeZone),
         isForwarded: origin.forwarded,
       }),

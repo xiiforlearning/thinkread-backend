@@ -28,6 +28,8 @@ export const ErrorCode = {
   NO_CARDS_DUE: '259',
   DAILY_LIMIT_REACHED: '260',
   NAME_INVALID: '261',
+  /** The report needs at least `norms.minWordsPerReport` confirmed new words. */
+  WORDS_REQUIRED: '262',
 
   INTEGRATION_FAILURE: '300',
   INTEGRATION_RESPONSE_INVALID: '301',
