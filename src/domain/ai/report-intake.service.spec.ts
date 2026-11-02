@@ -323,6 +323,36 @@ describe('ReportIntakeService', () => {
     expect(s.dialogState.reportDraft).toBeUndefined();
   });
 
+  it('asks to shorten a report whose prose exceeds the owner limit; the word list is not counted', async () => {
+    const before = globalConfig.norms.maxReportChars;
+    globalConfig.norms.maxReportChars = 300;
+    try {
+      const llm: LlmPort = { complete: jest.fn() };
+      const d = make(llm);
+      const prose = 'Harry finds out he is a wizard and leaves the Dursleys for Hogwarts. '.repeat(
+        6,
+      );
+      await expect(
+        d.svc.submit(student(null), ReportType.READING, prose, NOW, TZ),
+      ).rejects.toMatchObject({ code: '305263' });
+      expect(llm.complete).not.toHaveBeenCalled();
+
+      const ok = make(llmReturning(READING));
+      const list =
+        'New words:\n' + Array.from({ length: 40 }, (_, i) => `word${i} — слово`).join('\n');
+      const res = await ok.svc.submit(
+        student(null),
+        ReportType.READING,
+        `${prose.slice(0, 200)}\n${list}`,
+        NOW,
+        TZ,
+      );
+      expect(res.status).toBe('CONFIRM_WORDS');
+    } finally {
+      globalConfig.norms.maxReportChars = before;
+    }
+  });
+
   it('refuses a second report of the type on the same day before calling the model', async () => {
     const llm: LlmPort = { complete: jest.fn() };
     const d = make(llm, { limit: true });

@@ -29,6 +29,7 @@ const STATUS_BY_ERROR: Partial<Record<string, HttpStatus>> = {
   [ErrorCode.STUDENT_ARCHIVED]: HttpStatus.FORBIDDEN,
   [ErrorCode.DAILY_LIMIT_REACHED]: HttpStatus.CONFLICT,
   [ErrorCode.WORDS_REQUIRED]: HttpStatus.CONFLICT,
+  [ErrorCode.REPORT_TOO_LONG]: HttpStatus.UNPROCESSABLE_ENTITY,
   [ErrorCode.INVALID_STATE]: HttpStatus.CONFLICT,
   [ErrorCode.ALREADY_EXISTS]: HttpStatus.CONFLICT,
   [ErrorCode.IMPORT_EXPIRED]: HttpStatus.GONE,

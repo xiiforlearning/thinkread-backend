@@ -87,7 +87,7 @@ export class ExportQueryDto {
 
 export class SubmitReportDto {
   @IsEnum(ReportType) type!: ReportType;
-  @IsString() @MinLength(5) @MaxLength(5000) text!: string;
+  @IsString() @MinLength(5) @MaxLength(20_000) text!: string;
 }
 
 export class ClarifyDto {

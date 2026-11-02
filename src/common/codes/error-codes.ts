@@ -30,6 +30,8 @@ export const ErrorCode = {
   NAME_INVALID: '261',
   /** The report needs at least `norms.minWordsPerReport` confirmed new words. */
   WORDS_REQUIRED: '262',
+  /** The report prose is longer than `norms.maxReportChars`; the student is asked to shorten it. */
+  REPORT_TOO_LONG: '263',
 
   INTEGRATION_FAILURE: '300',
   INTEGRATION_RESPONSE_INVALID: '301',

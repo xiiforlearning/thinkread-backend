@@ -27,7 +27,7 @@ import { NewWordInput, WordsService } from '../words/words.service';
 import { AuthenticityService } from './authenticity.service';
 import { EnrichmentService } from './enrichment.service';
 import { LLM_PORT, LlmPort } from './llm.port';
-import { dedupeText } from './report-text';
+import { dedupeText, proseOf } from './report-text';
 import {
   PARSE_SYSTEM_PROMPT,
   PARSE_TOOL_NAME,
@@ -229,6 +229,7 @@ export class ReportIntakeService {
     // A message sent twice or a clarification answered twice must not read as a "repeated
     // retelling" or inflate the text: the student's duplicates are dropped before anything else.
     const text = dedupeText(rawText);
+    this.assertLength(text);
     const parsed = await this.parse(student, type, text);
     const missing = this.missing(parsed, listeningMethodFor(student.level));
     if (missing.length > 0) {
@@ -339,6 +340,20 @@ export class ReportIntakeService {
       kind: FlagKind.NO_NEW_WORDS,
       reason: `${after} отчёта подряд без новых слов.`,
     });
+  }
+
+  /** The prose must fit `norms.maxReportChars`; the word list is not counted (ТЗ, W4 has its own cap). */
+  private assertLength(text: string): void {
+    const max = globalConfig.norms.maxReportChars;
+    const got = proseOf(text).length;
+    if (got > max) {
+      throw new AppError({
+        level: ErrorLevel.LOW_BUSINESS,
+        service: ServiceCode.REPORTS,
+        error: ErrorCode.REPORT_TOO_LONG,
+        meta: { max, got },
+      });
+    }
   }
 
   private typeOf(draft: ReportDraft): ReportType {

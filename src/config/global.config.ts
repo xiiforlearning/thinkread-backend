@@ -20,6 +20,11 @@ export const globalConfig = {
     /** Reports in a row without new words that raise the quiet NO_NEW_WORDS flag. */
     noNewWordsFlagAfter: 2,
     /**
+     * The longest report text the form accepts, in characters of the prose (the word list is not
+     * counted); longer = the student is asked to shorten (owner setting, customer 02.11.2026).
+     */
+    maxReportChars: 1500,
+    /**
      * The first local day the school counts (YYYY-MM-DD, owner setting). Before it nobody is
      * "silent", the Monday summary raises no flags and sends nothing, reminders stay quiet —
      * the week of the move to ThinkRead is a grace week. Empty = from the beginning.

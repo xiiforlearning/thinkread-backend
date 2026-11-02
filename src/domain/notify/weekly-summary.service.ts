@@ -89,7 +89,7 @@ export class WeeklySummaryService {
       this.reports.countsByWeek(ids, [week, previous]),
       this.groups.findAllActive(),
       this.students.memberGroupIdsFor(ids),
-      this.reports.topReaders(ids, week, 3),
+      this.flags.confirmedInWeek(ids, week).then((ex) => this.reports.topReaders(ids, week, 3, ex)),
       this.flags.list({ status: FlagStatus.NEW, studentIds: ids, limit: 500 }),
     ]);
     const groups = groupIds ? groupsAll.filter((g) => groupIds.includes(g.chatId)) : groupsAll;

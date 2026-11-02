@@ -22,6 +22,7 @@ export const EDITABLE_SETTINGS: Record<string, Rule> = {
   'norms.cardsPerDay': { kind: 'int', min: 0, max: 50 },
   'norms.startsOn': { kind: 'date' },
   'norms.minWordsPerReport': { kind: 'int', min: 0, max: 30 },
+  'norms.maxReportChars': { kind: 'int', min: 200, max: 20_000 },
   'words.maxPerReport': { kind: 'int', min: 1, max: 200 },
   'cards.correctToAdvance': { kind: 'int', min: 1, max: 5 },
   'cards.stage3ToLearned': { kind: 'int', min: 0, max: 5 },

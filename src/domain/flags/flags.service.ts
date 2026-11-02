@@ -135,6 +135,24 @@ export class FlagsService {
       .getMany();
   }
 
+  /**
+   * Students with a flag the teacher confirmed (REVIEWED) on a report of the given week — they
+   * are left out of that week's Top 3 (customer decision 02.11.2026: only confirmed flags count,
+   * a new or dismissed card never costs anything).
+   */
+  async confirmedInWeek(studentIds: string[] | null, weekStart: string): Promise<Set<string>> {
+    if (studentIds && studentIds.length === 0) return new Set();
+    const qb = this.flags
+      .createQueryBuilder('f')
+      .select('DISTINCT f.student_id', 'studentId')
+      .innerJoin('reports', 'r', 'r.id = f.report_id')
+      .where('f.status = :status', { status: FlagStatus.REVIEWED })
+      .andWhere('r.week_start = :weekStart', { weekStart });
+    if (studentIds) qb.andWhere('f.student_id IN (:...studentIds)', { studentIds });
+    const rows = await qb.getRawMany<{ studentId: string }>();
+    return new Set(rows.map((r) => r.studentId));
+  }
+
   /** NEW flags per student — the badge in the student list. */
   async countNewByStudent(studentIds: string[] | null): Promise<Map<string, number>> {
     const out = new Map<string, number>();

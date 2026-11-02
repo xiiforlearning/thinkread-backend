@@ -102,7 +102,9 @@ export class SchoolFactsService {
       this.students.memberGroupIdsFor(ids),
       this.words.countsFor(ids),
       this.flags.countNewByStudent(ids),
-      this.reports.topReaders(ids, current, 5),
+      this.flags
+        .confirmedInWeek(ids, current)
+        .then((ex) => this.reports.topReaders(ids, current, 5, ex)),
     ]);
     const groups = scope.groupIds
       ? groupsAll.filter((g) => scope.groupIds?.includes(g.chatId))

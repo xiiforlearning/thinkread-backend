@@ -233,19 +233,21 @@ export class ReportsService {
     return out;
   }
 
-  /** Pages read per student in one week, most first. */
+  /** Pages read per student in one week, most first; `exclude` = students with confirmed flags. */
   async topReaders(
     studentIds: string[],
     weekStart: string,
     limit = 3,
+    exclude: Set<string> = new Set(),
   ): Promise<Array<{ studentId: string; pages: number; reports: number }>> {
-    if (studentIds.length === 0) return [];
+    const eligible = studentIds.filter((id) => !exclude.has(id));
+    if (eligible.length === 0) return [];
     const rows = await this.repo
       .createQueryBuilder('r')
       .select('r.student_id', 'studentId')
       .addSelect('COALESCE(SUM(r.pages), 0)', 'pages')
       .addSelect('COUNT(*)', 'reports')
-      .where('r.student_id IN (:...studentIds)', { studentIds })
+      .where('r.student_id IN (:...studentIds)', { studentIds: eligible })
       .andWhere('r.week_start = :weekStart', { weekStart })
       .andWhere('r.type = :type', { type: ReportType.READING })
       .groupBy('r.student_id')
