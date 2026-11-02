@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { Flag } from './flag.entity';
-import { FlagKind, FlagStatus, SpotCheckVerdict } from './flag.enums';
+import { FlagClaim, FlagDetails, FlagKind, FlagStatus, SpotCheckVerdict } from './flag.enums';
 import { SpotCheck } from './spot-check.entity';
 
 export interface RaiseFlagInput {
@@ -12,6 +12,23 @@ export interface RaiseFlagInput {
   reportId: string | null;
   kind: FlagKind;
   reason: string;
+  /** Cited statements behind this kind (verified quotes). */
+  claims?: FlagClaim[];
+  /** Report-level numbers; merged into the card's details, later values win. */
+  details?: Omit<FlagDetails, 'reasons' | 'claims'>;
+}
+
+/** Signals of a flag: `kinds` when filled, else the legacy single `kind`. */
+export function kindsOf(flag: Pick<Flag, 'kind' | 'kinds'>): FlagKind[] {
+  return flag.kinds && flag.kinds.length > 0 ? flag.kinds : [flag.kind];
+}
+
+/** Per-kind reasons: from details, else the legacy single reason under the single kind. */
+export function reasonsOf(
+  flag: Pick<Flag, 'kind' | 'reason' | 'details'>,
+): Partial<Record<FlagKind, string>> {
+  const stored = flag.details?.reasons;
+  return stored && Object.keys(stored).length > 0 ? stored : { [flag.kind]: flag.reason };
 }
 
 /**
@@ -27,18 +44,48 @@ export class FlagsService {
     private readonly spotChecks: Repository<SpotCheck>,
   ) {}
 
-  /** Idempotent per (student, report, kind) while the flag is still NEW. */
+  /**
+   * One card per report: a second signal on a report with an open (NEW) flag joins that flag as
+   * another kind with its own reason, instead of a second card with the same text. Flags not
+   * tied to a report (NORM_MISSED_WEEK) stay idempotent per (student, kind).
+   */
   async raise(input: RaiseFlagInput): Promise<Flag> {
+    const { studentId, reportId, kind, reason, claims, details } = input;
     const existing = await this.flags.findOne({
-      where: {
-        studentId: input.studentId,
-        reportId: input.reportId ?? IsNull(),
-        kind: input.kind,
-        status: FlagStatus.NEW,
-      },
+      where: reportId
+        ? { studentId, reportId, status: FlagStatus.NEW }
+        : { studentId, reportId: IsNull(), kind, status: FlagStatus.NEW },
     });
-    if (existing) return existing;
-    return this.flags.save(this.flags.create({ ...input, status: FlagStatus.NEW }));
+    if (existing) {
+      const kinds = kindsOf(existing);
+      if (kinds.includes(kind)) return existing;
+      existing.kinds = [...kinds, kind];
+      existing.details = {
+        ...existing.details,
+        ...details,
+        reasons: { ...reasonsOf(existing), [kind]: reason },
+        claims: claims
+          ? { ...(existing.details?.claims ?? {}), [kind]: claims }
+          : existing.details?.claims,
+      };
+      existing.reason = Object.values(existing.details.reasons ?? {}).join('\n');
+      return this.flags.save(existing);
+    }
+    return this.flags.save(
+      this.flags.create({
+        studentId,
+        reportId,
+        kind,
+        kinds: [kind],
+        reason,
+        details: {
+          ...details,
+          reasons: { [kind]: reason },
+          ...(claims ? { claims: { [kind]: claims } } : {}),
+        },
+        status: FlagStatus.NEW,
+      }),
+    );
   }
 
   findNew(): Promise<Flag[]> {
@@ -71,16 +118,39 @@ export class FlagsService {
     limit?: number;
   }): Promise<Flag[]> {
     if (filter.studentIds && filter.studentIds.length === 0) return Promise.resolve([]);
-    return this.flags.find({
-      where: {
-        ...(filter.status ? { status: filter.status } : {}),
-        ...(filter.kind ? { kind: filter.kind } : {}),
-        ...(filter.studentId ? { studentId: filter.studentId } : {}),
-        ...(filter.studentIds ? { studentId: In(filter.studentIds) } : {}),
-      },
-      order: { createdAt: 'DESC' },
-      take: Math.min(filter.limit ?? 100, 500),
-    });
+    const qb = this.flags.createQueryBuilder('f');
+    if (filter.status) qb.andWhere('f.status = :status', { status: filter.status });
+    // A kind may be the card's first signal or one of the later ones.
+    if (filter.kind)
+      qb.andWhere('(f.kind = :kind OR f.kinds @> :kindJson::jsonb)', {
+        kind: filter.kind,
+        kindJson: JSON.stringify([filter.kind]),
+      });
+    if (filter.studentId) qb.andWhere('f.student_id = :studentId', { studentId: filter.studentId });
+    if (filter.studentIds)
+      qb.andWhere('f.student_id IN (:...studentIds)', { studentIds: filter.studentIds });
+    return qb
+      .orderBy('f.created_at', 'DESC')
+      .take(Math.min(filter.limit ?? 100, 500))
+      .getMany();
+  }
+
+  /**
+   * Students with a flag the teacher confirmed (REVIEWED) on a report of the given week — they
+   * are left out of that week's Top 3 (customer decision 02.11.2026: only confirmed flags count,
+   * a new or dismissed card never costs anything).
+   */
+  async confirmedInWeek(studentIds: string[] | null, weekStart: string): Promise<Set<string>> {
+    if (studentIds && studentIds.length === 0) return new Set();
+    const qb = this.flags
+      .createQueryBuilder('f')
+      .select('DISTINCT f.student_id', 'studentId')
+      .innerJoin('reports', 'r', 'r.id = f.report_id')
+      .where('f.status = :status', { status: FlagStatus.REVIEWED })
+      .andWhere('r.week_start = :weekStart', { weekStart });
+    if (studentIds) qb.andWhere('f.student_id IN (:...studentIds)', { studentIds });
+    const rows = await qb.getRawMany<{ studentId: string }>();
+    return new Set(rows.map((r) => r.studentId));
   }
 
   /** NEW flags per student — the badge in the student list. */

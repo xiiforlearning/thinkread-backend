@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { parseTool, PARSE_TOOL_NAME } from '../../domain/ai/report-intake.prompt';
 import { ENRICH_TOOL, ENRICH_TOOL_NAME } from '../../domain/ai/enrichment.prompt';
 import { VERDICT_TOOL, VERDICT_TOOL_NAME } from '../../domain/ai/authenticity.prompt';
+import { reportWords } from '../../domain/ai/simulate';
 import { extractWords, FakeLlmAdapter, parseListening, parseReading } from './fake-llm.adapter';
 
 function toolUse(msg: Anthropic.Message, name: string): Record<string, unknown> {
@@ -42,7 +43,24 @@ describe('FakeLlmAdapter', () => {
     const input = toolUse(msg, PARSE_TOOL_NAME);
     expect(input.pages).toBe(15);
     expect(input.book_title).toContain('Harry Potter');
-    expect(input.new_words).toEqual(['wand', 'muggle']);
+    expect(input.new_words).toBeUndefined();
+  });
+
+  it('takes the word list only from the explicit list, never from the retelling', () => {
+    expect(
+      reportWords(
+        'Read 7 pages of The Rules of Parenting. It was about staying calm and messy mornings.\nNew words:\nstaying sane-сохранение душевного равновесия\nseemingly-по-видимому',
+      ),
+    ).toEqual({
+      has_list: true,
+      items: [
+        { word: 'staying sane', translation: 'сохранение душевного равновесия' },
+        { word: 'seemingly', translation: 'по-видимому' },
+      ],
+    });
+    expect(
+      reportWords('On the street, Winston notices a helicopter flying between the buildings.'),
+    ).toEqual({ has_list: false, items: [] });
   });
 
   it('parses a listening report with percentages, count and an English retelling', () => {
@@ -63,7 +81,7 @@ describe('FakeLlmAdapter', () => {
     expect(r.second_pass_pct).toBe(88);
     expect(r.listen_count).toBe(3);
     expect(String(r.retelling)).toContain('why we sleep');
-    expect(r.new_words).toEqual(['drowsy']);
+    expect(r.new_words).toBeUndefined();
     expect(parseReading('ничего').pages).toBeNull();
   });
 
@@ -86,7 +104,7 @@ describe('FakeLlmAdapter', () => {
       messages: [{ role: 'user', content: 'аудирование: The hosts talked about sleep and naps.' }],
     });
     const input = toolUse(v, VERDICT_TOOL_NAME);
-    expect(input.suspicious).toBe(false);
+    expect(input.findings).toEqual([]);
     expect(typeof input.spot_check_question).toBe('string');
   });
 

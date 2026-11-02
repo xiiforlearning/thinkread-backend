@@ -57,7 +57,7 @@ export interface ParsedWordLine {
  */
 export function parseWordList(text: string): ParsedWordLine[] {
   const seen = new Map<string, ParsedWordLine>();
-  const lines = text.split(/\r?\n/);
+  const lines = text.split(/\r\n?|\n/).flatMap(splitGluedPairs);
   for (const rawLine of lines) {
     const line = rawLine.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim();
     if (!line) continue;
@@ -80,9 +80,67 @@ export function parseWordList(text: string): ParsedWordLine[] {
   return [...seen.values()];
 }
 
+/**
+ * "purpose — цель support-поддерживать instead-вместо": several pairs glued on one line become
+ * one line each. The cut is before a Latin word that is followed by a separator and preceded by a
+ * non-Latin translation; a line with one pair or none is returned as is.
+ */
+export function splitGluedPairs(line: string): string[] {
+  const pairs = line.match(/[A-Za-z][A-Za-z'’ ]*?\s*(?:\s[-—–]\s|[—–]|-|:|=)\s*[^A-Za-z]+/gu);
+  if (!pairs || pairs.length < 2) return [line];
+  return line
+    .split(
+      /(?<=\P{Script=Latin})[\s,;]+(?=[A-Za-z][A-Za-z'’]*(?:\s+[A-Za-z'’]+){0,3}\s*(?:[-—–:=]))/u,
+    )
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** Words of up to this many tokens; a longer "word" is a sentence that slipped into the list. */
+const MAX_WORD_TOKENS = 4;
+
+const LIST_MARKER = /(?:new\s+words|новые\s+слова|vocabulary|words|слова)\s*[:—–-]?\s*/i;
+
+/**
+ * The part of a free-text report that is the student's explicit word list: everything after a
+ * "New words" marker, plus any line shaped as "word — translation" or a short column of words.
+ * Sentences are never part of it, so the retelling cannot leak into the dictionary.
+ */
+export function extractWordList(text: string): { hasList: boolean; items: ParsedWordLine[] } {
+  const clean = text.replace(/\r\n?/g, '\n');
+  const marker = LIST_MARKER.exec(clean);
+  const candidates: string[] = [];
+  if (marker) candidates.push(clean.slice(marker.index + marker[0].length));
+  for (const line of clean.split('\n').flatMap(splitGluedPairs)) {
+    const trimmed = line
+      .replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '')
+      // "owl сова": a Latin word and its translation with only a space between.
+      .replace(/^([A-Za-z][A-Za-z'’ -]{0,40}?)\s+(?=\p{Script=Cyrillic})/u, '$1 — ')
+      .trim();
+    if (!trimmed || new RegExp(`^${LIST_MARKER.source}$`, 'i').test(trimmed)) continue;
+    const sep = SEPARATOR.exec(trimmed);
+    if (sep) {
+      const left = trimmed.slice(0, sep.index);
+      const right = trimmed.slice(sep.index + sep[0].length).trim();
+      // "Title: The Queen's Gambit", "Understood: 75%" are headers of the report, not pairs.
+      const translationLike = right === '' || (/\p{L}/u.test(right) && !/[A-Za-z]/.test(right));
+      if (isShortPhrase(left) && translationLike && !LIST_MARKER.test(left))
+        candidates.push(trimmed);
+    } else if (isShortPhrase(trimmed) && !/[.!?]$/.test(trimmed)) candidates.push(trimmed);
+  }
+  const items = parseWordList(candidates.join('\n')).filter((i) => isShortPhrase(i.word));
+  return { hasList: items.length > 0, items };
+}
+
+function isShortPhrase(s: string): boolean {
+  const word = displayWord(stripNotes(s));
+  return isEnglishWord(word) && word.split(' ').length <= MAX_WORD_TOKENS;
+}
+
 function push(seen: Map<string, ParsedWordLine>, rawWord: string, rawTranslation: string): void {
   const word = displayWord(stripNotes(rawWord));
   if (!word || !isEnglishWord(word)) return;
+  if (word.split(' ').length > MAX_WORD_TOKENS * 2) return;
   const lemma = lemmaOf(word);
   if (!lemma) return;
   const translation = displayWord(rawTranslation) || null;

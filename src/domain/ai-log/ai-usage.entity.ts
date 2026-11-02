@@ -21,6 +21,8 @@ export enum AiPurpose {
   TEACHER_CHAT = 'TEACHER_CHAT',
   /** The school-wide AI: the owner about the school, a teacher about their groups (dashboard). */
   SCHOOL_CHAT = 'SCHOOL_CHAT',
+  /** The student's explicit word list out of a report (Mini App intake). */
+  REPORT_WORDS = 'REPORT_WORDS',
 }
 
 /** One row per Claude API call — for cost reporting and per-student daily limits. */

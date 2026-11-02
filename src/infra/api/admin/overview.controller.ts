@@ -64,7 +64,9 @@ export class AdminOverviewController {
       this.scope.visibleGroups(scope),
       this.students.memberGroupIdsFor([...ids, ...pending.map((s) => s.id)]),
       this.flags.list({ status: FlagStatus.NEW, studentIds: scope.isOwner ? null : ids }),
-      this.reports.topReaders(ids, target, 3),
+      this.flags
+        .confirmedInWeek(ids, target)
+        .then((ex) => this.reports.topReaders(ids, target, 3, ex)),
       scope.isOwner
         ? this.students.countByStatus().then((c) => c.ARCHIVED)
         : this.scope.visibleStudents(scope, [StudentStatus.ARCHIVED]).then((l) => l.length),

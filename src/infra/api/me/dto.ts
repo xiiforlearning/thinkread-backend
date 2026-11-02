@@ -87,11 +87,21 @@ export class ExportQueryDto {
 
 export class SubmitReportDto {
   @IsEnum(ReportType) type!: ReportType;
-  @IsString() @MinLength(5) @MaxLength(5000) text!: string;
+  @IsString() @MinLength(5) @MaxLength(20_000) text!: string;
 }
 
 export class ClarifyDto {
   @IsString() @MinLength(1) @MaxLength(5000) text!: string;
+}
+
+/** The word list as the student left it on the confirmation screen; omitted = the extracted list. */
+export class ConfirmReportDto {
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => NewWordDto)
+  words?: NewWordDto[];
 }
 
 export class PatchReportDto {

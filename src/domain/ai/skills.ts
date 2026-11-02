@@ -4,6 +4,7 @@ import { AUTHENTICITY_SYSTEM_PROMPT, VERDICT_TOOL } from './authenticity.prompt'
 import { ENRICH_SYSTEM_PROMPT, ENRICH_TOOL } from './enrichment.prompt';
 import { PARENT_REPORT_SYSTEM_PROMPT, PARENT_REPORT_TOOL } from './parent-report.prompt';
 import { PARSE_SYSTEM_PROMPT, parseTool } from './report-intake.prompt';
+import { REPORT_WORDS_SYSTEM_PROMPT, REPORT_WORDS_TOOL } from './report-words.prompt';
 import { SENTENCE_SYSTEM_PROMPT, SENTENCE_TOOL } from './sentence-check.prompt';
 import {
   enrich,
@@ -14,6 +15,7 @@ import {
   parentReport,
   parseListening,
   parseReading,
+  reportWords,
   schemaProps,
   schoolReply,
   teacherReply,
@@ -69,6 +71,18 @@ export const AI_SKILLS: AiSkill[] = [
     simulate: parseListening,
   },
   {
+    name: 'report_words',
+    title: 'Список слов из отчёта',
+    purpose: AiPurpose.REPORT_WORDS,
+    description:
+      'ReportIntakeService после разбора полей: только явный список слов студента (заголовок «New words», строки «word — перевод», колонка слов), в словарной форме, с его переводами; из пересказа ничего, имена собственные пропускаются. Студент подтверждает список на отдельном экране — без подтверждения отчёт не засчитан.',
+    system: REPORT_WORDS_SYSTEM_PROMPT,
+    tool: REPORT_WORDS_TOOL,
+    example:
+      'Read 7 pages of The Rules of Parenting. It was about staying calm.\nNew words:\nstaying sane-сохранение душевного равновесия\nedge of insanity-грань безумия\nseemingly-по-видимому',
+    simulate: reportWords,
+  },
+  {
     name: 'enrich_words',
     title: 'Обогащение слов',
     purpose: AiPurpose.ENRICH_WORDS,
@@ -84,7 +98,7 @@ export const AI_SKILLS: AiSkill[] = [
     title: 'Подлинность отчёта',
     purpose: AiPurpose.AUTHENTICITY,
     description:
-      'AuthenticityService.checkLater после сохранения: стилевые признаки (STYLE_MISMATCH, TOO_POLISHED, GENERIC_RETELLING, REPEATED_RETELLING) и точечный вопрос для аудирования без транскрипта. Тихий флаг учителю.',
+      'AuthenticityService.checkLater после сохранения: наблюдения с цитатами (GENERIC_RETELLING, REPEATED_RETELLING, ошибки и фрагменты выше уровня) — код проверяет цитаты по тексту и считает STYLE_MISMATCH / TOO_POLISHED по цифрам; точечный вопрос для аудирования без транскрипта. Тихий флаг учителю.',
     system: AUTHENTICITY_SYSTEM_PROMPT,
     tool: VERDICT_TOOL,
     example:

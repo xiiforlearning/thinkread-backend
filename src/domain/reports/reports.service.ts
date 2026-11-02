@@ -10,6 +10,7 @@ import { listeningMethodFor } from '../groups/level';
 import { localDay, weekStart } from '../norms/week';
 import { Student } from '../students/student.entity';
 import { ListeningReportInput } from './listening-fields';
+import { ReportMetrics } from '../flags/flag.enums';
 import { Report, ReportType } from './report.entity';
 
 function weekKeyOf(d: string | Date): string {
@@ -29,6 +30,8 @@ export interface ReportOrigin {
   timeZone: string;
   rawText: string;
   forwarded: boolean;
+  /** Confirmed by the student with an empty word list. */
+  noNewWords?: boolean;
 }
 
 export interface WeekProgress {
@@ -78,6 +81,7 @@ export class ReportsService {
         unclearParts: [],
         parsed: { newWords: input.newWords },
         wordsAdded: 0,
+        noNewWords: origin.noNewWords ?? false,
         weekStart: weekStart(origin.now, origin.timeZone),
         isForwarded: origin.forwarded,
       }),
@@ -120,6 +124,7 @@ export class ReportsService {
         unclearParts: input.unclearParts,
         parsed: { newWords: input.newWords },
         wordsAdded: 0,
+        noNewWords: origin.noNewWords ?? false,
         weekStart: weekStart(origin.now, origin.timeZone),
         isForwarded: origin.forwarded,
       }),
@@ -150,6 +155,10 @@ export class ReportsService {
 
   async setWordsAdded(reportId: string, wordsAdded: number): Promise<void> {
     await this.repo.update({ id: reportId }, { wordsAdded });
+  }
+
+  async setAiMetrics(reportId: string, aiMetrics: ReportMetrics): Promise<void> {
+    await this.repo.update({ id: reportId }, { aiMetrics });
   }
 
   /**
@@ -224,19 +233,21 @@ export class ReportsService {
     return out;
   }
 
-  /** Pages read per student in one week, most first. */
+  /** Pages read per student in one week, most first; `exclude` = students with confirmed flags. */
   async topReaders(
     studentIds: string[],
     weekStart: string,
     limit = 3,
+    exclude: Set<string> = new Set(),
   ): Promise<Array<{ studentId: string; pages: number; reports: number }>> {
-    if (studentIds.length === 0) return [];
+    const eligible = studentIds.filter((id) => !exclude.has(id));
+    if (eligible.length === 0) return [];
     const rows = await this.repo
       .createQueryBuilder('r')
       .select('r.student_id', 'studentId')
       .addSelect('COALESCE(SUM(r.pages), 0)', 'pages')
       .addSelect('COUNT(*)', 'reports')
-      .where('r.student_id IN (:...studentIds)', { studentIds })
+      .where('r.student_id IN (:...studentIds)', { studentIds: eligible })
       .andWhere('r.week_start = :weekStart', { weekStart })
       .andWhere('r.type = :type', { type: ReportType.READING })
       .groupBy('r.student_id')

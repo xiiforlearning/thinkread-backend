@@ -13,6 +13,18 @@ export const globalConfig = {
     /** A second report of the same type on the same local day is refused (norm can't be closed in one evening). */
     maxReportsPerTypePerDay: 1,
     /**
+     * A report counts only with at least this many confirmed new words (owner setting). 0 = a
+     * report without new words is accepted and marked "без новых слов".
+     */
+    minWordsPerReport: 0,
+    /** Reports in a row without new words that raise the quiet NO_NEW_WORDS flag. */
+    noNewWordsFlagAfter: 2,
+    /**
+     * The longest report text the form accepts, in characters of the prose (the word list is not
+     * counted); longer = the student is asked to shorten (owner setting, customer 02.11.2026).
+     */
+    maxReportChars: 1500,
+    /**
      * The first local day the school counts (YYYY-MM-DD, owner setting). Before it nobody is
      * "silent", the Monday summary raises no flags and sends nothing, reminders stay quiet —
      * the week of the move to ThinkRead is a grace week. Empty = from the beginning.
@@ -35,6 +47,8 @@ export const globalConfig = {
     /** Adding more than this many words at once requires confirmation. */
     bulkImportConfirmThreshold: 5,
     importPreviewTtlHours: 24,
+    /** The most words one report can add (owner setting); the rest are left out of the preview. */
+    maxPerReport: 30,
   },
 
   reminders: {
@@ -56,6 +70,33 @@ export const globalConfig = {
     spotCheckExpiryDays: 3,
     /** Previous reports of the same type shown to the authenticity check. */
     authenticityHistory: 5,
+    /**
+     * Style signals (STYLE_MISMATCH, TOO_POLISHED) need this many previous reports with
+     * connected prose and measured metrics; with fewer the check only looks at the content
+     * signals.
+     */
+    authenticityMinHistory: 3,
+    /** Measured style signals (see AuthenticityService.judgeStyle). */
+    style: {
+      /** Prose shorter than this is not judged on style at all. */
+      minProseWords: 60,
+      /** Above-level fragments (verified quotes) needed alongside the error-rate signal. */
+      minAdvanced: 2,
+      /** STYLE_MISMATCH: errors per 100 words fell to this fraction of the student's usual rate… */
+      dropFactor: 3,
+      /** …and the usual rate was at least this (a student who always writes clean has no jump). */
+      baselineMinErrors: 3,
+      /** TOO_POLISHED: errors per 100 words at or below this for the level… */
+      cleanErrorsByLevel: {
+        PRE_INTERMEDIATE: 1.5,
+        INTERMEDIATE: 1.0,
+        UPPER_INTERMEDIATE: 0.7,
+        ADVANCED: 0.4,
+        IELTS: 0.4,
+      } as Record<string, number>,
+      /** …while the student's usual rate is at least this many times the clean threshold. */
+      cleanBaselineFactor: 2,
+    },
     /** Self-assessed first-pass % this far above the student's average is a PCT_JUMP flag. */
     pctJumpThreshold: 30,
   },

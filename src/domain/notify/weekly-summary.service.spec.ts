@@ -68,6 +68,7 @@ describe('WeeklySummaryService', () => {
       topReaders: async () => [{ studentId: 's1', pages: 84, reports: 3 }],
     } as never,
     {
+      confirmedInWeek: async () => new Set<string>(),
       list: async (filter: { kind?: FlagKind; studentId?: string }) =>
         filter.kind === FlagKind.NORM_MISSED_WEEK
           ? raised

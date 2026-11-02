@@ -51,7 +51,10 @@ function make(): SchoolFactsService {
       topReaders: async () => [{ studentId: 's1', pages: 40, reports: 1 }],
     } as never,
     { countsFor: async () => new Map([['s1', { total: 42, learned: 9 }]]) } as never,
-    { countNewByStudent: async () => new Map([['s2', 1]]) } as never,
+    {
+      countNewByStudent: async () => new Map([['s2', 1]]),
+      confirmedInWeek: async () => new Set(),
+    } as never,
     { timezone: 'Asia/Tashkent' } as never,
   );
 }

@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { ListeningMethod } from '../groups/level';
 import { enumCheck } from '../../common/db-checks';
+import { ReportMetrics } from '../flags/flag.enums';
 import { Student } from '../students/student.entity';
 
 export enum ReportType {
@@ -90,6 +91,17 @@ export class Report {
 
   @Column({ type: 'int', name: 'words_added', default: 0 })
   wordsAdded!: number;
+
+  /** The student confirmed the report with an empty word list ("без новых слов"). */
+  @Column({ type: 'boolean', name: 'no_new_words', default: false })
+  noNewWords!: boolean;
+
+  /**
+   * Language metrics of the prose measured by the authenticity check (errors per 100 words,
+   * above-level fragments). The baseline the next reports' style is compared with.
+   */
+  @Column({ type: 'jsonb', name: 'ai_metrics', nullable: true })
+  aiMetrics!: ReportMetrics | null;
 
   /** Monday of the local week (Asia/Tashkent) — the week this report counts towards. */
   @Column({ type: 'date', name: 'week_start' })
