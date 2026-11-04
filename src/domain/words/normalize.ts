@@ -59,7 +59,7 @@ export function parseWordList(text: string): ParsedWordLine[] {
   const seen = new Map<string, ParsedWordLine>();
   const lines = text.split(/\r\n?|\n/).flatMap(splitGluedPairs);
   for (const rawLine of lines) {
-    const line = rawLine.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim();
+    const line = spaceAsSeparator(rawLine.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim());
     if (!line) continue;
     const sep = SEPARATOR.exec(line);
     if (sep) {
@@ -96,6 +96,18 @@ export function splitGluedPairs(line: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * "convince убеждать" / "убеждать convince": a word and its translation with only a space
+ * between them get the dash the rest of the parser expects. A line that already has a
+ * separator is left alone.
+ */
+export function spaceAsSeparator(line: string): string {
+  if (SEPARATOR.test(line)) return line;
+  return line
+    .replace(/^([A-Za-z][A-Za-z'’ -]{0,40}?)\s+(?=\p{Script=Cyrillic})/u, '$1 — ')
+    .replace(/^(\p{Script=Cyrillic}[\p{Script=Cyrillic}\s,()]{0,60}?)\s+(?=[A-Za-z])/u, '$1 — ');
+}
+
 /** Words of up to this many tokens; a longer "word" is a sentence that slipped into the list. */
 const MAX_WORD_TOKENS = 4;
 
@@ -112,11 +124,7 @@ export function extractWordList(text: string): { hasList: boolean; items: Parsed
   const candidates: string[] = [];
   if (marker) candidates.push(clean.slice(marker.index + marker[0].length));
   for (const line of clean.split('\n').flatMap(splitGluedPairs)) {
-    const trimmed = line
-      .replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '')
-      // "owl сова": a Latin word and its translation with only a space between.
-      .replace(/^([A-Za-z][A-Za-z'’ -]{0,40}?)\s+(?=\p{Script=Cyrillic})/u, '$1 — ')
-      .trim();
+    const trimmed = spaceAsSeparator(line.replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '').trim());
     if (!trimmed || new RegExp(`^${LIST_MARKER.source}$`, 'i').test(trimmed)) continue;
     const sep = SEPARATOR.exec(trimmed);
     if (sep) {
