@@ -74,6 +74,14 @@ describe('parseWordList', () => {
     ]);
   });
 
+  it('takes a space between the word and its translation as the separator', () => {
+    expect(parseWordList('convince убеждать\nубеждать persuade\ngive up сдаваться')).toEqual([
+      { word: 'convince', translation: 'убеждать' },
+      { word: 'persuade', translation: 'убеждать' },
+      { word: 'give up', translation: 'сдаваться' },
+    ]);
+  });
+
   it('collapses duplicates by lemma and keeps the first translation', () => {
     expect(parseWordList('Wand — палочка\nwand\nWAND — жезл')).toEqual([
       { word: 'Wand', translation: 'палочка' },
