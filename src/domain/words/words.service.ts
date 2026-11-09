@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Repository } from 'typeorm';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
+import { localDay } from '../norms/week';
+import { globalConfig } from '../../config/global.config';
 import { Student } from '../students/student.entity';
 import { LexiconService } from './lexicon.service';
 import { displayWord, lemmaOf } from './normalize';
@@ -219,6 +221,28 @@ export class WordsService {
       words: Number(row?.words ?? 0),
       learned: Number(row?.learned ?? 0),
     };
+  }
+
+  /** Words the student added on the local day containing `now` — the daily cap (`words.maxPerDay`, W4). */
+  async addedToday(studentId: string, now: Date, timeZone: string): Promise<number> {
+    const row = await this.repo
+      .createQueryBuilder('w')
+      .select('COUNT(*)', 'count')
+      .where('w.student_id = :studentId', { studentId })
+      .andWhere("to_char(w.created_at AT TIME ZONE :tz, 'YYYY-MM-DD') = :day", {
+        tz: timeZone,
+        day: localDay(now, timeZone),
+      })
+      .getRawOne<{ count: string }>();
+    return Number(row?.count ?? 0);
+  }
+
+  /** How many more words the student may add today; 0 when the cap is reached. */
+  async dailyRoom(studentId: string, now: Date, timeZone: string): Promise<number> {
+    return Math.max(
+      0,
+      globalConfig.words.maxPerDay - (await this.addedToday(studentId, now, timeZone)),
+    );
   }
 
   /** Lemmas the student has (any status) — for teacher-list recommendations and import previews. */

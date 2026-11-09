@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { formatInTimeZone } from 'date-fns-tz';
 import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
-import { normsStarted } from '../norms/week';
+import { daysLeftInSlot, normsStarted, slotOf } from '../norms/week';
 import { CardsService } from '../cards/cards.service';
 import { ReminderChannel, ReminderKind } from '../norms/reminder-log.entity';
 import { RemindersService } from '../norms/reminders.service';
@@ -102,7 +102,9 @@ export class ReminderPlannerService {
     if (!normsStarted(now, tz)) return this.notStarted(run);
     const active = await this.students.findActive();
     run.candidates = active.length;
-    const daysLeft = 7 - (((weekday + 6) % 7) % 7); // Monday → 7 … Sunday → 1
+    // N1: the reminder is about the window that closes soonest, not the week as a whole.
+    const daysLeft = daysLeftInSlot(now, tz);
+    const slot = slotOf(now, tz);
     let sentInBatch = 0;
     for (const s of active) {
       if (this.calm(s, now)) {
@@ -110,9 +112,11 @@ export class ReminderPlannerService {
         continue;
       }
       const progress = await this.reports.weekProgress(s.id, now, tz);
+      const open = (kind: 'reading' | 'listening'): boolean =>
+        progress.slots?.[kind].some((v) => v.slot === slot && v.state === 'open') ?? true;
       const missing = {
-        reading: Math.max(0, progress.readingNorm - progress.reading),
-        listening: Math.max(0, progress.listeningNorm - progress.listening),
+        reading: open('reading') ? Math.max(0, progress.readingNorm - progress.reading) : 0,
+        listening: open('listening') ? Math.max(0, progress.listeningNorm - progress.listening) : 0,
       };
       if (missing.reading === 0 && missing.listening === 0) {
         run.skipped.done += 1;

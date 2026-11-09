@@ -43,6 +43,10 @@ function make(
     limit?: boolean;
     extracted?: { hasList: boolean; items: { word: string; translation: string | null }[] };
     history?: { noNewWords: boolean }[];
+    /** Windows of the week already holding a reading report (N1). */
+    filled?: number[];
+    /** Words the daily cap still allows (W4). */
+    dailyRoom?: number;
   } = {},
 ): Deps {
   const reports = {
@@ -50,6 +54,10 @@ function make(
     saveReading: jest.fn().mockResolvedValue({ id: 'r1', method: null }),
     saveListening: jest.fn().mockResolvedValue({ id: 'r2', method: 'PODCAST_NO_TRANSCRIPT' }),
     setWordsAdded: jest.fn(),
+    filledSlots: jest.fn().mockResolvedValue({
+      reading: new Set<number>(opts.filled ?? []),
+      listening: new Set<number>(),
+    }),
     history: jest.fn().mockResolvedValue(opts.history ?? []),
     weekProgress: jest.fn().mockResolvedValue({
       weekStart: '2026-09-28',
@@ -66,6 +74,7 @@ function make(
       learned: [],
     })),
     ownedLemmas: jest.fn().mockResolvedValue(new Set(['owl'])),
+    dailyRoom: jest.fn().mockResolvedValue(opts.dailyRoom ?? 30),
   };
   const students = {
     patchDialogState: jest.fn(async (s: Student, patch: object) =>
@@ -229,6 +238,32 @@ describe('ReportIntakeService', () => {
     expect(d.flags.raise).toHaveBeenCalledWith(
       expect.objectContaining({ studentId: 's1', reportId: 'r1', kind: 'NO_NEW_WORDS' }),
     );
+  });
+
+  it('a second report in the same window is saved but opens no new slot; the daily word cap trims the list', async () => {
+    // NOW is Thursday 1 Oct 2026 (Tashkent) — window 2 (Wed–Thu).
+    const d = make(llmReturning(READING), { filled: [2], dailyRoom: 1 });
+    const s = student(GroupLevel.INTERMEDIATE);
+    const id = draftId(await d.svc.submit(s, ReportType.READING, 'прочитал...', NOW, TZ));
+    const res = await d.svc.confirm(
+      s,
+      id,
+      [
+        { word: 'wand', translation: null },
+        { word: 'muggle', translation: null },
+      ],
+      NOW,
+      TZ,
+    );
+    expect(res).toMatchObject({ status: 'SAVED', slot: 2, slotClosed: true });
+    if (res.status !== 'SAVED') return;
+    expect(res.words.droppedDaily).toBe(1);
+    expect(d.words.addWords).toHaveBeenCalledWith(
+      s,
+      [{ word: 'wand', translation: null }],
+      expect.anything(),
+    );
+    expect(d.reports.filledSlots).toHaveBeenCalledWith('s1', '2026-09-28');
   });
 
   it('refuses to confirm below the owner minimum of words', async () => {

@@ -1,4 +1,4 @@
-import { addDays, format, startOfWeek } from 'date-fns';
+import { addDays, format, getISODay, parseISO, startOfWeek } from 'date-fns';
 import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { globalConfig } from '../../config/global.config';
 
@@ -74,4 +74,61 @@ export function normsStartInstant(
   startsOn: string = globalConfig.norms.startsOn,
 ): Date | null {
   return startsOn ? fromZonedTime(`${startsOn}T00:00:00`, timeZone) : null;
+}
+
+/** 1, 2 or 3 — the submission window a local day belongs to (`norms.slotWindows`). */
+export function slotOf(instant: Date, timeZone: string): number {
+  const weekday = getISODay(toZonedTime(instant, timeZone));
+  const idx = globalConfig.norms.slotWindows.findIndex((days) => days.includes(weekday));
+  return idx < 0 ? globalConfig.norms.slotWindows.length : idx + 1;
+}
+
+/** How many windows a week has — the weekly norm of each report type under N1. */
+export function slotsPerWeek(): number {
+  return globalConfig.norms.slotWindows.length;
+}
+
+export type SlotState = 'done' | 'open' | 'missed' | 'upcoming';
+
+export interface SlotView {
+  slot: number;
+  /** First and last local day of the window, `YYYY-MM-DD`. */
+  from: string;
+  to: string;
+  state: SlotState;
+}
+
+/**
+ * The windows of the week starting on `weekStart` as the student sees them at `now`: filled
+ * ones are done, the one containing today is open, earlier empty ones are missed (they burn),
+ * later ones are upcoming.
+ */
+export function slotViews(
+  weekStart: string,
+  filled: ReadonlySet<number>,
+  now: Date,
+  timeZone: string,
+): SlotView[] {
+  const monday = parseISO(`${weekStart}T00:00:00`);
+  const today = localDay(now, timeZone);
+  return globalConfig.norms.slotWindows.map((days, i) => {
+    const from = format(addDays(monday, days[0] - 1), 'yyyy-MM-dd');
+    const to = format(addDays(monday, days[days.length - 1] - 1), 'yyyy-MM-dd');
+    const slot = i + 1;
+    const state: SlotState = filled.has(slot)
+      ? 'done'
+      : today > to
+        ? 'missed'
+        : today < from
+          ? 'upcoming'
+          : 'open';
+    return { slot, from, to, state };
+  });
+}
+
+/** Local days left in the current window, counting today (1 = the window closes today). */
+export function daysLeftInSlot(now: Date, timeZone: string): number {
+  const weekday = getISODay(toZonedTime(now, timeZone));
+  const days = globalConfig.norms.slotWindows[slotOf(now, timeZone) - 1];
+  return days[days.length - 1] - weekday + 1;
 }

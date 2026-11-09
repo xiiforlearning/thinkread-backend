@@ -4,7 +4,7 @@ import { globalConfig } from '../../config/global.config';
 import { FlagsService } from '../flags/flags.service';
 import { LEVEL_LABELS } from '../groups/messages';
 import { GroupsService } from '../groups/groups.service';
-import { recentWeekStarts } from '../norms/week';
+import { recentWeekStarts, slotOf, slotViews } from '../norms/week';
 import { ReportsService } from '../reports/reports.service';
 import { Health, healthOf, silentDays } from '../students/health';
 import { displayNameOf } from '../students/name-validation';
@@ -61,7 +61,15 @@ export interface SchoolGroupFacts {
  */
 export interface SchoolFacts {
   scope: 'school' | 'groups';
-  period: { weeks: string[]; labels: string[]; currentWeek: string; weeksOf: number };
+  period: {
+    weeks: string[];
+    labels: string[];
+    currentWeek: string;
+    weeksOf: number;
+    /** The window open now and its last day — the current week is still running (N2). */
+    openWindow: number;
+    windowClosesOn: string;
+  };
   norms: { readingPerWeek: number; listeningPerWeek: number; cardsPerDay: number };
   totals: {
     students: number;
@@ -155,8 +163,9 @@ export class SchoolFactsService {
           silentDays: silentDays(s, now),
           blockedBot: s.dmBlocked,
           weeks: perWeek,
-          metReading: perWeek.filter(([r]) => r >= norms.readingPerWeek).length,
-          metListening: perWeek.filter(([, l]) => l >= norms.listeningPerWeek).length,
+          // Completed weeks only: the current week is still running (N2).
+          metReading: perWeek.slice(0, -1).filter(([r]) => r >= norms.readingPerWeek).length,
+          metListening: perWeek.slice(0, -1).filter(([, l]) => l >= norms.listeningPerWeek).length,
           words: wordCounts.get(s.id) ?? { total: 0, learned: 0 },
           flagsNew: flagsNew.get(s.id) ?? 0,
         };
@@ -169,6 +178,10 @@ export class SchoolFactsService {
         weeks: starts,
         labels: starts.map(weekLabel),
         currentWeek: current,
+        openWindow: slotOf(now, tz),
+        windowClosesOn:
+          slotViews(current, new Set(), now, tz).find((v) => v.slot === slotOf(now, tz))?.to ??
+          current,
         weeksOf: weeks,
       },
       norms: { ...norms },

@@ -47,6 +47,8 @@ function intakeView(r: IntakeResult): Record<string, unknown> {
     report: reportView(r.report),
     weekProgress: weekView(r.weekProgress),
     words: r.words,
+    slot: r.slot,
+    slotClosed: r.slotClosed,
   };
 }
 

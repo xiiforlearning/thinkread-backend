@@ -13,6 +13,17 @@ export const globalConfig = {
     /** A second report of the same type on the same local day is refused (norm can't be closed in one evening). */
     maxReportsPerTypePerDay: 1,
     /**
+     * Submission windows (customer decision 02.11.2026, N1): each of the week's reports of a type
+     * belongs to its own window — Mon–Tue, Wed–Thu, Fri–Sun (ISO weekdays, local time). A window
+     * closes on its last day; a missed one burns and is never caught up later, a second report
+     * in the same window does not open a new slot. The weekly norm is the number of windows.
+     */
+    slotWindows: [
+      [1, 2],
+      [3, 4],
+      [5, 6, 7],
+    ] as readonly (readonly number[])[],
+    /**
      * A report counts only with at least this many confirmed new words (owner setting). 0 = a
      * report without new words is accepted and marked "без новых слов".
      */
@@ -49,12 +60,14 @@ export const globalConfig = {
     importPreviewTtlHours: 24,
     /** The most words one report can add (owner setting); the rest are left out of the preview. */
     maxPerReport: 30,
+    /** The most words a student can add in one local day, from reports, by hand and by import (W4). */
+    maxPerDay: 30,
   },
 
   reminders: {
     cardsTime: '18:00',
-    /** 0=Sun … 6=Sat. */
-    reportDays: [4, 6] as readonly number[],
+    /** 0=Sun … 6=Sat. The last day of each submission window: Tue, Thu, Sun. */
+    reportDays: [2, 4, 0] as readonly number[],
     reportsTime: '19:00',
     tiredDays: 3,
   },

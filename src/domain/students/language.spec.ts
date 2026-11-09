@@ -41,7 +41,7 @@ describe('student language', () => {
     expect(
       reminderTexts.en.reports({ reading: 1, listening: 0 }, { reading: 3, listening: 3 }, 2),
     ).toBe(
-      '2 days left in the week. Still to do: reading — 1 more of 3. Reports are handed in in the app — one message each.',
+      'The submission window closes in 2 days. Still open this week: reading — 1 more of 3. A missed window cannot be made up later — submit the report in the app in one message.',
     );
   });
 });

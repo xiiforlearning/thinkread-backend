@@ -21,6 +21,7 @@ import { Lang, langOf } from '../students/language';
 import { Student } from '../students/student.entity';
 import { DraftWord, ReportDraft } from '../students/student.enums';
 import { StudentsService } from '../students/students.service';
+import { slotOf, weekStart } from '../norms/week';
 import { displayWord, isEnglishWord, lemmaOf } from '../words/normalize';
 import { WordSource } from '../words/word.enums';
 import { NewWordInput, WordsService } from '../words/words.service';
@@ -58,7 +59,11 @@ export type IntakeResult =
       status: 'SAVED';
       report: Report;
       weekProgress: WeekProgress;
-      words: { added: string[]; alreadyHad: string[] };
+      /** `droppedDaily` = words left out because of the daily cap (`words.maxPerDay`, W4). */
+      words: { added: string[]; alreadyHad: string[]; droppedDaily: number };
+      /** The submission window the report fell into and whether it was already filled (N1). */
+      slot: number | null;
+      slotClosed: boolean;
     }
   | {
       status: 'CLARIFY';
@@ -144,7 +149,11 @@ export class ReportIntakeService {
     }
     const type = this.typeOf(draft);
     await this.assertDailyLimit(student, type, now, timeZone);
-    const words = this.cleanWords(chosen ?? (draft.words ?? []).filter((w) => !w.duplicate));
+    const all = this.cleanWords(chosen ?? (draft.words ?? []).filter((w) => !w.duplicate));
+    // The daily cap (W4): the words beyond it are left out, the student is told how many.
+    const room = await this.words.dailyRoom(student.id, now, timeZone);
+    const words = all.slice(0, room);
+    const droppedDaily = all.length - words.length;
     const minWords = globalConfig.norms.minWordsPerReport;
     if (words.length < minWords) {
       throw new AppError({
@@ -156,6 +165,10 @@ export class ReportIntakeService {
     }
 
     const parsed = draft.parsed as unknown as ParsedReport;
+    // A second report in the same submission window keeps the words but opens no new slot (N1).
+    const filled = await this.reports.filledSlots(student.id, weekStart(now, timeZone));
+    const slot = slotOf(now, timeZone);
+    const slotClosed = (type === ReportType.READING ? filled.reading : filled.listening).has(slot);
     const origin = {
       now,
       timeZone,
@@ -196,7 +209,14 @@ export class ReportIntakeService {
     const added = await this.saveWords(student, report, words, type);
     if (origin.noNewWords) await this.flagNoNewWords(student, report);
     const weekProgress = await this.reports.weekProgress(student.id, now, timeZone);
-    return { status: 'SAVED', report, weekProgress, words: added };
+    return {
+      status: 'SAVED',
+      report,
+      weekProgress,
+      words: { ...added, droppedDaily },
+      slot,
+      slotClosed,
+    };
   }
 
   /** "Back to the report": the draft is dropped, nothing was counted. */

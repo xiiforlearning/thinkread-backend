@@ -137,8 +137,21 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
 - `listening-fields.ts` is the source of truth for what a listening report must contain per
   `ListeningMethod`; the tool returns `missing_fields` and the model asks for exactly those.
   A retelling shorter than `MIN_RETELLING_CHARS` counts as missing.
-- `ReportsService.weekProgress()` counts reports by `week_start` (Monday, Asia/Tashkent) — the
-  weekly norm. The agent puts it into the state block on every turn.
+- **Submission windows (N1, customer 02.11.2026):** a week has three windows per report type —
+  Mon–Tue, Wed–Thu, Fri–Sun (`norms.slotWindows`, local days; `slotOf()`, `slotViews()`,
+  `daysLeftInSlot()` in `norms/week.ts`). A report is stamped with `reports.slot` when saved;
+  `ReportsService.weekProgress()` / `countsByWeek()` / `calendar()` count **filled windows**
+  (`COUNT(DISTINCT slot)`), not reports, against the owner's weekly norm. A second report in an
+  already filled window is saved (words included) but opens no slot — the intake answers
+  `slotClosed: true`; a missed window burns (`state: missed`). Report reminders go out on the
+  last day of each window (`reminders.reportDays` = Tue, Thu, Sun) and speak of the window that
+  closes. For the AI (N2) `StudentFactsService` / `SchoolFactsService` count `weeksMet` over
+  completed weeks only and describe the current week as "ещё идёт, окно N закрывается <дата>";
+  the level comes from `students.level`, `dmBlocked` is explained in the prompts as Telegram's
+  "bot was blocked" on send, never guessed at.
+- **Daily word cap (W4):** `words.maxPerDay` (30, owner setting) across reports, manual adds and
+  imports — `WordsService.dailyRoom()`; the words beyond it are left out and reported as
+  `droppedDaily`, never silently.
 - One report per type per local day (`norms.maxReportsPerTypePerDay`, customer decision): the
   save tools return `reason: DAILY_LIMIT` without saving, and the state block tells the model
   what was already handed in today so it does not ask follow-up questions.
