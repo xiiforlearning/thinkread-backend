@@ -32,6 +32,13 @@ export class StudentsQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() groupChatId?: number;
 }
 
+/** The teacher corrects a word of the student's dictionary: the spelling and/or the translation. */
+export class EditWordDto {
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(80) word?: string;
+  /** Empty string clears the translation (the lexicon may fill it again). */
+  @IsOptional() @IsString() @MaxLength(200) translation?: string;
+}
+
 export class RenameStudentDto {
   /** Owner's label shown everywhere instead of the name; null clears it. */
   @IsOptional() @IsString() @MaxLength(80) displayName?: string | null;
