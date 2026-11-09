@@ -223,6 +223,11 @@ export class WordsService {
     };
   }
 
+  /** The words one report put into the dictionary, in the order they were added. */
+  bySourceReport(reportId: string): Promise<Word[]> {
+    return this.repo.find({ where: { sourceReportId: reportId }, order: { createdAt: 'ASC' } });
+  }
+
   /** Words the student added on the local day containing `now` — the daily cap (`words.maxPerDay`, W4). */
   async addedToday(studentId: string, now: Date, timeZone: string): Promise<number> {
     const row = await this.repo

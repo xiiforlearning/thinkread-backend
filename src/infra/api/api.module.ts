@@ -22,6 +22,7 @@ import { AdminGroupsController } from './admin/groups.controller';
 import { AdminChatController } from './admin/chat.controller';
 import { AdminOpsController } from './admin/ops.controller';
 import { AdminOverviewController } from './admin/overview.controller';
+import { AdminReportsController } from './admin/reports.controller';
 import { AdminScopeService } from './admin/scope';
 import { AdminSettingsController } from './admin/settings.controller';
 import { AdminStudentsController } from './admin/students.controller';
@@ -69,6 +70,7 @@ import { MeWordsController } from './me/words.controller';
     MeReportsController,
     MeCardsController,
     AdminOverviewController,
+    AdminReportsController,
     AdminStudentsController,
     AdminFlagsController,
     AdminGroupsController,

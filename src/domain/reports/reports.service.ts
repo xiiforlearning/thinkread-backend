@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Not, Repository } from 'typeorm';
+import { In, LessThan, Not, Repository } from 'typeorm';
 import { addDays, format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
@@ -256,6 +256,57 @@ export class ReportsService {
       out.set(key, cell);
     }
     return out;
+  }
+
+  /**
+   * Reports handed in and pages read per student and week — raw counts (not windows) for the
+   * overview tiles and the Top 3 ranking. Map key: `${studentId}|${weekStart}`.
+   */
+  async totalsByWeek(
+    studentIds: string[],
+    weekStarts: string[],
+  ): Promise<Map<string, { reading: number; listening: number; pages: number }>> {
+    const out = new Map<string, { reading: number; listening: number; pages: number }>();
+    if (studentIds.length === 0 || weekStarts.length === 0) return out;
+    const rows = await this.repo
+      .createQueryBuilder('r')
+      .select('r.student_id', 'studentId')
+      .addSelect('r.week_start', 'weekStart')
+      .addSelect('r.type', 'type')
+      .addSelect('COUNT(*)', 'count')
+      .addSelect('COALESCE(SUM(r.pages), 0)', 'pages')
+      .where('r.student_id IN (:...studentIds)', { studentIds })
+      .andWhere('r.week_start IN (:...weekStarts)', { weekStarts })
+      .groupBy('r.student_id')
+      .addGroupBy('r.week_start')
+      .addGroupBy('r.type')
+      .getRawMany<{
+        studentId: string;
+        weekStart: string | Date;
+        type: ReportType;
+        count: string;
+        pages: string;
+      }>();
+    for (const row of rows) {
+      const key = `${row.studentId}|${weekKeyOf(row.weekStart)}`;
+      const cell = out.get(key) ?? { reading: 0, listening: 0, pages: 0 };
+      if (row.type === ReportType.READING) {
+        cell.reading += Number(row.count);
+        cell.pages += Number(row.pages);
+      } else cell.listening += Number(row.count);
+      out.set(key, cell);
+    }
+    return out;
+  }
+
+  /** The newest reports across students, for the overview feed. */
+  latest(studentIds: string[], limit = 20): Promise<Report[]> {
+    if (studentIds.length === 0) return Promise.resolve([]);
+    return this.repo.find({
+      where: { studentId: In(studentIds) },
+      order: { createdAt: 'DESC' },
+      take: Math.min(limit, 100),
+    });
   }
 
   /** Pages read per student in one week, most first; `exclude` = students with confirmed flags. */

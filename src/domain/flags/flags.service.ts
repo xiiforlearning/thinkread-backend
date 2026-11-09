@@ -153,6 +153,23 @@ export class FlagsService {
     return new Set(rows.map((r) => r.studentId));
   }
 
+  /** Flags raised in `[from, to)` for the students (null = everyone), any status. */
+  async countRaisedBetween(studentIds: string[] | null, from: Date, to: Date): Promise<number> {
+    if (studentIds && studentIds.length === 0) return 0;
+    const qb = this.flags
+      .createQueryBuilder('f')
+      .select('COUNT(*)', 'count')
+      .where('f.created_at >= :from AND f.created_at < :to', { from, to });
+    if (studentIds) qb.andWhere('f.student_id IN (:...studentIds)', { studentIds });
+    const row = await qb.getRawOne<{ count: string }>();
+    return Number(row?.count ?? 0);
+  }
+
+  /** The cards of one report (normally one), newest first. */
+  byReport(reportId: string): Promise<Flag[]> {
+    return this.flags.find({ where: { reportId }, order: { createdAt: 'DESC' } });
+  }
+
   /** NEW flags per student — the badge in the student list. */
   async countNewByStudent(studentIds: string[] | null): Promise<Map<string, number>> {
     const out = new Map<string, number>();

@@ -148,7 +148,7 @@ export class AdminStudentsController {
       flags: flags.map((f) =>
         flagView(f, null, [], f.reportId ? (reportsById.get(f.reportId) ?? null) : null),
       ),
-      recentReports: recent.map(reportView),
+      recentReports: recent.map((r) => ({ ...reportView(r), rawText: r.rawText })),
       canEdit: scope.isOwner,
     };
   }

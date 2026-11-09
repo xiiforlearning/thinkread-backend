@@ -98,7 +98,14 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   `scope.assertOwner()`. Lists are built from batch queries (`ReportsService.countsByWeek`,
   `WordsService.countsFor`, `FlagsService.countNewByStudent`), never per student.
   `domain/students/health.ts` is the one health function (silence days + blocked bot) for the
-  dashboard, the Mini App and the summary.
+  dashboard, the Mini App and the summary. Teacher's feedback 02.11.2026 (D1–D3, D7):
+  `GET /admin/overview` carries `stats.reportsThisWeek/reportsLastWeek` (raw counts with the
+  reading/listening split), `flagsRaisedThisWeek`, `aiMonth` (owner only), `latestReports`
+  (20 newest reports with the student and the week cell) and a `topReaders` ranked by the norm
+  (both norms met → filled windows → reports → pages; students with a REVIEWED flag on a report
+  of the week are excluded — `FlagsService.confirmedInWeek`). `GET /admin/reports/:id`
+  (`AdminReportsController`) returns any visible report in full — raw text, parse, AI metrics,
+  the words it added, its flags; the dashboard opens it from every feed.
 - Settings: `SettingsService` keeps owner overrides of `globalConfig` in the `settings` table and
   writes them into `globalConfig` in place at boot and on every change, so the rest of the code
   keeps reading `globalConfig`. Only the keys in `EDITABLE_SETTINGS` (with ranges) can change.
