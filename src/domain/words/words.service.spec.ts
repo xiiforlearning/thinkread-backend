@@ -13,6 +13,7 @@ function make(owned: Partial<Word>[]): { svc: WordsService; saved: Word[] } {
     addSelect: () => qb,
     groupBy: () => qb,
     getMany: async () => owned,
+    getOne: async () => owned[0] ?? null,
     getRawMany: async () => [],
   };
   const repo = {
@@ -83,5 +84,34 @@ describe('WordsService (W5: removal)', () => {
     expect(res.added).toHaveLength(0);
     expect(res.existing.map((w) => w.id)).toEqual(['w1']);
     expect(saved).toHaveLength(0);
+  });
+
+  it('edit() fixes the spelling and the translation, recomputes the lemma and refuses a duplicate', async () => {
+    const { svc, saved } = make([]);
+    const word = {
+      id: 'w1',
+      studentId: 's1',
+      word: 'Soppose',
+      lemma: 'soppose',
+      translation: 'предполагать',
+      example: 'old example',
+      cefr: 'B1',
+      status: WordStatus.LEARNING,
+    } as Word;
+    const res = await svc.edit(word, { word: 'suppose', translation: 'полагать' });
+    expect(res.word).toBe('suppose');
+    expect(res.lemma).toBe('suppose');
+    expect(res.translation).toBe('полагать');
+    expect(res.example).toBeNull();
+    expect(saved).toHaveLength(1);
+
+    await expect(svc.edit(word, { word: 'предположить' })).rejects.toMatchObject({
+      code: expect.stringMatching(/001$/),
+    });
+
+    const { svc: svc2 } = make([{ id: 'w2', studentId: 's1', word: 'guess', lemma: 'guess' }]);
+    await expect(svc2.edit(word, { word: 'guess' })).rejects.toMatchObject({
+      code: expect.stringMatching(/250$/),
+    });
   });
 });

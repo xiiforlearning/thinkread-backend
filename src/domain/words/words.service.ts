@@ -7,7 +7,7 @@ import { localDay } from '../norms/week';
 import { globalConfig } from '../../config/global.config';
 import { Student } from '../students/student.entity';
 import { LexiconService } from './lexicon.service';
-import { displayWord, lemmaOf } from './normalize';
+import { displayWord, isEnglishWord, lemmaOf } from './normalize';
 import { Word } from './word.entity';
 import { CardStage, CefrLevel, WordPriority, WordSource, WordStatus } from './word.enums';
 
@@ -356,6 +356,56 @@ export class WordsService {
   async setPriority(word: Word, priority: WordPriority): Promise<Word> {
     if (word.priority === priority) return word;
     word.priority = priority;
+    return this.repo.save(word);
+  }
+
+  /**
+   * The teacher corrects a word and/or its translation (a typo in "Soppose", a wrong sense).
+   * A new spelling gets a new lemma, so the example and CEFR of the old word are dropped and
+   * the lexicon of the new lemma applied when it is known; a spelling the student already has
+   * is refused (ALREADY_EXISTS) — the teacher removes the duplicate instead.
+   */
+  async edit(word: Word, patch: { word?: string; translation?: string | null }): Promise<Word> {
+    if (patch.translation !== undefined) {
+      word.translation = displayWord(patch.translation ?? '') || null;
+    }
+    if (patch.word !== undefined) {
+      const next = displayWord(patch.word);
+      const lemma = lemmaOf(next);
+      if (!lemma || !isEnglishWord(next)) {
+        throw new AppError({
+          level: ErrorLevel.LOW_VALIDATION,
+          service: ServiceCode.WORDS,
+          error: ErrorCode.VALIDATION,
+          meta: { word: patch.word },
+        });
+      }
+      if (lemma !== (word.lemma ?? lemmaOf(word.word))) {
+        const clash = await this.repo
+          .createQueryBuilder('w')
+          .where('w.student_id = :studentId', { studentId: word.studentId })
+          .andWhere('w.id <> :id', { id: word.id })
+          .andWhere('(w.lemma = :lemma OR lower(w.word) = :lower)', {
+            lemma,
+            lower: next.toLowerCase(),
+          })
+          .getOne();
+        if (clash) {
+          throw new AppError({
+            level: ErrorLevel.LOW_BUSINESS,
+            service: ServiceCode.WORDS,
+            error: ErrorCode.ALREADY_EXISTS,
+            meta: { word: next, existingId: clash.id },
+          });
+        }
+        const lex = (await this.lexicon.findMany([lemma])).get(lemma);
+        word.lemma = lemma;
+        word.example = lex?.examples[0] ?? null;
+        word.cefr = lex?.cefr ?? null;
+        if (!word.translation && lex?.translation) word.translation = lex.translation;
+      }
+      word.word = next;
+    }
     return this.repo.save(word);
   }
 

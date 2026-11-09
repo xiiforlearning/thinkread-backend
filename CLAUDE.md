@@ -235,6 +235,10 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   export / `ownedLemmas` skip it, and `addWords()` revives it as a fresh LEARNING word on a
   re-add. **D9:** `GET /admin/students/:id/words/export?format=csv|txt` returns the whole
   dictionary of any visible student, archived included (same body as the Mini App export).
+  The teacher also corrects a word in place — `PATCH /admin/students/:id/words/:wordId
+  { word?, translation? }` → `WordsService.edit()`: a new spelling gets a new lemma (example
+  and CEFR of the old one dropped, the lexicon applied and `enrichLater` called), a spelling
+  the student already has is refused with ALREADY_EXISTS.
 - `WordImportsService`: more than `words.bulkImportConfirmThreshold` words → PENDING preview,
   confirmed by the `wimport:ok:<id>` / `wimport:no:<id>` callbacks in the bot; expires after
   `importPreviewTtlHours`. File uploads (`infra/bot/utils/word-file.ts`, `xlsx` for spreadsheets)

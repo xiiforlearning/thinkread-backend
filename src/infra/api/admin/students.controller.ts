@@ -18,6 +18,7 @@ import { fromZonedTime } from 'date-fns-tz';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../../common/codes';
 import { AppError } from '../../../common/errors';
 import { AppConfigService } from '../../../config/config.service';
+import { EnrichmentService } from '../../../domain/ai/enrichment.service';
 import { TeacherChatService } from '../../../domain/ai/teacher-chat.service';
 import { globalConfig } from '../../../config/global.config';
 import { AdminRole } from '../../../domain/admins/admin.entity';
@@ -36,7 +37,13 @@ import { JwtAuthGuard } from '../auth/guards';
 import { CurrentPrincipal, Principal, Roles } from '../auth/principal';
 import { ExportQueryDto, ListQueryDto } from '../me/dto';
 import { reportView, weekView, wordView } from '../me/serializers';
-import { ParentReportDto, RenameStudentDto, StudentsQueryDto, TeacherChatDto } from './dto';
+import {
+  EditWordDto,
+  ParentReportDto,
+  RenameStudentDto,
+  StudentsQueryDto,
+  TeacherChatDto,
+} from './dto';
 import { AdminScope, AdminScopeService } from './scope';
 import { flagView, GroupRef, studentDetail, studentRow } from './serializers';
 
@@ -56,8 +63,23 @@ export class AdminStudentsController {
     private readonly words: WordsService,
     private readonly membership: MembershipService,
     private readonly teacherChat: TeacherChatService,
+    private readonly enrichment: EnrichmentService,
     private readonly config: AppConfigService,
   ) {}
+
+  private async wordOf(scope: AdminScope, studentId: string, wordId: string) {
+    const student = await this.scope.student(scope, studentId);
+    const word = await this.words.findById(wordId);
+    if (!word || word.studentId !== student.id) {
+      throw new AppError({
+        level: ErrorLevel.LOW_BUSINESS,
+        service: ServiceCode.WORDS,
+        error: ErrorCode.NOT_FOUND,
+        meta: { id: wordId },
+      });
+    }
+    return word;
+  }
 
   private async groupRefs(ids: string[]): Promise<(id: string) => GroupRef[]> {
     const [all, byStudent] = await Promise.all([
@@ -225,6 +247,25 @@ export class AdminStudentsController {
     };
   }
 
+  @Patch(':id/words/:wordId')
+  @ApiOperation({
+    summary: "Correct a word of the student's dictionary: the spelling and/or the translation",
+  })
+  async editWord(
+    @CurrentPrincipal() principal: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('wordId', ParseUUIDPipe) wordId: string,
+    @Body() dto: EditWordDto,
+  ): Promise<Record<string, unknown>> {
+    const scope = await this.scope.resolve(principal);
+    const word = await this.wordOf(scope, id, wordId);
+    const before = word.lemma;
+    const saved = await this.words.edit(word, dto);
+    // A new spelling may be unknown to the lexicon: translation / example / CEFR catch up.
+    if (saved.lemma && saved.lemma !== before) this.enrichment.enrichLater([saved.lemma], id);
+    return wordView(saved);
+  }
+
   @Delete(':id/words/:wordId')
   @ApiOperation({
     summary: "W5: remove a word from the student's dictionary (status REMOVED, the row stays)",
@@ -235,17 +276,7 @@ export class AdminStudentsController {
     @Param('wordId', ParseUUIDPipe) wordId: string,
   ): Promise<Record<string, unknown>> {
     const scope = await this.scope.resolve(principal);
-    const student = await this.scope.student(scope, id);
-    const word = await this.words.findById(wordId);
-    if (!word || word.studentId !== student.id) {
-      throw new AppError({
-        level: ErrorLevel.LOW_BUSINESS,
-        service: ServiceCode.WORDS,
-        error: ErrorCode.NOT_FOUND,
-        meta: { id: wordId },
-      });
-    }
-    return wordView(await this.words.remove(word));
+    return wordView(await this.words.remove(await this.wordOf(scope, id, wordId)));
   }
 
   @Patch(':id')
