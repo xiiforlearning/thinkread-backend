@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { groupTitle } from '../groups/group.entity';
 import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
 import { FlagsService } from '../flags/flags.service';
@@ -127,7 +128,7 @@ export class StudentFactsService {
     const inRange = history.filter((r) => r.createdAt >= from && r.createdAt < to);
     const reports = inRange.map((r) => this.reportFacts(r));
     const sources = [...new Set(inRange.map((r) => r.sourceTitle).filter((s): s is string => !!s))];
-    const titles = new Map(allGroups.map((g) => [g.chatId, g.title]));
+    const titles = new Map(allGroups.map((g) => [g.chatId, groupTitle(g)]));
     const calmUntil = student.dialogState?.tiredUntil;
     return {
       student: {

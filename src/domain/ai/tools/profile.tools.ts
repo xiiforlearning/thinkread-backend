@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { groupTitle } from '../../groups/group.entity';
 import { globalConfig } from '../../../config/global.config';
 import { GroupsService } from '../../groups/groups.service';
 import { listeningMethodFor, requiresRetelling } from '../../groups/level';
@@ -33,7 +34,7 @@ export class GetProfileTool implements AgentTool {
       data: {
         name: displayNameOf(ctx.student),
         level: ctx.student.level ? LEVEL_LABELS[ctx.student.level] : null,
-        groups: groups.filter((g) => g !== null).map((g) => g.title),
+        groups: groups.filter((g) => g !== null).map((g) => groupTitle(g)),
         listeningMethod: listeningMethodFor(ctx.student.level),
         norms: {
           readingReportsPerWeek: globalConfig.norms.readingPerWeek,

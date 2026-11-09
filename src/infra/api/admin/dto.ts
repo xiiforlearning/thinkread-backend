@@ -51,6 +51,8 @@ export class ReviewFlagDto {
 
 export class GroupPatchDto {
   @IsOptional() @IsEnum(GroupLevel) level?: GroupLevel;
+  /** D12: the group's name in the dashboard; empty = the Telegram title again. */
+  @IsOptional() @IsString() @MaxLength(80) title?: string;
   /** false = the bot is no longer in this chat (or the chat is retired): hide it and stop checking it. */
   @IsOptional() @IsBoolean() isActive?: boolean;
 }

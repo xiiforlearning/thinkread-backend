@@ -8,6 +8,11 @@ export enum WordStatus {
   LEARNING = 'LEARNING',
   /** Kept in the vocabulary, excluded from cards; can be returned to LEARNING. */
   LEARNED = 'LEARNED',
+  /**
+   * Deleted by the teacher or the student (W5): out of lists, cards, counts and exports; the
+   * row stays (no physical deletion) and comes back as LEARNING if the word is added again.
+   */
+  REMOVED = 'REMOVED',
 }
 
 export enum WordSource {

@@ -1,4 +1,4 @@
-import { Group } from '../../../domain/groups/group.entity';
+import { Group, groupTitle } from '../../../domain/groups/group.entity';
 import { listeningMethodFor, requiresRetelling } from '../../../domain/groups/level';
 import { Report } from '../../../domain/reports/report.entity';
 import { WeekProgress } from '../../../domain/reports/reports.service';
@@ -21,7 +21,7 @@ export function profileView(student: Student, groups: Group[]): Record<string, u
     level: student.level,
     listeningMethod: method,
     retellingRequired: requiresRetelling(method),
-    groups: groups.map((g) => ({ chatId: g.chatId, title: g.title, level: g.level })),
+    groups: groups.map((g) => ({ chatId: g.chatId, title: groupTitle(g), level: g.level })),
     calmMode: calmUntil !== null && new Date(calmUntil) > new Date(),
     calmUntil,
     registeredAt: student.registeredAt,
