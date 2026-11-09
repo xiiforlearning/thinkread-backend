@@ -54,8 +54,20 @@ describe('FakeLlmAdapter', () => {
     ).toEqual({
       has_list: true,
       items: [
-        { word: 'staying sane', translation: 'сохранение душевного равновесия' },
-        { word: 'seemingly', translation: 'по-видимому' },
+        {
+          word: 'staying sane',
+          translation: 'сохранение душевного равновесия',
+          context: null,
+          suggested_translation: null,
+          basic: false,
+        },
+        {
+          word: 'seemingly',
+          translation: 'по-видимому',
+          context: null,
+          suggested_translation: null,
+          basic: false,
+        },
       ],
     });
     expect(

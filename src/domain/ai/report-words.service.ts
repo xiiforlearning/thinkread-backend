@@ -4,14 +4,10 @@ import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
 import { AiPurpose } from '../ai-log/ai-usage.entity';
 import { Student } from '../students/student.entity';
-import {
-  displayWord,
-  extractWordList,
-  isEnglishWord,
-  lemmaOf,
-  ParsedWordLine,
-} from '../words/normalize';
+import { isBasicWord } from '../words/basic';
+import { displayWord, extractWordList, isEnglishWord, lemmaOf } from '../words/normalize';
 import { LLM_PORT, LlmPort } from './llm.port';
+import { findQuote, sentenceWith } from './report-text';
 import {
   REPORT_WORDS_SYSTEM_PROMPT,
   REPORT_WORDS_TOOL,
@@ -20,10 +16,23 @@ import {
 } from './report-words.prompt';
 import { UsageService } from './usage.service';
 
+/** One word of the student's list, with what the report says about it (W6). */
+export interface ReportWordLine {
+  word: string;
+  /** The student's translation, else the AI's translation by the context of this report. */
+  translation: string | null;
+  /** True when `translation` is the AI's contextual suggestion, not the student's own. */
+  suggested: boolean;
+  /** The student's own sentence with the word (verified against the text), for the card. */
+  context: string | null;
+  /** A1 vocabulary: shown unticked, not added unless the student insists. */
+  basic: boolean;
+}
+
 export interface ExtractedWords {
   /** The student wrote an explicit list (a heading, "word — translation" lines, a column). */
   hasList: boolean;
-  items: ParsedWordLine[];
+  items: ReportWordLine[];
   /** Words beyond `words.maxPerReport` that were left out. */
   dropped: number;
 }
@@ -53,9 +62,17 @@ export class ReportWordsService {
         `report words extraction failed for student ${student.id}, using the rule-based list: ${String(err)}`,
       );
       const { hasList, items } = extractWordList(text);
-      result = { has_list: hasList, items };
+      result = {
+        has_list: hasList,
+        items: items.map((w) => ({
+          ...w,
+          context: null,
+          suggested_translation: null,
+          basic: false,
+        })),
+      };
     }
-    return this.clean(result);
+    return this.clean(result, text);
   }
 
   private async ask(student: Student, text: string): Promise<ReportWords> {
@@ -79,17 +96,30 @@ export class ReportWordsService {
     return call.input as ReportWords;
   }
 
-  /** English only, one per lemma, within the per-report cap. */
-  private clean(result: ReportWords): ExtractedWords {
+  /**
+   * English only, one per lemma, within the per-report cap. The context sentence is kept only
+   * when it really is in the student's text (else code looks for one itself); the A1 mark is
+   * the model's or the list's.
+   */
+  private clean(result: ReportWords, text: string): ExtractedWords {
     const seen = new Set<string>();
-    const items: ParsedWordLine[] = [];
+    const items: ReportWordLine[] = [];
     for (const raw of Array.isArray(result.items) ? result.items : []) {
       const word = displayWord(String(raw?.word ?? ''));
       const lemma = lemmaOf(word);
       if (!lemma || !isEnglishWord(word) || seen.has(lemma)) continue;
       seen.add(lemma);
-      const translation = displayWord(String(raw.translation ?? '')) || null;
-      items.push({ word, translation });
+      const own = displayWord(String(raw.translation ?? '')) || null;
+      const suggested = own ? null : displayWord(String(raw.suggested_translation ?? '')) || null;
+      const claimed = typeof raw.context === 'string' ? raw.context.trim() : '';
+      const context = claimed && findQuote(claimed, text) ? claimed : sentenceWith(text, word);
+      items.push({
+        word,
+        translation: own ?? suggested,
+        suggested: !own && suggested !== null,
+        context,
+        basic: Boolean(raw.basic) || isBasicWord(lemma),
+      });
     }
     const max = globalConfig.words.maxPerReport;
     const kept = items.slice(0, max);

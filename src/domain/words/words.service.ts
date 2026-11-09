@@ -14,6 +14,8 @@ import { CardStage, CefrLevel, WordPriority, WordSource, WordStatus } from './wo
 export interface NewWordInput {
   word: string;
   translation?: string | null;
+  /** W6: the student's own sentence with the word; wins over the lexicon's example. */
+  example?: string | null;
 }
 
 export interface AddWordsOptions {
@@ -80,7 +82,11 @@ export class WordsService {
       const word = displayWord(input.word);
       const lemma = lemmaOf(word);
       if (!lemma || clean.has(lemma)) continue;
-      clean.set(lemma, { word, translation: displayWord(input.translation ?? '') || null });
+      clean.set(lemma, {
+        word,
+        translation: displayWord(input.translation ?? '') || null,
+        example: input.example?.trim() || null,
+      });
     }
     if (clean.size === 0) return { added: [], existing: [], learned: [] };
 
@@ -113,7 +119,7 @@ export class WordsService {
           word: input.word,
           lemma,
           translation: input.translation ?? lex?.translation ?? null,
-          example: lex?.examples[0] ?? null,
+          example: input.example ?? lex?.examples[0] ?? null,
           cefr: lex?.cefr ?? null,
           status: WordStatus.LEARNING,
           stage: CardStage.TRANSLATION,

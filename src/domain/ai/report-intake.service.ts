@@ -149,7 +149,12 @@ export class ReportIntakeService {
     }
     const type = this.typeOf(draft);
     await this.assertDailyLimit(student, type, now, timeZone);
-    const all = this.cleanWords(chosen ?? (draft.words ?? []).filter((w) => !w.duplicate));
+    // W6: a basic (A1) word is added only when the student ticked it; the screen sends the
+    // ticked list, the default (no list) is the extracted one minus duplicates and basics.
+    const fromDraft = (draft.words ?? []).filter(
+      (w) => !w.duplicate && (!w.basic || globalConfig.words.autoAddBasic),
+    );
+    const all = this.cleanWords(chosen ?? fromDraft, draft.words ?? []);
     // The daily cap (W4): the words beyond it are left out, the student is told how many.
     const room = await this.words.dailyRoom(student.id, now, timeZone);
     const words = all.slice(0, room);
@@ -285,6 +290,9 @@ export class ReportIntakeService {
         word: w.word,
         translation: w.translation,
         duplicate: owned.has(lemmaOf(w.word)),
+        suggested: w.suggested || undefined,
+        context: w.context,
+        basic: w.basic || undefined,
       })),
       hasList: extracted.hasList,
       droppedWords: extracted.dropped,
@@ -306,16 +314,26 @@ export class ReportIntakeService {
     };
   }
 
-  /** English only, one per lemma, within the per-report cap, translations trimmed. */
-  private cleanWords(inputs: NewWordInput[]): Array<{ word: string; translation: string | null }> {
+  /**
+   * English only, one per lemma, within the per-report cap, translations trimmed. What the
+   * draft knows about a word (the contextual translation, the student's sentence) is attached
+   * when the screen sent the word without it.
+   */
+  private cleanWords(inputs: NewWordInput[], draftWords: DraftWord[]): NewWordInput[] {
+    const known = new Map(draftWords.map((w) => [lemmaOf(w.word), w]));
     const seen = new Set<string>();
-    const out: Array<{ word: string; translation: string | null }> = [];
+    const out: NewWordInput[] = [];
     for (const input of inputs) {
       const word = displayWord(input.word);
       const lemma = lemmaOf(word);
       if (!lemma || !isEnglishWord(word) || seen.has(lemma)) continue;
       seen.add(lemma);
-      out.push({ word, translation: displayWord(input.translation ?? '') || null });
+      const draft = known.get(lemma);
+      out.push({
+        word,
+        translation: displayWord(input.translation ?? '') || draft?.translation || null,
+        example: draft?.context ?? null,
+      });
       if (out.length >= globalConfig.words.maxPerReport) break;
     }
     return out;
@@ -324,7 +342,7 @@ export class ReportIntakeService {
   private async saveWords(
     student: Student,
     report: Report,
-    words: Array<{ word: string; translation: string | null }>,
+    words: NewWordInput[],
     type: ReportType,
   ): Promise<{ added: string[]; alreadyHad: string[] }> {
     if (words.length === 0) return { added: [], alreadyHad: [] };

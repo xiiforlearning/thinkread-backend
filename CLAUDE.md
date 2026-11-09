@@ -80,7 +80,14 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   student confirms the list** (`POST /me/reports/:draftId/confirm`; `/discard` = back to the
   form, `GET /me/reports/draft` resumes). Customer decision 02.11.2026: words come only from the
   student's explicit list (heading optional), never from the retelling, nothing is suggested; an
-  empty list is accepted and marked `noNewWords`, `norms.minWordsPerReport` (owner setting,
+  empty list is accepted and marked `noNewWords`. **W6 (teacher 02.11.2026):** `report_words`
+  also returns, per word, `context` (the student's own sentence with the word, verified by
+  `findQuote`, else found by `sentenceWith()` in `report-text.ts`) → the card's `example`;
+  `suggested_translation` only when the student wrote none — by the meaning in this report,
+  never the dictionary-first sense (`will` → «воля», not «завещание»); `basic` (A1, the model's
+  mark or `words/basic.ts`) → shown unticked and added only if the student ticks it
+  (`words.autoAddBasic` = false). `DraftWord` carries `suggested`, `context`, `basic`;
+  `confirm()` attaches the draft's context and translation to words the screen sends bare, `norms.minWordsPerReport` (owner setting,
   default 0) can demand a minimum (409 `WORDS_REQUIRED`), two no-word reports in a row raise the
   quiet `NO_NEW_WORDS` flag, `words.maxPerReport` caps one report. `SpotCheckGraderService`
   grades the Mini App answer with one forced-tool call; the verdict is never returned to the
@@ -186,7 +193,12 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   texts).
 - Spot checks: for no-transcript listening reports the check may plant a question
   (`spotCheckProbability`); it lives in `dialogState.pendingSpotCheckId`, is shown in the state
-  block until answered, and expires to `NO_ANSWER` after `spotCheckExpiryDays`.
+  block until answered, and expires to `NO_ANSWER` after `spotCheckExpiryDays`. **F7:** the
+  grader (`spot_check_grade`) sees the whole `rawText`, not the retelling alone; OK needs one
+  concrete detail in the student's own words (no verbatim quote), VAGUE is only "fits any
+  episode", WRONG only a contradiction; it returns `evidence`, kept when `findQuote` finds it,
+  and the flag's `details.spotCheck = { question, answer, verdict, quote }` shows all three on
+  the card.
 
 ### Cards (`domain/cards`)
 

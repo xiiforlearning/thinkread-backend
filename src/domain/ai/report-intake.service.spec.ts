@@ -6,6 +6,7 @@ import { Student } from '../students/student.entity';
 import { LlmPort } from './llm.port';
 import { PARSE_TOOL_NAME } from './report-intake.prompt';
 import { IntakeResult, ReportIntakeService } from './report-intake.service';
+import type { ReportWordLine } from './report-words.service';
 
 const NOW = new Date('2026-10-01T09:00:00Z');
 const TZ = 'Asia/Tashkent';
@@ -41,7 +42,7 @@ function make(
   llm: LlmPort,
   opts: {
     limit?: boolean;
-    extracted?: { hasList: boolean; items: { word: string; translation: string | null }[] };
+    extracted?: { hasList: boolean; items: Partial<ReportWordLine>[] };
     history?: { noNewWords: boolean }[];
     /** Windows of the week already holding a reading report (N1). */
     filled?: number[];
@@ -185,8 +186,8 @@ describe('ReportIntakeService', () => {
     expect(d.words.addWords).toHaveBeenCalledWith(
       s,
       [
-        { word: 'wand', translation: 'палочка' },
-        { word: 'Muggle', translation: null },
+        { word: 'wand', translation: 'палочка', example: null },
+        { word: 'Muggle', translation: null, example: null },
       ],
       { source: 'READING', sourceReportId: 'r1' },
     );
@@ -212,7 +213,7 @@ describe('ReportIntakeService', () => {
     await d.svc.confirm(s, id, undefined, NOW, TZ);
     expect(d.words.addWords).toHaveBeenCalledWith(
       s,
-      [{ word: 'wand', translation: null }],
+      [{ word: 'wand', translation: null, example: null }],
       expect.anything(),
     );
   });
@@ -260,10 +261,69 @@ describe('ReportIntakeService', () => {
     expect(res.words.droppedDaily).toBe(1);
     expect(d.words.addWords).toHaveBeenCalledWith(
       s,
-      [{ word: 'wand', translation: null }],
+      [{ word: 'wand', translation: null, example: null }],
       expect.anything(),
     );
     expect(d.reports.filledSlots).toHaveBeenCalledWith('s1', '2026-09-28');
+  });
+
+  it('W6: basic words stay out unless ticked; the context sentence and contextual translation ride along', async () => {
+    const d = make(llmReturning(READING), {
+      extracted: {
+        hasList: true,
+        items: [
+          {
+            word: 'will',
+            translation: 'воля',
+            suggested: true,
+            context: 'His will to live was strong.',
+            basic: false,
+          },
+          { word: 'uncle', translation: null, suggested: false, context: null, basic: true },
+        ],
+      },
+    });
+    const s = student(GroupLevel.INTERMEDIATE);
+    const first = await d.svc.submit(s, ReportType.READING, 'прочитал...', NOW, TZ);
+    if (first.status !== 'CONFIRM_WORDS') throw new Error(first.status);
+    expect(first.words).toEqual([
+      expect.objectContaining({
+        word: 'will',
+        translation: 'воля',
+        suggested: true,
+        context: 'His will to live was strong.',
+      }),
+      expect.objectContaining({ word: 'uncle', basic: true }),
+    ]);
+
+    // Default (no list from the screen): the A1 word is left out.
+    await d.svc.confirm(s, first.draftId, undefined, NOW, TZ);
+    expect(d.words.addWords).toHaveBeenCalledWith(
+      s,
+      [{ word: 'will', translation: 'воля', example: 'His will to live was strong.' }],
+      expect.anything(),
+    );
+
+    // The screen sends words without their context; the draft fills it in. A ticked basic word is added.
+    d.words.addWords.mockClear();
+    s.dialogState = {};
+    const again = await d.svc.submit(s, ReportType.READING, 'прочитал...', NOW, TZ);
+    if (again.status !== 'CONFIRM_WORDS') throw new Error(again.status);
+    await d.svc.confirm(
+      s,
+      again.draftId,
+      [{ word: 'will' }, { word: 'uncle', translation: 'дядя' }],
+      NOW,
+      TZ,
+    );
+    expect(d.words.addWords).toHaveBeenCalledWith(
+      s,
+      [
+        { word: 'will', translation: 'воля', example: 'His will to live was strong.' },
+        { word: 'uncle', translation: 'дядя', example: null },
+      ],
+      expect.anything(),
+    );
   });
 
   it('refuses to confirm below the owner minimum of words', async () => {

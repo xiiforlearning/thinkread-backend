@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import { extractWordList } from '../words/normalize';
-import { proseOf } from './report-text';
+import { isBasicWord } from '../words/basic';
+import { extractWordList, lemmaOf } from '../words/normalize';
+import { proseOf, sentenceWith } from './report-text';
 
 /**
  * Rule-based simulators for every AI skill — what `AI_MODE=fake` answers.
@@ -119,7 +120,15 @@ export function parseReading(text: string): Record<string, unknown> {
 /** The student's explicit word list, by the same rules the code uses for pasted lists. */
 export function reportWords(text: string): Record<string, unknown> {
   const { hasList, items } = extractWordList(text);
-  return { has_list: hasList, items };
+  return {
+    has_list: hasList,
+    items: items.map((w) => ({
+      ...w,
+      context: sentenceWith(text, w.word),
+      suggested_translation: w.translation ? null : (DICT[lemmaOf(w.word)] ?? null),
+      basic: isBasicWord(lemmaOf(w.word)),
+    })),
+  };
 }
 
 export function parseListening(text: string): Record<string, unknown> {
@@ -230,10 +239,10 @@ export function gradeSpotCheck(text: string): Record<string, unknown> {
   const answer = text.split(/ответ[^:]*:/i)[1] ?? text;
   const words = answer.trim().split(/\s+/).filter(Boolean).length;
   if (words === 0 || /не помню|don't remember|dont remember/i.test(answer))
-    return { verdict: 'VAGUE', reason: 'Фейковый AI: ответа по сути нет.' };
+    return { verdict: 'VAGUE', reason: 'Фейковый AI: ответа по сути нет.', evidence: null };
   return words >= 4
-    ? { verdict: 'OK', reason: 'Фейковый AI: ответ достаточно конкретный.' }
-    : { verdict: 'VAGUE', reason: 'Фейковый AI: слишком коротко.' };
+    ? { verdict: 'OK', reason: 'Фейковый AI: ответ достаточно конкретный.', evidence: null }
+    : { verdict: 'VAGUE', reason: 'Фейковый AI: слишком коротко.', evidence: null };
 }
 
 /** ok when the sentence has at least three words and contains the word; a canned grammar hint for "i " lowercase. */

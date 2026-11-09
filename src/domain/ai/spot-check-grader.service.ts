@@ -8,6 +8,7 @@ import { ReportsService } from '../reports/reports.service';
 import { Student } from '../students/student.entity';
 import { StudentsService } from '../students/students.service';
 import { LLM_PORT, LlmPort } from './llm.port';
+import { findQuote } from './report-text';
 import {
   SPOT_CHECK_SYSTEM_PROMPT,
   SPOT_CHECK_TOOL,
@@ -58,20 +59,24 @@ export class SpotCheckGraderService {
       await this.students.patchDialogState(student, { pendingSpotCheckId: undefined });
       return;
     }
-    const verdict =
+    const graded =
       answer === null
-        ? SpotCheckVerdict.NO_ANSWER
+        ? { verdict: SpotCheckVerdict.NO_ANSWER, evidence: null }
         : await this.grade(student, check.reportId, check.question, answer);
-    await this.flags.answerSpotCheck(check.id, answer, verdict, now);
+    await this.flags.answerSpotCheck(check.id, answer, graded.verdict, now, graded.evidence);
     await this.students.patchDialogState(student, { pendingSpotCheckId: undefined });
   }
 
+  /**
+   * F7: the model sees the whole report, not the retelling alone, and names the fragment it
+   * relied on; code keeps that fragment only when it really is in the text.
+   */
   private async grade(
     student: Student,
     reportId: string,
     question: string,
     answer: string,
-  ): Promise<SpotCheckVerdict> {
+  ): Promise<{ verdict: SpotCheckVerdict; evidence: string | null }> {
     const report = await this.reports.findById(reportId);
     const model = this.config.aiModelAuthenticity;
     try {
@@ -87,6 +92,7 @@ export class SpotCheckGraderService {
           {
             role: 'user',
             content: JSON.stringify({
+              report_text: report?.rawText ?? null,
               retelling: report?.summary ?? null,
               sourceTitle: report?.sourceTitle ?? null,
               question,
@@ -100,14 +106,19 @@ export class SpotCheckGraderService {
         (b): b is Anthropic.ToolUseBlock =>
           b.type === 'tool_use' && b.name === SPOT_CHECK_TOOL_NAME,
       );
-      const verdict = (call?.input as { verdict?: string } | undefined)?.verdict;
-      return verdict === SpotCheckVerdict.OK || verdict === SpotCheckVerdict.WRONG
-        ? verdict
-        : SpotCheckVerdict.VAGUE;
+      const input = call?.input as { verdict?: string; evidence?: unknown } | undefined;
+      const verdict =
+        input?.verdict === SpotCheckVerdict.OK || input?.verdict === SpotCheckVerdict.WRONG
+          ? input.verdict
+          : SpotCheckVerdict.VAGUE;
+      const claimed = typeof input?.evidence === 'string' ? input.evidence.trim() : '';
+      const text = report?.rawText ?? '';
+      const evidence = claimed && text && findQuote(claimed, text) ? claimed : null;
+      return { verdict, evidence };
     } catch (err) {
       // The student already got "thanks"; a grading failure must not surface. Treat as unknown.
       this.logger.warn(`spot check grading failed for ${student.id}: ${(err as Error).message}`);
-      return SpotCheckVerdict.VAGUE;
+      return { verdict: SpotCheckVerdict.VAGUE, evidence: null };
     }
   }
 }

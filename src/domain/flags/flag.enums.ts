@@ -61,4 +61,12 @@ export interface FlagDetails {
   errors?: string[];
   /** Verified above-level fragments. */
   advancedQuotes?: string[];
+  /** SPOT_CHECK_FAILED (F7): the question, the student's answer and the fragment of the report the grader relied on. */
+  spotCheck?: {
+    question: string;
+    answer: string | null;
+    verdict: SpotCheckVerdict;
+    /** Exact fragment of the report that confirms or contradicts the answer; verified by code. */
+    quote: string | null;
+  };
 }

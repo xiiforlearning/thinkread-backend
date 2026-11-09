@@ -213,6 +213,8 @@ export class FlagsService {
     answer: string | null,
     verdict: SpotCheckVerdict,
     now: Date,
+    /** F7: the fragment of the report the grader relied on (already verified against the text). */
+    evidence: string | null = null,
   ): Promise<SpotCheck> {
     const check = await this.findSpotCheck(id);
     if (!check) {
@@ -230,11 +232,20 @@ export class FlagsService {
     await this.spotChecks.save(check);
 
     if (verdict !== SpotCheckVerdict.OK) {
+      const why =
+        verdict === SpotCheckVerdict.WRONG
+          ? 'ответ расходится с отчётом'
+          : verdict === SpotCheckVerdict.NO_ANSWER
+            ? 'студент ответил «не помню»'
+            : 'ответ общий, без конкретики';
       await this.raise({
         studentId: check.studentId,
         reportId: check.reportId,
         kind: FlagKind.SPOT_CHECK_FAILED,
-        reason: `Точечный вопрос: «${check.question}» — вердикт ${verdict}.`,
+        reason: `Точечный вопрос по выпуску: ${why} (${verdict}). Сам вопрос, ответ и фрагмент отчёта — в карточке.`,
+        details: {
+          spotCheck: { question: check.question, answer, verdict, quote: evidence },
+        },
       });
     }
     return check;

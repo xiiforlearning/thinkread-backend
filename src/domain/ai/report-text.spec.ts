@@ -1,4 +1,11 @@
-import { dedupeText, findQuote, isConnectedText, proseOf, wordCount } from './report-text';
+import {
+  dedupeText,
+  findQuote,
+  isConnectedText,
+  proseOf,
+  sentenceWith,
+  wordCount,
+} from './report-text';
 
 describe('report text helpers', () => {
   it('proseOf drops the word list and keeps the retelling', () => {
@@ -49,5 +56,18 @@ describe('report text helpers', () => {
     expect(findQuote('strange things', text)).toBe(true);
     expect(findQuote('things', text)).toBe(false);
     expect(wordCount('Hello, world — ещё раз!')).toBe(4);
+  });
+
+  it("sentenceWith finds the student's sentence with the word, inflected too, never the list", () => {
+    const text =
+      'I read about Harry. His will to live was strong, and he walked for hours.\nNew words:\nwill — воля\nwalk — идти';
+    expect(sentenceWith(text, 'will')).toBe(
+      'His will to live was strong, and he walked for hours.',
+    );
+    expect(sentenceWith(text, 'walk')).toBe(
+      'His will to live was strong, and he walked for hours.',
+    );
+    expect(sentenceWith(text, 'to walk')).not.toBeNull();
+    expect(sentenceWith(text, 'wand')).toBeNull();
   });
 });

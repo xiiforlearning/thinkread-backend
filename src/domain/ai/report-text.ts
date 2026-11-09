@@ -150,3 +150,29 @@ export function findQuote(quote: string, text: string): boolean {
   }
   return false;
 }
+
+const MAX_CONTEXT_CHARS = 220;
+
+/**
+ * The sentence of the student's prose where `word` is used (W6: the dictionary shows the word
+ * in the student's own sentence, and the translation follows that meaning). Simple inflections
+ * (walks, walked, walking, boxes) count; the word list itself is never searched. Null when the
+ * word is not used in the retelling.
+ */
+export function sentenceWith(text: string, word: string): string | null {
+  const head = word
+    .trim()
+    .toLowerCase()
+    .replace(/^to\s+/, '');
+  if (!head) return null;
+  const escaped = head.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  const re = new RegExp(`(?<![a-z])${escaped}(?:s|es|ed|d|ing)?(?![a-z])`, 'i');
+  for (const raw of proseOf(text).split(/(?<=[.!?…])\s+|\n+/)) {
+    const sentence = raw.trim();
+    if (!sentence || !re.test(sentence)) continue;
+    return sentence.length > MAX_CONTEXT_CHARS
+      ? `${sentence.slice(0, MAX_CONTEXT_CHARS - 1)}…`
+      : sentence;
+  }
+  return null;
+}
