@@ -101,7 +101,11 @@ export class MeWordsController {
       const preview = await this.imports.createPreview(student, parsed);
       return { preview: true, ...preview };
     }
-    const result = await this.words.addWords(student, parsed, { source: WordSource.MANUAL });
+    const room = await this.words.dailyRoom(student.id, new Date(), this.config.timezone);
+    const droppedDaily = Math.max(0, parsed.length - room);
+    const result = await this.words.addWords(student, parsed.slice(0, room), {
+      source: WordSource.MANUAL,
+    });
     if (result.added.length > 0) {
       await this.enrichment
         .enrich(
@@ -118,6 +122,8 @@ export class MeWordsController {
       added: fresh.map(wordView),
       alreadyHad: result.existing.map(wordView),
       alreadyLearned: result.learned.map(wordView),
+      droppedDaily,
+      dailyMax: globalConfig.words.maxPerDay,
     };
   }
 
@@ -151,14 +157,20 @@ export class MeWordsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ConfirmImportDto,
   ): Promise<Record<string, unknown>> {
-    const result = await this.imports.confirm(id, student, dto.excludeWords ?? []);
+    const room = await this.words.dailyRoom(student.id, new Date(), this.config.timezone);
+    const result = await this.imports.confirm(id, student, dto.excludeWords ?? [], room);
     if (result.added.length > 0) {
       this.enrichment.enrichLater(
         result.added.map((w) => w.lemma ?? lemmaOf(w.word)),
         student.id,
       );
     }
-    return { added: result.added.length, words: result.added.map(wordView) };
+    return {
+      added: result.added.length,
+      words: result.added.map(wordView),
+      droppedDaily: result.droppedDaily,
+      dailyMax: globalConfig.words.maxPerDay,
+    };
   }
 
   @Post('word-imports/:id/cancel')

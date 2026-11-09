@@ -3,7 +3,7 @@ import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
 import { FlagsService } from '../flags/flags.service';
 import { GroupsService } from '../groups/groups.service';
-import { recentWeekStarts } from '../norms/week';
+import { recentWeekStarts, slotOf, slotViews, weekStart } from '../norms/week';
 import { Report, ReportType } from '../reports/report.entity';
 import { ReportsService } from '../reports/reports.service';
 import { healthOf, silentDays } from '../students/health';
@@ -30,7 +30,17 @@ export interface StudentFacts {
   norms: { readingPerWeek: number; listeningPerWeek: number; cardsPerDay: number };
   period: { from: string; to: string; label: string };
   weeks: Array<{ weekStart: string; reading: number; listening: number }>;
+  /** Completed weeks only — the current one is still running and is not a miss. */
   weeksMet: { reading: number; listening: number; of: number };
+  /** The week in progress: filled windows so far and the window open now (N1/N2). */
+  currentWeek: {
+    weekStart: string;
+    reading: number;
+    listening: number;
+    openWindow: number;
+    windowClosesOn: string;
+    note: string;
+  } | null;
   reports: Array<{
     date: string;
     type: 'READING' | 'LISTENING';
@@ -108,6 +118,12 @@ export class StudentFactsService {
       weekStart,
       ...(counts.get(`${student.id}|${weekStart}`) ?? { reading: 0, listening: 0 }),
     }));
+    const thisWeek = weekStart(now, tz);
+    const current = weeks.find((w) => w.weekStart === thisWeek) ?? null;
+    const completed = weeks.filter((w) => w.weekStart !== thisWeek);
+    const windowClosesOn =
+      slotViews(thisWeek, new Set(), now, tz).find((v) => v.slot === slotOf(now, tz))?.to ??
+      thisWeek;
     const inRange = history.filter((r) => r.createdAt >= from && r.createdAt < to);
     const reports = inRange.map((r) => this.reportFacts(r));
     const sources = [...new Set(inRange.map((r) => r.sourceTitle).filter((s): s is string => !!s))];
@@ -138,10 +154,20 @@ export class StudentFactsService {
       },
       weeks,
       weeksMet: {
-        reading: weeks.filter((w) => w.reading >= norms.readingPerWeek).length,
-        listening: weeks.filter((w) => w.listening >= norms.listeningPerWeek).length,
-        of: weeks.length,
+        reading: completed.filter((w) => w.reading >= norms.readingPerWeek).length,
+        listening: completed.filter((w) => w.listening >= norms.listeningPerWeek).length,
+        of: completed.length,
       },
+      currentWeek: current
+        ? {
+            weekStart: current.weekStart,
+            reading: current.reading,
+            listening: current.listening,
+            openWindow: slotOf(now, tz),
+            windowClosesOn,
+            note: `неделя ещё идёт, окно ${slotOf(now, tz)} закрывается ${windowClosesOn}`,
+          }
+        : null,
       reports,
       totals: {
         reports: inRange.length,

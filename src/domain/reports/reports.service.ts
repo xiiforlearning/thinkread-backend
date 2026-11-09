@@ -7,7 +7,7 @@ import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { globalConfig } from '../../config/global.config';
 import { listeningMethodFor } from '../groups/level';
-import { localDay, weekStart } from '../norms/week';
+import { localDay, SlotView, slotOf, slotViews, weekStart } from '../norms/week';
 import { Student } from '../students/student.entity';
 import { ListeningReportInput } from './listening-fields';
 import { ReportMetrics } from '../flags/flag.enums';
@@ -36,10 +36,13 @@ export interface ReportOrigin {
 
 export interface WeekProgress {
   weekStart: string;
+  /** Windows of the week with at least one report of the type (N1), not raw report counts. */
   reading: number;
   listening: number;
   readingNorm: number;
   listeningNorm: number;
+  /** The three windows of each type as the student sees them now. */
+  slots?: { reading: SlotView[]; listening: SlotView[] };
 }
 
 /**
@@ -83,6 +86,7 @@ export class ReportsService {
         wordsAdded: 0,
         noNewWords: origin.noNewWords ?? false,
         weekStart: weekStart(origin.now, origin.timeZone),
+        slot: slotOf(origin.now, origin.timeZone),
         isForwarded: origin.forwarded,
       }),
     );
@@ -126,31 +130,51 @@ export class ReportsService {
         wordsAdded: 0,
         noNewWords: origin.noNewWords ?? false,
         weekStart: weekStart(origin.now, origin.timeZone),
+        slot: slotOf(origin.now, origin.timeZone),
         isForwarded: origin.forwarded,
       }),
     );
   }
 
-  /** Reports of the local week containing `now`, by type, against the norms. */
+  /**
+   * The local week containing `now`: which windows of each type are filled (N1 — a second report
+   * in the same window counts once), against the owner's weekly norm.
+   */
   async weekProgress(studentId: string, now: Date, timeZone: string): Promise<WeekProgress> {
     const start = weekStart(now, timeZone);
+    const filled = await this.filledSlots(studentId, start);
+    return {
+      weekStart: start,
+      reading: filled.reading.size,
+      listening: filled.listening.size,
+      readingNorm: globalConfig.norms.readingPerWeek,
+      listeningNorm: globalConfig.norms.listeningPerWeek,
+      slots: {
+        reading: slotViews(start, filled.reading, now, timeZone),
+        listening: slotViews(start, filled.listening, now, timeZone),
+      },
+    };
+  }
+
+  /** Windows of one week that already hold a report, per type. */
+  async filledSlots(
+    studentId: string,
+    start: string,
+  ): Promise<{ reading: Set<number>; listening: Set<number> }> {
     const rows = await this.repo
       .createQueryBuilder('r')
       .select('r.type', 'type')
-      .addSelect('COUNT(*)', 'count')
+      .addSelect('r.slot', 'slot')
       .where('r.student_id = :studentId', { studentId })
       .andWhere('r.week_start = :start', { start })
+      .andWhere('r.slot IS NOT NULL')
       .groupBy('r.type')
-      .getRawMany<{ type: ReportType; count: string }>();
-    const count = (type: ReportType): number =>
-      Number(rows.find((r) => r.type === type)?.count ?? 0);
-    return {
-      weekStart: start,
-      reading: count(ReportType.READING),
-      listening: count(ReportType.LISTENING),
-      readingNorm: globalConfig.norms.readingPerWeek,
-      listeningNorm: globalConfig.norms.listeningPerWeek,
-    };
+      .addGroupBy('r.slot')
+      .getRawMany<{ type: ReportType; slot: number }>();
+    const out = { reading: new Set<number>(), listening: new Set<number>() };
+    for (const row of rows)
+      (row.type === ReportType.READING ? out.reading : out.listening).add(Number(row.slot));
+    return out;
   }
 
   async setWordsAdded(reportId: string, wordsAdded: number): Promise<void> {
@@ -211,7 +235,8 @@ export class ReportsService {
       .select('r.student_id', 'studentId')
       .addSelect('r.week_start', 'weekStart')
       .addSelect('r.type', 'type')
-      .addSelect('COUNT(*)', 'count')
+      // Windows filled, not reports handed in (N1): two reports in one window count once.
+      .addSelect('COUNT(DISTINCT COALESCE(r.slot, 0))', 'count')
       .where('r.student_id IN (:...studentIds)', { studentIds })
       .andWhere('r.week_start IN (:...weekStarts)', { weekStarts })
       .groupBy('r.student_id')
@@ -288,7 +313,7 @@ export class ReportsService {
       .createQueryBuilder('r')
       .select('r.week_start', 'weekStart')
       .addSelect('r.type', 'type')
-      .addSelect('COUNT(*)', 'count')
+      .addSelect('COUNT(DISTINCT COALESCE(r.slot, 0))', 'count')
       .where('r.student_id = :studentId', { studentId })
       .andWhere('r.week_start IN (:...starts)', { starts })
       .groupBy('r.week_start')

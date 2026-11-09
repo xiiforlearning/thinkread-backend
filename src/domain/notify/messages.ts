@@ -19,9 +19,9 @@ const ru: ReminderTexts = {
       parts.push(`аудирование — ещё ${missing.listening} из ${norm.listening}`);
     const left =
       daysLeft <= 1
-        ? 'Сегодня последний день недели'
-        : `До конца недели ${daysLeft} ${plural(daysLeft, 'день', 'дня', 'дней')}`;
-    return `${left}. Осталось: ${parts.join(', ')}. Отчёт сдаётся в приложении — одним сообщением.`;
+        ? 'The submission window closes today'
+        : `The submission window closes in ${daysLeft} ${pluralEn(daysLeft, 'day', 'days')}`;
+    return `${left}. Still open this week: ${parts.join(', ')}. A missed window cannot be made up later — submit the report in the app in one message.`;
   },
 };
 
@@ -35,9 +35,9 @@ const en: ReminderTexts = {
       parts.push(`listening — ${missing.listening} more of ${norm.listening}`);
     const left =
       daysLeft <= 1
-        ? 'Today is the last day of the week'
-        : `${daysLeft} ${pluralEn(daysLeft, 'day', 'days')} left in the week`;
-    return `${left}. Still to do: ${parts.join(', ')}. Reports are handed in in the app — one message each.`;
+        ? 'The submission window closes today'
+        : `The submission window closes in ${daysLeft} ${pluralEn(daysLeft, 'day', 'days')}`;
+    return `${left}. Still open this week: ${parts.join(', ')}. A missed window cannot be made up later — submit the report in the app in one message.`;
   },
 };
 

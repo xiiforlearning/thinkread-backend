@@ -70,8 +70,8 @@ export function reportView(r: Report): Record<string, unknown> {
 export function weekView(p: WeekProgress): Record<string, unknown> {
   return {
     weekStart: p.weekStart,
-    reading: { done: p.reading, norm: p.readingNorm },
-    listening: { done: p.listening, norm: p.listeningNorm },
+    reading: { done: p.reading, norm: p.readingNorm, slots: p.slots?.reading ?? [] },
+    listening: { done: p.listening, norm: p.listeningNorm, slots: p.slots?.listening ?? [] },
   };
 }
 

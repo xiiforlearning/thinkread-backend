@@ -107,6 +107,10 @@ export class Report {
   @Column({ type: 'date', name: 'week_start' })
   weekStart!: string;
 
+  /** Submission window of the week (1 = Mon–Tue, 2 = Wed–Thu, 3 = Fri–Sun) the report was handed in. */
+  @Column({ type: 'smallint', nullable: true })
+  slot!: number | null;
+
   /** Arrived as a forwarded message — an authenticity signal. */
   @Column({ type: 'boolean', name: 'is_forwarded', default: false })
   isForwarded!: boolean;

@@ -60,20 +60,23 @@ export class WordImportsService {
   }
 
   /** Confirm a pending preview for its owner. Expired previews are marked and refused. */
+  /** `room` = how many words the daily cap still allows (W4); the rest are reported as dropped. */
   async confirm(
     id: string,
     student: Student,
     excludedWords: string[] = [],
-  ): Promise<AddWordsResult> {
+    room = Number.POSITIVE_INFINITY,
+  ): Promise<AddWordsResult & { droppedDaily: number }> {
     const row = await this.getPending(id, student);
     const excluded = new Set(excludedWords.map(lemmaOf));
-    const inputs = row.items
+    const all = row.items
       .filter((i) => !i.duplicate && !i.excluded && !excluded.has(lemmaOf(i.word)))
       .map((i) => ({ word: i.word, translation: i.translation }));
+    const inputs = all.slice(0, Math.max(0, room));
     const result = await this.words.addWords(student, inputs, { source: WordSource.IMPORT });
     row.status = ImportStatus.CONFIRMED;
     await this.repo.save(row);
-    return result;
+    return { ...result, droppedDaily: all.length - inputs.length };
   }
 
   async cancel(id: string, student: Student): Promise<void> {

@@ -153,7 +153,7 @@ describe('ReminderPlannerService', () => {
     expect(run.skipped.done).toBe(1);
     expect(f.sent[0].text).toContain('reading — 2 more of 3');
     expect(f.sent[0].text).not.toContain('listening');
-    expect(f.sent[0].text).toContain('4 days left in the week'); // Thursday
+    expect(f.sent[0].text).toContain('closes today'); // Thursday = last day of window 2
   });
 
   it('reports: silent outside report days unless forced', async () => {
@@ -162,12 +162,12 @@ describe('ReminderPlannerService', () => {
       students: [student({ telegramUserId: 1 })],
       progress: { 's-1': { reading: 0, listening: 0 } },
     });
-    expect(globalConfig.reminders.reportDays).toEqual([4, 6]);
+    expect(globalConfig.reminders.reportDays).toEqual([2, 4, 0]); // Tue, Thu, Sun
     const quiet = await planner(f).runReports(monday);
     expect(quiet.sent).toBe(0);
     expect(quiet.skipped.notReportDay).toBe(1);
     const forced = await planner(f).runReports(monday, true);
     expect(forced.sent).toBe(1);
-    expect(f.sent[0].text).toContain('7 days left');
+    expect(f.sent[0].text).toContain('closes in 2 days'); // Monday: window 1 ends Tuesday
   });
 });
