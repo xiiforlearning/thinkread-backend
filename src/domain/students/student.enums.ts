@@ -46,6 +46,12 @@ export interface DraftWord {
   translation: string | null;
   /** Already in the vocabulary — shown, not added. */
   duplicate: boolean;
+  /** W6: `translation` is the AI's contextual suggestion, the student wrote none. */
+  suggested?: boolean;
+  /** W6: the student's own sentence with the word — becomes the card's example. */
+  context?: string | null;
+  /** W6: A1 vocabulary — unticked by default, added only if the student ticks it. */
+  basic?: boolean;
 }
 
 /**

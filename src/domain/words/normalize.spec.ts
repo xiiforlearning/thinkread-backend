@@ -1,3 +1,4 @@
+import { isBasicWord } from './basic';
 import { extractWordList, lemmaOf, parseWordList } from './normalize';
 
 describe('lemmaOf', () => {
@@ -128,5 +129,12 @@ describe('extractWordList', () => {
         'Podcast : How to decorate\nEpisode: 489. Sam Cochran\nUnderstand: 75%\nListen to: 1 time',
       ).items,
     ).toEqual([]);
+  });
+
+  it('A1 words are basic, the rest and phrases are not (W6)', () => {
+    expect(isBasicWord('uncle')).toBe(true);
+    expect(isBasicWord('Night')).toBe(true);
+    expect(isBasicWord('resemblance')).toBe(false);
+    expect(isBasicWord('look forward to')).toBe(false);
   });
 });

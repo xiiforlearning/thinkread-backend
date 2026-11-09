@@ -55,6 +55,11 @@ export const globalConfig = {
   },
 
   words: {
+    /**
+     * W6 (teacher, 02.11.2026): A1 vocabulary from a report's list is shown unticked on the
+     * confirmation screen and added only if the student ticks it. true = add like any word.
+     */
+    autoAddBasic: false,
     /** Adding more than this many words at once requires confirmation. */
     bulkImportConfirmThreshold: 5,
     importPreviewTtlHours: 24,

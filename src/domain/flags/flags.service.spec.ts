@@ -101,9 +101,20 @@ describe('FlagsService', () => {
     expect(flags.save).not.toHaveBeenCalled();
 
     spotChecks.findOne.mockResolvedValueOnce({ ...ok, answeredAt: null, verdict: null });
-    await svc.answerSpotCheck('sc1', 'dunno', SpotCheckVerdict.VAGUE, now);
+    await svc.answerSpotCheck('sc1', 'dunno', SpotCheckVerdict.VAGUE, now, 'it ended well');
     expect(flags.save).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: FlagKind.SPOT_CHECK_FAILED, reportId: 'r1' }),
+      expect.objectContaining({
+        kind: FlagKind.SPOT_CHECK_FAILED,
+        reportId: 'r1',
+        details: expect.objectContaining({
+          spotCheck: {
+            question: 'Чем закончилось?',
+            answer: 'dunno',
+            verdict: SpotCheckVerdict.VAGUE,
+            quote: 'it ended well',
+          },
+        }),
+      }),
     );
   });
 
