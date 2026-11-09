@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { groupTitle } from '../../../domain/groups/group.entity';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminRole } from '../../../domain/admins/admin.entity';
 import { Flag } from '../../../domain/flags/flag.entity';
@@ -44,7 +45,7 @@ export class AdminFlagsController {
       this.groups.findAllActive(),
       this.students.memberGroupIdsFor(studentIds),
     ]);
-    const title = new Map(groups.map((g) => [g.chatId, g.title]));
+    const title = new Map(groups.map((g) => [g.chatId, groupTitle(g)]));
     const refs = (id: string): GroupRef[] =>
       (byStudent.get(id) ?? [])
         .filter((c) => title.has(c))

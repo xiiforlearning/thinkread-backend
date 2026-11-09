@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   Param,
@@ -204,6 +205,15 @@ export class MeWordsController {
       word = await this.words.updateTranslation(word, dto.translation);
     if (dto.status !== undefined) word = await this.words.setStatus(word, dto.status);
     return wordView(word);
+  }
+
+  @Delete('words/:id')
+  @ApiOperation({ summary: 'W5: remove the word from the dictionary (it can be added again)' })
+  async remove(
+    @CurrentStudent() student: Student,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<Record<string, unknown>> {
+    return wordView(await this.words.remove(await this.owned(student, id)));
   }
 
   @Patch('words/:id/priority')

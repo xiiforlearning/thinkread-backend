@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { groupTitle } from '../groups/group.entity';
 import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
 import { plural } from '../../common/plural';
@@ -93,7 +94,7 @@ export class WeeklySummaryService {
       this.flags.list({ status: FlagStatus.NEW, studentIds: ids, limit: 500 }),
     ]);
     const groups = groupIds ? groupsAll.filter((g) => groupIds.includes(g.chatId)) : groupsAll;
-    const title = new Map(groups.map((g) => [g.chatId, g.title]));
+    const title = new Map(groups.map((g) => [g.chatId, groupTitle(g)]));
     const groupsOf = (id: string): string =>
       (byStudent.get(id) ?? [])
         .map((chatId) => title.get(chatId))
@@ -143,7 +144,7 @@ export class WeeklySummaryService {
         const members = active.filter((s) => (byStudent.get(s.id) ?? []).includes(g.chatId));
         return {
           chatId: g.chatId,
-          title: g.title,
+          title: groupTitle(g),
           students: members.length,
           readingRate: rate(members, week, 'reading'),
           listeningRate: rate(members, week, 'listening'),

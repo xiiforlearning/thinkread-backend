@@ -49,6 +49,11 @@ export class GroupsService {
     await this.repo.update({ chatId }, { isActive: false });
   }
 
+  /** D12: the owner's name for the group; null or empty = back to the Telegram title. */
+  async rename(chatId: number, title: string | null): Promise<void> {
+    await this.repo.update({ chatId }, { displayTitle: title?.trim() || null });
+  }
+
   async setLevel(chatId: number, level: GroupLevel): Promise<void> {
     await this.repo.update({ chatId }, { level });
   }

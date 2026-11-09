@@ -1,4 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { groupTitle } from '../../../domain/groups/group.entity';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppConfigService } from '../../../config/config.service';
 import { CardsService } from '../../../domain/cards/cards.service';
@@ -102,11 +103,11 @@ export class AdminOverviewController {
       return Math.round((met / ids.length) * 100) / 100;
     };
 
-    const groupTitle = new Map(groups.map((g) => [g.chatId, g.title]));
+    const groupTitles = new Map(groups.map((g) => [g.chatId, groupTitle(g)]));
     const refsOf = (id: string): GroupRef[] =>
       (groupsByStudent.get(id) ?? [])
-        .filter((chatId) => groupTitle.has(chatId))
-        .map((chatId) => ({ chatId, title: groupTitle.get(chatId) as string }));
+        .filter((chatId) => groupTitles.has(chatId))
+        .map((chatId) => ({ chatId, title: groupTitles.get(chatId) as string }));
 
     const healthByStudent = new Map<string, Health>(active.map((s) => [s.id, healthOf(s, now)]));
     const healthByGroup = groups.map((g) => {
@@ -116,7 +117,7 @@ export class AdminOverviewController {
       for (const m of members) tally[healthByStudent.get(m.id) ?? 'good'] += 1;
       return {
         chatId: g.chatId,
-        title: g.title,
+        title: groupTitle(g),
         level: g.level,
         ...tally,
         // Registered (ACTIVE) members — the ones health is about — and those still to register.

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { groupTitle } from '../groups/group.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppConfigService } from '../../config/config.service';
@@ -78,7 +79,7 @@ export class AccessService {
           granted: false,
           groups: [],
         };
-        row.groups.push({ chatId: g.chatId, title: g.title });
+        row.groups.push({ chatId: g.chatId, title: groupTitle(g) });
         byId.set(id, row);
       }
     }

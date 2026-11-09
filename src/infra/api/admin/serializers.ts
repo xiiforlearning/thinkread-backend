@@ -1,7 +1,7 @@
 import { StaffMember } from '../../../domain/admins/access.service';
 import { Flag } from '../../../domain/flags/flag.entity';
 import { kindsOf, reasonsOf } from '../../../domain/flags/flags.service';
-import { Group } from '../../../domain/groups/group.entity';
+import { Group, groupTitle } from '../../../domain/groups/group.entity';
 import { MembershipCheck } from '../../../domain/membership/membership-check.entity';
 import { Report } from '../../../domain/reports/report.entity';
 import { Health } from '../../../domain/students/health';
@@ -106,7 +106,9 @@ export function groupView(
 ): Record<string, unknown> {
   return {
     chatId: g.chatId,
-    title: g.title,
+    title: groupTitle(g),
+    /** The chat's title in Telegram, when the owner gave the group another name (D12). */
+    telegramTitle: g.displayTitle ? g.title : null,
     level: g.level,
     isActive: g.isActive,
     members: extra.members,

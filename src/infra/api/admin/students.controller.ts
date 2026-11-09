@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Header,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -9,9 +11,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { groupTitle } from '../../../domain/groups/group.entity';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { fromZonedTime } from 'date-fns-tz';
+import { ErrorCode, ErrorLevel, ServiceCode } from '../../../common/codes';
+import { AppError } from '../../../common/errors';
 import { AppConfigService } from '../../../config/config.service';
 import { TeacherChatService } from '../../../domain/ai/teacher-chat.service';
 import { globalConfig } from '../../../config/global.config';
@@ -29,7 +34,7 @@ import { StudentsService } from '../../../domain/students/students.service';
 import { WordsService } from '../../../domain/words/words.service';
 import { JwtAuthGuard } from '../auth/guards';
 import { CurrentPrincipal, Principal, Roles } from '../auth/principal';
-import { ListQueryDto } from '../me/dto';
+import { ExportQueryDto, ListQueryDto } from '../me/dto';
 import { reportView, weekView, wordView } from '../me/serializers';
 import { ParentReportDto, RenameStudentDto, StudentsQueryDto, TeacherChatDto } from './dto';
 import { AdminScope, AdminScopeService } from './scope';
@@ -59,7 +64,7 @@ export class AdminStudentsController {
       this.groups.findAllActive(),
       this.students.memberGroupIdsFor(ids),
     ]);
-    const title = new Map(all.map((g) => [g.chatId, g.title]));
+    const title = new Map(all.map((g) => [g.chatId, groupTitle(g)]));
     return (id) =>
       (byStudent.get(id) ?? [])
         .filter((chatId) => title.has(chatId))
@@ -197,6 +202,50 @@ export class AdminStudentsController {
     const scope = await this.scope.resolve(principal);
     const student = await this.scope.student(scope, id);
     return (await this.words.search(student.id, { limit: 100 })).map(wordView);
+  }
+
+  @Get(':id/words/export')
+  @Header('Cache-Control', 'no-store')
+  @ApiOperation({
+    summary:
+      "D9: a student's whole vocabulary as csv or txt (text body; the client saves it) — archived students too",
+  })
+  async exportWords(
+    @CurrentPrincipal() principal: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() q: ExportQueryDto,
+  ): Promise<Record<string, unknown>> {
+    const scope = await this.scope.resolve(principal);
+    const student = await this.scope.student(scope, id);
+    const day = new Date().toISOString().slice(0, 10);
+    const name = displayNameOf(student).replace(/[^\p{L}\p{N}]+/gu, '_') || 'student';
+    return {
+      filename: `thinkread-words-${name}-${day}.${q.format}`,
+      content: await this.words.exportText(student.id, q.format),
+    };
+  }
+
+  @Delete(':id/words/:wordId')
+  @ApiOperation({
+    summary: "W5: remove a word from the student's dictionary (status REMOVED, the row stays)",
+  })
+  async removeWord(
+    @CurrentPrincipal() principal: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('wordId', ParseUUIDPipe) wordId: string,
+  ): Promise<Record<string, unknown>> {
+    const scope = await this.scope.resolve(principal);
+    const student = await this.scope.student(scope, id);
+    const word = await this.words.findById(wordId);
+    if (!word || word.studentId !== student.id) {
+      throw new AppError({
+        level: ErrorLevel.LOW_BUSINESS,
+        service: ServiceCode.WORDS,
+        error: ErrorCode.NOT_FOUND,
+        meta: { id: wordId },
+      });
+    }
+    return wordView(await this.words.remove(word));
   }
 
   @Patch(':id')

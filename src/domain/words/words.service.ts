@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, In, Repository } from 'typeorm';
+import { Brackets, In, Not, Repository } from 'typeorm';
 import { ErrorCode, ErrorLevel, ServiceCode } from '../../common/codes';
 import { AppError } from '../../common/errors';
 import { localDay } from '../norms/week';
@@ -101,6 +101,7 @@ export class WordsService {
     const existing: Word[] = [];
     const learned: Word[] = [];
     const toCreate: Word[] = [];
+    const restored: Word[] = [];
     const known = await this.lexicon.findMany(lemmas);
     const priority =
       opts.priority ??
@@ -108,6 +109,24 @@ export class WordsService {
 
     for (const [lemma, input] of clean) {
       const have = ownedByLemma.get(lemma);
+      if (have && have.status === WordStatus.REMOVED) {
+        // W5: a removed word added again starts over as a new one (the row is reused).
+        have.status = WordStatus.LEARNING;
+        have.stage = CardStage.TRANSLATION;
+        have.stageCorrect = 0;
+        have.correctTotal = 0;
+        have.nextDueAt = new Date();
+        have.learnedAt = null;
+        have.translation = input.translation ?? have.translation;
+        have.example = input.example ?? have.example;
+        have.priority = priority;
+        have.source = opts.source;
+        have.sourceReportId = opts.sourceReportId ?? null;
+        have.sourceListId = opts.sourceListId ?? null;
+        have.createdAt = new Date();
+        restored.push(have);
+        continue;
+      }
       if (have) {
         (have.status === WordStatus.LEARNED ? learned : existing).push(have);
         continue;
@@ -134,6 +153,7 @@ export class WordsService {
       );
     }
     const added = toCreate.length > 0 ? await this.repo.save(toCreate) : [];
+    for (const w of restored) added.push(await this.repo.save(w));
     return { added, existing, learned };
   }
 
@@ -204,6 +224,7 @@ export class WordsService {
       .addSelect('COUNT(*)', 'total')
       .addSelect(`COUNT(*) FILTER (WHERE w.status = '${WordStatus.LEARNED}')`, 'learned')
       .where('w.student_id IN (:...studentIds)', { studentIds })
+      .andWhere(`w.status <> '${WordStatus.REMOVED}'`)
       .groupBy('w.student_id')
       .getRawMany<{ studentId: string; total: string; learned: string }>();
     for (const r of rows)
@@ -221,6 +242,7 @@ export class WordsService {
       .addSelect('COUNT(*)', 'words')
       .addSelect(`COUNT(*) FILTER (WHERE w.status = '${WordStatus.LEARNED}')`, 'learned')
       .where('w.source_list_id = :listId', { listId })
+      .andWhere(`w.status <> '${WordStatus.REMOVED}'`)
       .getRawOne<{ students: string; words: string; learned: string }>();
     return {
       students: Number(row?.students ?? 0),
@@ -262,6 +284,7 @@ export class WordsService {
       .createQueryBuilder('w')
       .select('COALESCE(w.lemma, lower(w.word))', 'lemma')
       .where('w.student_id = :studentId', { studentId })
+      .andWhere(`w.status <> '${WordStatus.REMOVED}'`)
       .getRawMany<{ lemma: string }>();
     return new Set(rows.map((r) => r.lemma));
   }
@@ -280,7 +303,9 @@ export class WordsService {
         }),
       );
     }
+    // Removed words are shown only when asked for by status (W5).
     if (opts.status) qb.andWhere('w.status = :status', { status: opts.status });
+    else qb.andWhere(`w.status <> '${WordStatus.REMOVED}'`);
     if (opts.cefr) qb.andWhere('w.cefr = :cefr', { cefr: opts.cefr });
     if (opts.source) qb.andWhere('w.source = :source', { source: opts.source });
     if (opts.priority) qb.andWhere('w.priority = :priority', { priority: opts.priority });
@@ -288,7 +313,7 @@ export class WordsService {
   }
 
   async summary(studentId: string): Promise<VocabularySummary> {
-    const rows = await this.repo.find({ where: { studentId } });
+    const rows = await this.repo.find({ where: { studentId, status: Not(WordStatus.REMOVED) } });
     const summary: VocabularySummary = {
       total: rows.length,
       learning: 0,
@@ -307,6 +332,16 @@ export class WordsService {
       summary.bySource[w.source] = (summary.bySource[w.source] ?? 0) + 1;
     }
     return summary;
+  }
+
+  /**
+   * W5: the teacher or the student deletes a word — it leaves the lists, the cards and the
+   * counts; the row stays (no physical deletion) and `addWords` revives it on a re-add.
+   */
+  async remove(word: Word): Promise<Word> {
+    if (word.status === WordStatus.REMOVED) return word;
+    word.status = WordStatus.REMOVED;
+    return this.repo.save(word);
   }
 
   /** LEARNED excludes the word from cards; LEARNING returns it with its stage kept. */
@@ -331,7 +366,10 @@ export class WordsService {
 
   /** The whole vocabulary as a file body. CSV uses `;` — Excel in a Russian locale opens it as columns. */
   async exportText(studentId: string, format: 'csv' | 'txt'): Promise<string> {
-    const rows = await this.repo.find({ where: { studentId }, order: { createdAt: 'ASC' } });
+    const rows = await this.repo.find({
+      where: { studentId, status: Not(WordStatus.REMOVED) },
+      order: { createdAt: 'ASC' },
+    });
     if (format === 'txt') {
       return (
         rows.map((w) => (w.translation ? `${w.word} — ${w.translation}` : w.word)).join('\n') + '\n'

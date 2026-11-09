@@ -14,8 +14,13 @@ export class Group {
   })
   chatId!: number;
 
+  /** The Telegram chat title, refreshed whenever the bot sees the chat. */
   @Column({ type: 'varchar' })
   title!: string;
+
+  /** D12: the owner's own name for the group in the dashboard; null = the Telegram title. */
+  @Column({ type: 'varchar', name: 'display_title', nullable: true })
+  displayTitle!: string | null;
 
   /** Set once by the owner; null until then. */
   @Column({ type: 'varchar', length: 20, nullable: true })
@@ -44,4 +49,9 @@ export class Group {
 
   @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updatedAt!: Date;
+}
+
+/** The name the school uses for a group: the owner's, else Telegram's. */
+export function groupTitle(g: Pick<Group, 'title' | 'displayTitle'>): string {
+  return g.displayTitle?.trim() || g.title;
 }

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { groupTitle } from '../groups/group.entity';
 import { AppConfigService } from '../../config/config.service';
 import { globalConfig } from '../../config/global.config';
 import { FlagsService } from '../flags/flags.service';
@@ -117,7 +118,7 @@ export class SchoolFactsService {
     const groups = scope.groupIds
       ? groupsAll.filter((g) => scope.groupIds?.includes(g.chatId))
       : groupsAll;
-    const title = new Map(groups.map((g) => [g.chatId, g.title]));
+    const title = new Map(groups.map((g) => [g.chatId, groupTitle(g)]));
     const norms = globalConfig.norms;
     const cell = (id: string, w: string): { reading: number; listening: number } =>
       counts.get(`${id}|${w}`) ?? { reading: 0, listening: 0 };
@@ -195,7 +196,7 @@ export class SchoolFactsService {
         const members = active.filter((s) => (byStudent.get(s.id) ?? []).includes(g.chatId));
         return {
           chatId: g.chatId,
-          title: g.title,
+          title: groupTitle(g),
           level: g.level ? LEVEL_LABELS[g.level] : null,
           students: members.length,
           health: healthCounts(members),

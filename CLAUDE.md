@@ -229,6 +229,12 @@ rollout (hosting, the real bot, `AI_MODE=anthropic`) and polishing with the cust
   report.
 - `WordsService.addWords()` never duplicates (checks lemma and lower(word)), returns
   `{ added, existing, learned }`; manual, import and teacher-list words get `priority: HIGH`.
+  **W5 (teacher 02.11.2026):** `WordStatus.REMOVED` = deleted by the teacher
+  (`DELETE /admin/students/:id/words/:wordId`) or the student (`DELETE /me/words/:id`) —
+  `WordsService.remove()`; the row stays (no physical deletion), search / summary / counts /
+  export / `ownedLemmas` skip it, and `addWords()` revives it as a fresh LEARNING word on a
+  re-add. **D9:** `GET /admin/students/:id/words/export?format=csv|txt` returns the whole
+  dictionary of any visible student, archived included (same body as the Mini App export).
 - `WordImportsService`: more than `words.bulkImportConfirmThreshold` words → PENDING preview,
   confirmed by the `wimport:ok:<id>` / `wimport:no:<id>` callbacks in the bot; expires after
   `importPreviewTtlHours`. File uploads (`infra/bot/utils/word-file.ts`, `xlsx` for spreadsheets)
@@ -310,6 +316,16 @@ load groups, students (`PENDING_NAME`, name prefilled) and `student_groups`;
 `pnpm ops:announce --send` posts the move-over message in every active group with a
 `?startapp` link that opens the Mini App in the group (needs a Main Mini App in @BotFather;
 `--via-chat` falls back to `?start=app`). Steps and order: README «Migration from the old bot».
+
+### Groups (D12)
+
+`groups.display_title` is the owner's own name for a group (`PATCH /admin/groups/:chatId
+{ title }`, empty = back to Telegram's); `groupTitle(g)` in `group.entity.ts` is the one place
+that picks it over the chat title — every list, summary and AI fact goes through it, the
+serializer also returns `telegramTitle` when they differ. `GET /admin/groups/:chatId` is the
+group page (members with health and the week, pending registrations, norm rates of this and
+last week, new flags); `POST /admin/groups/:chatId/chat` is the school AI narrowed to that
+group's students. Teachers reach only their groups (`scope.assertGroup`).
 
 ### Groups join with the owner's approval
 
